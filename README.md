@@ -26,6 +26,14 @@ bash build.sh appimage   # ClipWorld-<version>.AppImage and clipworld-<version>.
 
 The npm equivalents are `npm run package:linux:dir` and `npm run package:linux`. Build Linux packages on Linux: Windows drops the files' execute permission and cannot make AppImages, so the Linux scripts refuse to run there. Fonts come from `fontconfig`, and hardware encoding (NVENC) is used when the NVIDIA driver supports it. On distributions that block unprivileged sandboxes (e.g. Ubuntu 24.04), an AppImage may need `--no-sandbox` to start; the `.tar.gz` build avoids that.
 
+### Releasing (from Windows)
+
+`release.bat` builds every download for a GitHub release into `release\v<version>\`: the Windows installer, a Windows portable zip, a Linux x64 `.tar.gz` (written with correct Linux file permissions, so it works even though it is built on Windows) and `SHA256SUMS.txt`. The version comes from `package.json`.
+
+- `release.bat arm64` also builds a Linux arm64 `.tar.gz`.
+- `release.bat publish` also creates a **draft** GitHub release for tag `v<version>`, with the files attached and `release-notes\v<version>.md` as its text. It needs the GitHub CLI (`gh`), logged in. It refuses to run with uncommitted or unpushed changes, or if that release already exists. Publish the draft on GitHub once you've checked it.
+- `release.bat notest` skips the automated tests.
+
 ## Workspace
 
 Six dockable panels. Drag tabs to rearrange, split, tab together or float them. **Window ▸ Reset layout** restores the default layout.

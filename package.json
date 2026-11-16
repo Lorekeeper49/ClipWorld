@@ -17,28 +17,75 @@
     "package": "electron-vite build && electron-builder --win",
     "package:dir": "electron-vite build && electron-builder --win --dir",
     "package:linux": "node scripts/linux-only.mjs && electron-vite build && electron-builder --linux",
-    "package:linux:dir": "node scripts/linux-only.mjs && electron-vite build && electron-builder --linux --dir"
+    "package:linux:dir": "node scripts/linux-only.mjs && electron-vite build && electron-builder --linux --dir",
+    "release": "release.bat"
   },
   "build": {
     "appId": "app.clipworld.editor",
     "productName": "ClipWorld",
-    "directories": { "output": "dist" },
-    "files": ["out/**/*", "package.json"],
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "out/**/*",
+      "package.json"
+    ],
     "fileAssociations": [
-      { "ext": "vcws", "name": "ClipWorld Project", "description": "ClipWorld video project", "role": "Editor", "mimeType": "application/x-clipworld-project" }
+      {
+        "ext": "vcws",
+        "name": "ClipWorld Project",
+        "description": "ClipWorld video project",
+        "role": "Editor",
+        "mimeType": "application/x-clipworld-project"
+      }
     ],
     "win": {
-      "target": ["nsis"],
-      "extraResources": [{ "from": "vendor/ffmpeg/win32-${arch}", "to": "ffmpeg", "filter": ["ffmpeg.exe", "ffprobe.exe", "LICENSE*", "README*"] }]
+      "target": [
+        "nsis"
+      ],
+      "extraResources": [
+        {
+          "from": "vendor/ffmpeg/win32-${arch}",
+          "to": "ffmpeg",
+          "filter": [
+            "ffmpeg.exe",
+            "ffprobe.exe",
+            "LICENSE*",
+            "README*"
+          ]
+        }
+      ],
+      "artifactName": "${productName}-${version}-win-${arch}.${ext}"
     },
-    "nsis": { "oneClick": false, "allowToChangeInstallationDirectory": true, "perMachine": false },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "perMachine": false,
+      "artifactName": "${productName}-Setup-${version}-${arch}.${ext}"
+    },
     "linux": {
-      "target": ["AppImage", "tar.gz"],
+      "target": [
+        "AppImage",
+        "tar.gz"
+      ],
       "category": "AudioVideo",
       "executableName": "clipworld",
       "synopsis": "Video editor built on ffmpeg",
-      "extraResources": [{ "from": "vendor/ffmpeg/linux-${arch}", "to": "ffmpeg", "filter": ["ffmpeg", "ffprobe", "LICENSE*", "README*"] }]
-    }
+      "extraResources": [
+        {
+          "from": "vendor/ffmpeg/linux-${arch}",
+          "to": "ffmpeg",
+          "filter": [
+            "ffmpeg",
+            "ffprobe",
+            "LICENSE*",
+            "README*"
+          ]
+        }
+      ],
+      "artifactName": "${productName}-${version}-linux-${arch}.${ext}"
+    },
+    "publish": null
   },
   "devDependencies": {
     "@types/node": "^26.6.6",

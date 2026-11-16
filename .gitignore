@@ -6,3 +6,5 @@ vendor/
 .vite/
 test-results/
 tests/.tmp/
+release/
+release-notes/

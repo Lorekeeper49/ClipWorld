@@ -4,13 +4,13 @@
 // waveforms are computed from the (small) extracted tracks, and thumbnails of long videos are
 // grabbed with keyframe seeks instead of a full read.
 import { createHash } from 'node:crypto'
-import { existsSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, statSync, statfsSync, writeFileSync } from 'node:fs'
 import { cpus } from 'node:os'
-import { join, sep } from 'node:path'
+import { basename, dirname, extname, join, sep } from 'node:path'
 import { type Filmstrip, type MediaCache, PEAKS_PER_SECOND, type ProxyChunks, chunkName } from '@shared/ipc'
 import type { MediaItem } from '@shared/model'
 import { ffmpeg, ffmpegProgress } from './ffmpeg'
-import { probeKeyframeInterval } from './probe'
+import { probeMedia } from './probe'
 import { SCHEME, allowFile, allowRoot, mediaUrl } from './protocol'
 
 type Emit = (mediaId: string, patch: Partial<MediaCache>) => void
@@ -275,12 +275,6 @@ function chunkEncoderArgs(gop: string): string[] {
   return ['-c:v', 'libx264', '-preset', 'superfast', '-crf', '23', '-g', gop, '-keyint_min', gop, '-sc_threshold', '0', '-bf', '0']
 }
 
-/** Whether seeking in this video is slow enough to be worth a preview copy. */
-export function needsChunks(m: MediaItem): boolean {
-  if (m.kind !== 'video' || m.duration <= 0) return false
-  return (m.keyframeInterval ?? 0) > 1.0 || m.width * m.height > 2560 * 1440
-}
-
 interface ChunkJob {
   m: MediaItem
   dir: string
@@ -471,7 +465,6 @@ export function prepareMedia(m: MediaItem): void {
   allowFile(m.path)
   const dir = dirFor(m)
   const sourceUrl = mediaUrl(m.path, stat.mtimeMs)
-  const known = states.get(m.id)
   states.set(m.id, { sourceUrl, audioUrls: {}, peakUrls: {}, missing: false })
   emit(m.id, states.get(m.id)!)
 
@@ -531,16 +524,28 @@ export function prepareMedia(m: MediaItem): void {
     if (existing) {
       existing.m = m
       update(m.id, { chunks: chunkState(existing) })
-    } else if (m.keyframeInterval === undefined && !known) {
-      // Projects saved before keyframe spacing was recorded: measure it now.
-      void probeKeyframeInterval(m.path, m.duration).then((ki) => {
-        const withKi = { ...m, keyframeInterval: ki }
-        items.set(m.id, withKi)
-        if (needsChunks(withKi)) startChunks(withKi, false)
-      })
-    } else if (needsChunks(m)) {
+    } else if (m.fastSeek) {
+      // The user turned on fast seeking for this video; finished chunks from earlier are reused.
       startChunks(m, false)
     }
+  }
+}
+
+/**
+ * Turns the fast-seek preview copy on or off for a video (the user's choice, saved in the project).
+ * Turning it off stops building and stops using the copy; finished chunks stay cached, so turning it
+ * back on resumes where it left off. Videos the preview cannot decode keep their copy regardless.
+ */
+export function setFastSeek(mediaId: string, on: boolean): void {
+  const m = items.get(mediaId)
+  if (!m || m.kind !== 'video') return
+  items.set(mediaId, { ...m, fastSeek: on })
+  const job = chunkJobs.get(mediaId)
+  if (on) {
+    startChunks({ ...m, fastSeek: true }, false)
+  } else if (job && !job.required) {
+    stopChunks(mediaId)
+    update(mediaId, { chunks: undefined })
   }
 }
 
@@ -580,5 +585,142 @@ export function requestProxy(mediaId: string): void {
 export function forgetMedia(mediaId: string): void {
   items.delete(mediaId)
   states.delete(mediaId)
+  stopChunks(mediaId)
+}
+
+/** Stops building a video's preview chunks. Chunks in progress are cancelled and their temp files dropped. */
+function stopChunks(mediaId: string): void {
+  const job = chunkJobs.get(mediaId)
+  if (!job) return
   chunkJobs.delete(mediaId)
+  for (const ctrl of job.running.values()) ctrl.abort()
+}
+
+// ---------------------------------------------------------------- convert to MP4
+//
+// The preview's MP4 handling seeks and plays more smoothly than other containers (MKV in particular),
+// so non-MP4 videos can be rewritten as MP4 next to the original. Streams that MP4 can carry and the
+// preview can decode are copied untouched, which is fast and lossless; anything else is re-encoded.
+
+/** Video codecs copied as-is: valid in MP4 and decodable by the preview. */
+const MP4_VIDEO_COPY = new Set(['h264', 'hevc', 'av1', 'vp9'])
+/** Audio codecs copied as-is (the preview plays audio from its own extracted tracks either way). */
+const MP4_AUDIO_COPY = new Set(['aac', 'mp3', 'opus', 'flac', 'ac3', 'eac3', 'alac'])
+
+export const isMp4 = (path: string): boolean => /\.(mp4|m4v)$/i.test(path)
+
+const converting = new Map<string, AbortController>()
+
+export type ConvertOutcome = { ok: true; item: MediaItem; path: string; copied: boolean } | { ok: false; cancelled: boolean; error: string }
+
+function uniqueMp4Path(source: string): string {
+  const dir = dirname(source)
+  const base = basename(source, extname(source))
+  let out = join(dir, `${base}.mp4`)
+  for (let i = 1; existsSync(out); i++) out = join(dir, `${base} (${i}).mp4`)
+  return out
+}
+
+/** Moves finished preview files from one cache folder to another (used when a conversion copied every stream). */
+function adoptCache(from: MediaItem, to: MediaItem): void {
+  const src = dirFor(from)
+  const dst = dirFor(to)
+  const move = (a: string, b: string) => {
+    try {
+      if (existsSync(a) && !existsSync(b)) renameSync(a, b)
+    } catch {
+      /* not moved: it is simply rebuilt */
+    }
+  }
+  for (const f of readdirSync(src)) {
+    if (/^(audio_\d+\.m4a|peaks_\d+\.bin|filmstrip\.jpg|poster\.jpg)$/.test(f)) move(join(src, f), join(dst, f))
+  }
+  const chunksFrom = join(src, 'chunks')
+  if (existsSync(chunksFrom)) {
+    const chunksTo = join(dst, 'chunks')
+    mkdirSync(chunksTo, { recursive: true })
+    for (const f of readdirSync(chunksFrom)) {
+      if (/^(\d{5}\.mp4|format\.json)$/.test(f)) move(join(chunksFrom, f), join(chunksTo, f))
+    }
+  }
+}
+
+export async function convertToMp4(mediaId: string, encoders: string[]): Promise<ConvertOutcome> {
+  const m = items.get(mediaId)
+  if (!m) return { ok: false, cancelled: false, error: 'This media is not loaded' }
+  if (m.kind !== 'video') return { ok: false, cancelled: false, error: 'Only video files can be converted' }
+  if (isMp4(m.path)) return { ok: false, cancelled: false, error: 'This file is already an MP4' }
+  if (converting.has(mediaId)) return { ok: false, cancelled: false, error: 'Already converting' }
+
+  const out = uniqueMp4Path(m.path)
+  const tmp = `${out}.converting`
+  const copyVideo = MP4_VIDEO_COPY.has(m.videoCodec ?? '')
+  const copyAudio = m.audioStreams.map((s) => MP4_AUDIO_COPY.has(s.codec))
+  const copied = copyVideo && copyAudio.every(Boolean)
+
+  // A stream copy needs about as much space as the original; re-encoding usually needs less.
+  try {
+    const fs = statfsSync(dirname(out))
+    const free = Number(fs.bavail) * Number(fs.bsize)
+    const need = copied ? m.size * 1.02 + 50e6 : m.size * 0.5
+    if (free < need) {
+      return { ok: false, cancelled: false, error: `Not enough disk space next to the original: about ${(need / 1e9).toFixed(1)} GB is needed and ${(free / 1e9).toFixed(1)} GB is free` }
+    }
+  } catch {
+    /* free space unknown: try anyway */
+  }
+
+  const args = [...q, '-i', m.path, '-map', '0:V:0', '-map', '0:a?', '-dn', '-sn', '-map_metadata', '0']
+  if (copyVideo) {
+    args.push('-c:v', 'copy')
+    if (m.videoCodec === 'hevc') args.push('-tag:v', 'hvc1')
+  } else {
+    // Re-encoding anyway: a keyframe every half second keeps the new file quick to seek in, well
+    // inside the limit above which a separate preview copy would be built.
+    const gop = String(Math.max(1, Math.round((m.fps || 30) * 0.5)))
+    if (encoders.includes('h264_nvenc')) {
+      args.push('-c:v', 'h264_nvenc', '-preset', 'p5', '-rc', 'vbr', '-cq', '19', '-b:v', '0', '-g', gop, '-pix_fmt', 'yuv420p')
+    } else {
+      args.push('-c:v', 'libx264', '-preset', 'fast', '-crf', '18', '-g', gop, '-pix_fmt', 'yuv420p')
+    }
+  }
+  m.audioStreams.forEach((s, i) => {
+    if (copyAudio[i]) args.push(`-c:a:${i}`, 'copy')
+    else args.push(`-c:a:${i}`, 'aac', `-b:a:${i}`, '256k')
+  })
+  // Moving the index to the front rewrites the whole file, so it is only worth it for smaller files.
+  if (m.size < 2e9) args.push('-movflags', '+faststart')
+  args.push('-f', 'mp4', tmp)
+
+  const ctrl = new AbortController()
+  converting.set(mediaId, ctrl)
+  const signal = AbortSignal.any([ctrl.signal, bgAbort.signal])
+  let last = 0
+  update(mediaId, { convertProgress: 0 })
+  try {
+    await ffmpegProgress(args, m.duration, (f) => {
+      if (f - last >= 0.005 || f === 1) {
+        last = f
+        update(mediaId, { convertProgress: f })
+      }
+    }, signal)
+    renameSync(tmp, out)
+    const fresh: MediaItem = { ...(await probeMedia(out)), id: m.id }
+    stopChunks(mediaId)
+    if (copied) adoptCache(m, fresh)
+    states.delete(mediaId)
+    items.set(mediaId, fresh)
+    return { ok: true, item: fresh, path: out, copied }
+  } catch (err) {
+    remove(tmp)
+    const cancelled = signal.aborted
+    update(mediaId, { convertProgress: undefined })
+    return { ok: false, cancelled, error: cancelled ? 'Cancelled' : (err as Error).message }
+  } finally {
+    converting.delete(mediaId)
+  }
+}
+
+export function cancelConvert(mediaId: string): void {
+  converting.get(mediaId)?.abort()
 }

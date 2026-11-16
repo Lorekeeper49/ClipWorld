@@ -40,6 +40,8 @@ export interface MediaCache {
   proxyUrl?: string
   proxyState?: 'pending' | 'ready' | 'error'
   proxyProgress?: number
+  /** Progress of a running conversion to MP4, 0..1; absent when not converting. */
+  convertProgress?: number
   /** Progress of the single pass that extracts every audio track, 0..1. */
   audioProgress?: number
   /** Extracted audio, by audio stream index. */
@@ -99,6 +101,10 @@ export interface ExportRequest {
 
 export type ExportResult = { ok: true; outPath: string } | { ok: false; cancelled: boolean; error: string }
 
+export type ConvertResult =
+  | { ok: true; item: MediaItem; path: string; /** Every stream was copied, so nothing was re-encoded. */ copied: boolean }
+  | { ok: false; cancelled: boolean; error: string }
+
 export interface OpenedProject {
   path: string
   project: Project
@@ -114,8 +120,13 @@ export interface Api {
   prepareMedia(items: MediaItem[]): Promise<void>
   /** The preview cannot decode this video's original: build the chunked preview copy (required). */
   requestProxy(mediaId: string): Promise<void>
+  /** Turns the optional fast-seek preview copy of a video on or off. */
+  setFastSeek(mediaId: string, on: boolean): Promise<void>
   /** Where the user is working in a video (source seconds), so nearby preview chunks are built first. */
   proxyFocus(mediaId: string, sourceTime: number): void
+  /** Writes an MP4 copy next to the original (which is left untouched) and describes it. */
+  convertToMp4(mediaId: string): Promise<ConvertResult>
+  cancelConvert(mediaId: string): Promise<void>
   relinkMedia(item: MediaItem): Promise<MediaItem | null>
   onMediaCache(cb: (mediaId: string, patch: Partial<MediaCache>) => void): () => void
   pathForFile(file: File): string

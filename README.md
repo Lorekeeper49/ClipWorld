@@ -19,7 +19,7 @@ Six dockable panels. Drag tabs to rearrange, split, tab together or float them. 
 
 | Panel | What it does |
 |---|---|
-| **Media** | Import video, audio and images (GIFs included) by button or drag-and-drop. Each video's audio tracks are extracted automatically and listed under it. Deleting an item also removes every clip that uses it. |
+| **Media** | Import video, audio and images (GIFs included) by button or drag-and-drop. Each video's audio tracks are extracted automatically and listed under it. Deleting an item also removes every clip that uses it. MP4 plays most smoothly: any other video shows **Convert to MP4**, which writes an MP4 next to the original (streams copied without re-encoding when possible), switches the project to it and leaves the original untouched. |
 | **Preview** | Always fits the video frame. Transport controls and a 0–100% preview volume that never affects the export. |
 | **Timeline** | Split at the playhead (**Split** button or Ctrl+K), copy/cut/paste/duplicate, snapping, Ctrl+wheel zoom. **Dragging a clip's edge changes its speed** so the clip fills the new length, audio included. Alt+drag an edge to trim instead. |
 | **Tools** | Text (any installed font, size, bold/italic, fill, outline colour and width), zoom on video (start/end, focal point, easing), transform (position, scale, rotation, opacity, start/end with easing), clip speed, and stackable filters and effects. |
@@ -41,7 +41,7 @@ The project model (`src/shared/model.ts`) has two renderers:
 - **Preview:** canvas compositor + Web Audio graph (`src/renderer/engine/`).
 - **Export:** an ffmpeg `filter_complex` graph (`src/shared/filtergraph.ts`).
 
-**Fast seeking on long recordings.** Screen and game recordings usually put keyframes several seconds apart, and the preview has to decode from the previous keyframe on every seek. For such videos (and anything above 1440p), ClipWorld builds a 720p preview copy with a keyframe every 0.25 s, in the background, at low priority, in 60-second chunks. Chunks around the playhead are built first, finished chunks are reused after a restart, and the preview switches to a chunk as soon as it exists. Export always reads the original file. The copy uses NVIDIA NVENC when the driver supports it, otherwise x264. On import, all of a video's audio tracks are extracted in one read of the file.
+**Optional fast seeking.** If jumping around a video is slow or choppy, click **Optimize for fast seeking** on it in the Media panel. ClipWorld then builds a 720p preview copy with a keyframe every 0.5 s (roughly half a gigabyte per hour of video), in the background, at low priority, in 60-second chunks. The choice is saved in the project and can be stopped or turned off; videos the preview cannot decode at all get the copy automatically. Chunks around the playhead are built first, finished chunks are reused after a restart, and the preview switches to a chunk as soon as it exists. Export always reads the original file. The copy uses NVIDIA NVENC when the driver supports it, otherwise x264. On import, all of a video's audio tracks are extracted in one read of the file.
 
 Each effect is defined once in `src/shared/effects.ts`. Colour filters use the CSS filter-spec maths on both sides, and text and gradient overlays are rasterised by the same canvas code for both, so the export matches the preview.
 

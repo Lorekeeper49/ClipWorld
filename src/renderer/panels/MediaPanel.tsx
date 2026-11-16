@@ -1,7 +1,9 @@
 import { useState } from 'react'
 import type { MediaItem } from '@shared/model'
 import { Btn, Icon, formatDuration } from '../components/ui'
-import { addToTimeline, deleteMediaAction, importMediaAction, importPaths, relinkMediaAction } from '../state/actions'
+import {
+  addToTimeline, convertToMp4Action, deleteMediaAction, importMediaAction, importPaths, relinkMediaAction, setFastSeekAction
+} from '../state/actions'
 import { set, useStore } from '../state/store'
 
 export const MEDIA_MIME = 'application/x-clipworld-media'
@@ -27,15 +29,23 @@ function MediaRow({ m }: { m: MediaItem }) {
   const hasTracks = m.kind === 'video' && m.audioStreams.length > 0
 
   const ch = cache?.chunks
+  const converting = cache?.convertProgress !== undefined
+  const canConvert = m.kind === 'video' && !/\.(mp4|m4v)$/i.test(m.path) && !cache?.missing && !converting
   let status: string | null = null
   if (cache?.missing) status = 'File not found'
+  else if (converting) status = `Converting to MP4 ${Math.floor((cache!.convertProgress ?? 0) * 100)}%`
   else if (cache?.proxyState === 'pending') status = `Building preview ${Math.round((cache.proxyProgress ?? 0) * 100)}%`
   else if (cache?.proxyState === 'error' || ch?.failed) status = 'Preview unavailable (export still works)'
   else if (m.audioStreams.length && audioReady < m.audioStreams.length) {
     status = `Extracting audio ${Math.round((cache?.audioProgress ?? 0) * 100)}%`
   } else if (ch && ch.done.length < ch.count) {
     status = `Optimizing for fast seeking ${Math.floor((ch.done.length / ch.count) * 100)}%`
+  } else if (m.fastSeek && ch) {
+    status = 'Optimized for fast seeking'
   }
+  const fastSeekDone = !!ch && ch.done.length >= ch.count
+  // Videos the preview cannot decode always get the copy; the button is for the user's own choice.
+  const canFastSeek = m.kind === 'video' && !cache?.missing && !converting && !ch?.required
 
   const meta: string[] = []
   if (m.kind !== 'audio') meta.push(`${m.width}×${m.height}`)
@@ -69,6 +79,34 @@ function MediaRow({ m }: { m: MediaItem }) {
             </div>
           )}
           {uses > 0 && !status && <div className="media-meta">Used {uses}×</div>}
+          <div className="media-buttons">
+            {canConvert && (
+              <button type="button" className="media-convert" data-testid="convert-mp4"
+                title={`Save an MP4 copy next to the original and use it in this project. MP4 plays most smoothly in the preview.\nStreams are copied without re-encoding when possible. ${m.name} itself is not changed.`}
+                onClick={(e) => { e.stopPropagation(); void convertToMp4Action(m.id) }}>
+                Convert to MP4
+              </button>
+            )}
+            {converting && (
+              <button type="button" className="media-convert" data-testid="convert-cancel"
+                onClick={(e) => { e.stopPropagation(); void window.cw.cancelConvert(m.id) }}>
+                Cancel
+              </button>
+            )}
+            {canFastSeek && (
+              <button type="button" className="media-convert" data-testid={m.fastSeek ? 'fast-seek-off' : 'fast-seek-on'}
+                title={m.fastSeek
+                  ? (fastSeekDone
+                    ? 'Stop using the fast-seek preview copy. It stays on disk, so turning it back on is instant.'
+                    : 'Stop building the fast-seek preview copy. Finished parts are kept, so turning it back on resumes.')
+                  : 'Having trouble with slow or choppy seeking in this video? This builds a 720p preview copy in the background, ' +
+                    'starting where you are working, so jumping around the timeline is quick. It uses roughly half a gigabyte ' +
+                    'per hour of video. Exports always use the original file.'}
+                onClick={(e) => { e.stopPropagation(); setFastSeekAction(m.id, !m.fastSeek) }}>
+                {m.fastSeek ? (fastSeekDone ? 'Turn off fast seeking' : 'Stop optimizing') : 'Optimize for fast seeking'}
+              </button>
+            )}
+          </div>
         </div>
         <div className="media-actions">
           {cache?.missing ? (
@@ -149,6 +187,10 @@ export function MediaPanel() {
           {media.map((m) => <MediaRow key={m.id} m={m} />)}
         </ul>
       )}
+      <p className="media-tip" data-testid="media-tip">
+        <Icon name="info" size={13} />
+        MP4 files are recommended for the smoothest video.
+      </p>
     </div>
   )
 }

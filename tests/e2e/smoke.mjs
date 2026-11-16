@@ -55,25 +55,43 @@ await page.waitForSelector('[data-testid=media-item]')
 await page.waitForFunction(() => document.querySelectorAll('[data-testid=media-audio-track]:not(.pending)').length === 2, null, { timeout: 30000 })
 check(await page.getByTestId('media-audio-track').count() === 2, 'both audio tracks extracted and listed')
 
-step('fast-seek preview copy')
-await page.waitForFunction(() => {
-  const s = window.__cw.get()
-  const m = s.project.media[0]
-  const ch = s.mediaCache[m.id]?.chunks
-  return ch && ch.done.length === ch.count
-}, null, { timeout: 60000 })
-const ki = await page.evaluate(() => window.__cw.get().project.media[0].keyframeInterval)
-check(Math.abs(ki - 5) < 0.1, `keyframe spacing detected (${ki} s) and preview chunks built`)
-
 step('add to timeline')
 await page.getByTestId('media-add').click()
 check(await page.locator('[data-clip-type=video]').count() === 1, 'one video clip')
 check(await page.locator('[data-clip-type=audio]').count() === 2, 'two linked audio clips')
 check(await page.getByTestId('audio-row').count() === 2, 'Audio panel shows both tracks of the selected video')
+
+step('optional fast-seek preview copy')
+const sourceShown = async () => {
+  await page.waitForFunction(() => window.__cw.player.ready(), null, { timeout: 15000 })
+  return page.evaluate(() => Object.values(window.__cw.player.sources())[0])
+}
+const chunkState = () => page.evaluate(() => {
+  const s = window.__cw.get()
+  return s.mediaCache[s.project.media[0].id]?.chunks
+})
+await page.waitForTimeout(2000)
+const ki = await page.evaluate(() => window.__cw.get().project.media[0].keyframeInterval)
+check(!(await chunkState()) && Math.abs(ki - 5) < 0.1, `nothing built automatically, even with keyframes ${ki} s apart`)
 await page.evaluate(() => window.__cw.player.seek(3.2))
-await page.waitForFunction(() => window.__cw.player.ready(), null, { timeout: 15000 })
-const shown = await page.evaluate(() => Object.values(window.__cw.player.sources()))
-check(shown[0] === 'chunk', `preview shows the fast-seek copy (${shown})`)
+check(await sourceShown() === 'original', 'preview uses the original file')
+await page.getByTestId('fast-seek-on').click()
+await page.waitForFunction(() => {
+  const s = window.__cw.get()
+  const ch = s.mediaCache[s.project.media[0].id]?.chunks
+  return ch && ch.done.length === ch.count
+}, null, { timeout: 60000 })
+check(await page.locator('[data-testid=media-status]', { hasText: 'Optimized for fast seeking' }).count() === 1, 'clicking the button builds the copy')
+await page.evaluate(() => window.__cw.player.seek(3.3))
+check(await sourceShown() === 'chunk', 'preview switches to the fast-seek copy')
+await page.keyboard.press('Control+Z')
+await page.waitForFunction(() => !window.__cw.get().mediaCache[window.__cw.get().project.media[0].id]?.chunks, null, { timeout: 10000 })
+await page.evaluate(() => window.__cw.player.seek(3.2))
+check(await sourceShown() === 'original' && await page.getByTestId('fast-seek-on').count() === 1, 'undo turns it off again')
+await page.keyboard.press('Control+Y')
+await page.waitForFunction(() => window.__cw.get().mediaCache[window.__cw.get().project.media[0].id]?.chunks?.done.length > 0, null, { timeout: 10000 })
+await page.evaluate(() => window.__cw.player.seek(3.3))
+check(await sourceShown() === 'chunk', 'redo turns it back on, reusing the finished copy')
 await page.waitForTimeout(1500)
 await shot('02-imported')
 
@@ -163,6 +181,12 @@ step('reopen project')
 await page.evaluate((p) => window.__cw.actions.openProjectAction(p), projectPath)
 await page.waitForFunction(() => window.__cw.get().project.clips.length === 7, null, { timeout: 10000 })
 check(true, 'reopened with all 7 clips')
+await page.waitForFunction(() => {
+  const s = window.__cw.get()
+  const ch = s.mediaCache[s.project.media[0].id]?.chunks
+  return s.project.media[0].fastSeek && ch && ch.done.length === ch.count
+}, null, { timeout: 15000 })
+check(true, 'fast seeking stays on after reopening, using the saved copy')
 
 step('delete media removes its clips')
 await page.locator('[data-testid=media-item]').hover()

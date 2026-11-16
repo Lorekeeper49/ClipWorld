@@ -10,7 +10,7 @@ import {
 } from '@shared/timeline-ops'
 import { checkPlayable, player } from '../engine/player'
 import { canvasToPng, measureText, rasterOverlay, rasterText } from '../engine/raster'
-import { edit, get, loadProject, patchSettings, projectName, redo, set, toast, undo } from './store'
+import { edit, get, loadProject, patchSettings, projectName, redo, set, toast, undo, useStore } from './store'
 
 // ---------------------------------------------------------------- project lifecycle
 
@@ -149,9 +149,71 @@ export async function relinkMediaAction(mediaId: string): Promise<void> {
   }
 }
 
-/** Receives cache updates from the main process. */
+/**
+ * Writes an MP4 copy of a video next to the original and switches the project over to it. Clips keep
+ * their positions and edits; the original file is left untouched.
+ */
+export async function convertToMp4Action(mediaId: string): Promise<void> {
+  const m = get().project.media.find((x) => x.id === mediaId)
+  if (!m) return
+  const r = await window.cw.convertToMp4(mediaId)
+  if (!r.ok) {
+    if (!r.cancelled) toast(`Could not convert ${m.name}: ${r.error.split('\n')[0]}`, 'error')
+    return
+  }
+  if (!get().project.media.some((x) => x.id === mediaId)) return // deleted while converting
+  set((s) => {
+    const mediaCache = { ...s.mediaCache }
+    const playable = { ...s.playable }
+    delete mediaCache[mediaId]
+    delete playable[mediaId]
+    return { mediaCache, playable }
+  })
+  // Keep the user's fast-seek choice; when every stream was copied its finished chunks carry over.
+  const item = { ...r.item, fastSeek: m.fastSeek }
+  edit((p) => {
+    const i = p.media.findIndex((x) => x.id === mediaId)
+    if (i >= 0) p.media[i] = item
+  })
+  void window.cw.prepareMedia([item])
+  const name = r.path.split(/[\\/]/).pop()
+  toast(`Converted to ${name}${r.copied ? ' without re-encoding' : ''}. The original file was not changed.`)
+}
+
+/** Turns the optional fast-seek preview copy of a video on or off; the choice is saved in the project. */
+export function setFastSeekAction(mediaId: string, on: boolean): void {
+  edit((p) => {
+    const m = p.media.find((x) => x.id === mediaId)
+    if (m) m.fastSeek = on
+  })
+}
+
+/**
+ * Receives cache updates from the main process, and keeps the main process's fast-seek work in step
+ * with the project (so undo/redo of the toggle starts or stops it too).
+ */
 export function initMediaCacheListener(): () => void {
-  return window.cw.onMediaCache((id, patch) => {
+  const sentFastSeek = new Map<string, boolean>()
+  let lastMedia = get().project.media
+  let lastEpoch = get().projectEpoch
+  const unsubStore = useStore.subscribe((s) => {
+    if (s.project.media === lastMedia) return
+    // A different project was loaded: its media is prepared (and fast seek resumed) on load.
+    const reloaded = s.projectEpoch !== lastEpoch
+    lastMedia = s.project.media
+    lastEpoch = s.projectEpoch
+    if (reloaded) sentFastSeek.clear()
+    for (const m of s.project.media) {
+      if (m.kind !== 'video') continue
+      const want = !!m.fastSeek
+      if (reloaded) sentFastSeek.set(m.id, want)
+      else if ((sentFastSeek.get(m.id) ?? false) !== want) {
+        sentFastSeek.set(m.id, want)
+        void window.cw.setFastSeek(m.id, want)
+      }
+    }
+  })
+  const unsubCache = window.cw.onMediaCache((id, patch) => {
     const s = get()
     const media = s.project.media.find((m) => m.id === id)
     const cur = s.mediaCache[id] ?? { sourceUrl: '', audioUrls: {}, peakUrls: {} }
@@ -164,6 +226,10 @@ export function initMediaCacheListener(): () => void {
     set({ mediaCache: { ...s.mediaCache, [id]: next } })
     if (media?.kind === 'video' && next.sourceUrl && !next.missing && !s.playable[id]) checkPlayable(id, next.sourceUrl)
   })
+  return () => {
+    unsubStore()
+    unsubCache()
+  }
 }
 
 // ---------------------------------------------------------------- editing

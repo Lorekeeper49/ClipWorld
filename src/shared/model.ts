@@ -42,6 +42,8 @@ export interface MediaItem {
   colorSpace?: string
   /** Longest gap between keyframes near the start of the file, seconds. Long gaps make seeking slow. */
   keyframeInterval?: number
+  /** The user asked for a fast-seek preview copy of this video (Media panel button). */
+  fastSeek?: boolean
   audioStreams: AudioStreamInfo[]
 }
 

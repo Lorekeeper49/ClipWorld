@@ -148,7 +148,12 @@ const chunkAt = (t) => page.evaluate((t) => {
   return { k: Math.floor((c.srcIn + (t - c.start) * c.speed) / ch.seconds), mediaId: c.mediaId, seconds: ch.seconds }
 }, t)
 
-await measure('original file (preview chunks still building)', seekTimes)
+await measure('original file', seekTimes)
+
+// Turn on the optional fast-seek copy (the Media panel button) for every video.
+await page.evaluate(() => {
+  for (const m of window.__cw.get().project.media) if (m.kind === 'video') window.__cw.actions.setFastSeekAction(m.id, true)
+})
 
 // Timeline time 2 s before a preview-chunk boundary inside the clip under the third test position,
 // so the playback check crosses from one chunk file into the next.

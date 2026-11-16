@@ -7,7 +7,10 @@ import type { AppInfo, ExportRequest, ExportResult, OpenedProject, Recovery } fr
 import { type MediaItem, PROJECT_EXT, type Project, parseProject } from '@shared/model'
 import { runExport } from './export'
 import { type FfmpegPaths, findFfmpeg, run, setFfmpegPaths, usableCapabilities } from './ffmpeg'
-import { initMediaCache, prepareMedia, requestProxy, setChunkEncoders, setProxyFocus, stopBackgroundWork } from './media'
+import {
+  cancelConvert, convertToMp4, initMediaCache, prepareMedia, requestProxy, setChunkEncoders, setFastSeek, setProxyFocus,
+  stopBackgroundWork
+} from './media'
 import { probeMedia } from './probe'
 import { allowFile, handleProtocol, registerScheme } from './protocol'
 import { addRecent, flushSettings, loadSettings, saveSettings } from './settings'
@@ -251,6 +254,13 @@ function registerIpc(): void {
   })
   ipcMain.handle('media:proxy', (_e, id: string) => requestProxy(id))
   ipcMain.on('media:focus', (_e, id: string, t: number) => setProxyFocus(id, t))
+  ipcMain.handle('media:fast-seek', (_e, id: string, on: boolean) => setFastSeek(id, on))
+  ipcMain.handle('media:convert', async (_e, id: string) => {
+    const r = await convertToMp4(id, caps.encoders)
+    if (r.ok) allowFile(r.path)
+    return r
+  })
+  ipcMain.handle('media:convert-cancel', (_e, id: string) => cancelConvert(id))
   ipcMain.handle('media:relink', async (_e, item: MediaItem) => {
     const r = await dialog.showOpenDialog(win!, {
       title: `Locate ${item.name}`,

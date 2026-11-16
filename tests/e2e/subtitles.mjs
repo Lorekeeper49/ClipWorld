@@ -6,9 +6,9 @@ import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node
 import { join, resolve } from 'node:path'
 import { tmpdir } from 'node:os'
 import { spawnSync } from 'node:child_process'
+import { ffmpeg } from './tools.mjs'
 
 const root = resolve(import.meta.dirname, '..', '..')
-const ffmpeg = join(root, 'vendor', 'ffmpeg', 'ffmpeg.exe')
 const dir = join(tmpdir(), 'clipworld-subtitle-test')
 rmSync(dir, { recursive: true, force: true })
 mkdirSync(dir, { recursive: true })

@@ -1,12 +1,12 @@
 import { existsSync, mkdirSync } from 'node:fs'
 import { join, resolve } from 'node:path'
-import { ffmpeg, findFfmpeg, ffprobeJson, getFfmpegPaths, run, setFfmpegPaths } from '../src/main/ffmpeg'
+import { ffmpeg, findFfmpeg, ffprobeJson, getFfmpegPaths, run, setFfmpegPaths, vendorDirs } from '../src/main/ffmpeg'
 
 export const ROOT = resolve(__dirname, '..')
 export const TMP = join(ROOT, 'tests', '.tmp')
 
 export function setupFfmpeg(): void {
-  const found = findFfmpeg([join(ROOT, 'vendor', 'ffmpeg')])
+  const found = findFfmpeg(vendorDirs(ROOT))
   if (!found) throw new Error('vendor/ffmpeg is missing — run "npm run fetch-ffmpeg" first')
   setFfmpegPaths(found)
   mkdirSync(TMP, { recursive: true })

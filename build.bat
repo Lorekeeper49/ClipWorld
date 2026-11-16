@@ -28,7 +28,7 @@ if not exist node_modules (
   if errorlevel 1 goto :fail
 )
 
-if not exist vendor\ffmpeg\ffmpeg.exe (
+if not exist vendor\ffmpeg\win32-x64\ffmpeg.exe (
   echo === Downloading ffmpeg ===
   call npm run fetch-ffmpeg
   if errorlevel 1 goto :fail

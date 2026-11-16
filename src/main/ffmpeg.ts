@@ -1,6 +1,6 @@
 // ffmpeg / ffprobe process helpers. No Electron imports, so tests can use this module directly.
 import { spawn } from 'node:child_process'
-import { existsSync } from 'node:fs'
+import { accessSync, chmodSync, constants as constantsFs, existsSync } from 'node:fs'
 import { constants, setPriority } from 'node:os'
 import { join } from 'node:path'
 import type { Caps } from '@shared/filtergraph'
@@ -24,6 +24,12 @@ export function getFfmpegPaths(): FfmpegPaths {
 
 export const hasFfmpeg = (): boolean => !!paths
 
+/** Folder name of this system's bundled binaries inside vendor/ffmpeg, e.g. "win32-x64" or "linux-arm64". */
+export const PLATFORM_DIR = `${process.platform}-${process.arch}`
+
+/** Bundled ffmpeg locations for a project or app root: per-platform folder first, then the older flat layout. */
+export const vendorDirs = (root: string): string[] => [join(root, 'vendor', 'ffmpeg', PLATFORM_DIR), join(root, 'vendor', 'ffmpeg')]
+
 /** Looks for ffmpeg + ffprobe in the given directories. */
 export function findFfmpeg(dirs: string[]): FfmpegPaths | null {
   const exe = process.platform === 'win32' ? '.exe' : ''
@@ -31,9 +37,25 @@ export function findFfmpeg(dirs: string[]): FfmpegPaths | null {
     if (!d) continue
     const ffmpeg = join(d, 'ffmpeg' + exe)
     const ffprobe = join(d, 'ffprobe' + exe)
-    if (existsSync(ffmpeg) && existsSync(ffprobe)) return { ffmpeg, ffprobe }
+    if (existsSync(ffmpeg) && existsSync(ffprobe)) {
+      if (!exe) for (const f of [ffmpeg, ffprobe]) ensureExecutable(f)
+      return { ffmpeg, ffprobe }
+    }
   }
   return null
+}
+
+/** Copies made on a file system without permission bits (or some unzip tools) can lose the execute bit. */
+function ensureExecutable(file: string): void {
+  try {
+    accessSync(file, constantsFs.X_OK)
+  } catch {
+    try {
+      chmodSync(file, 0o755)
+    } catch {
+      /* read-only location (e.g. inside an AppImage): leave it; verification will report it */
+    }
+  }
 }
 
 export interface RunResult {

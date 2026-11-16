@@ -5,13 +5,12 @@ import { existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { tmpdir } from 'node:os'
 import { spawnSync } from 'node:child_process'
+import { ffmpeg, ffprobe } from './tools.mjs'
 
 const root = resolve(import.meta.dirname, '..', '..')
 const tmp = join(root, 'tests', '.tmp', 'e2e')
 rmSync(tmp, { recursive: true, force: true })
 mkdirSync(tmp, { recursive: true })
-const ffmpeg = join(root, 'vendor', 'ffmpeg', 'ffmpeg.exe')
-const ffprobe = join(root, 'vendor', 'ffmpeg', 'ffprobe.exe')
 
 // A 6 s clip with two named audio tracks.
 const src = join(tmp, 'two-tracks.mkv')

@@ -65,6 +65,10 @@ export function App() {
     void window.cw.getInfo().then((info) => {
       if (disposed) return
       set({ settings: info.settings, caps: info.caps, ffmpegVersion: info.ffmpegVersion })
+      // Installed fonts, so new text and subtitles default to one this computer actually has.
+      void window.cw.listFonts().then((fonts) => {
+        if (fonts.length && !disposed) set({ fonts })
+      })
       cleanups.push(initMediaCacheListener(), installShortcuts())
       cleanups.push(window.cw.onCloseRequest(() => guardUnsaved(() => window.cw.confirmClose())))
       cleanups.push(window.cw.onOpenPath((p) => guardUnsaved(() => void openProjectPath(p))))

@@ -316,9 +316,18 @@ export function unlinkAction(): void {
 export function addTextAction(text?: Partial<TextProps>): void {
   let id = ''
   edit((p) => {
-    id = addTextClip(p, player.time, text)
+    id = addTextClip(p, player.time, { fontFamily: preferredFont(), ...text })
   })
   set({ selection: [id] })
+}
+
+/** Common sans-serif fonts, in order of preference: Windows, then typical Linux and macOS installs. */
+const DEFAULT_FONTS = ['Segoe UI', 'Noto Sans', 'Ubuntu', 'Cantarell', 'DejaVu Sans', 'Liberation Sans', 'Helvetica Neue', 'Arial']
+
+/** Font for new text and subtitles: the first common one this computer has installed. */
+export function preferredFont(): string {
+  const installed = new Set(get().fonts)
+  return DEFAULT_FONTS.find((f) => installed.has(f)) ?? get().fonts[0] ?? 'Segoe UI'
 }
 
 // ---------------------------------------------------------------- subtitles
@@ -349,6 +358,7 @@ export function timelineTimeOf(p: Project, track: SubtitleTrack, trackTime: numb
 export function newSubtitleTrackAction(name?: string): string {
   const n = get().project.subtitles.length + 1
   const track = makeSubtitleTrack(name ?? (n === 1 ? 'Subtitles' : `Subtitles ${n}`))
+  track.style.fontFamily = preferredFont()
   edit((p) => {
     p.subtitles.push(track)
   })
@@ -467,6 +477,7 @@ export function addSubtitlesToTimelineAction(trackId: string): void {
 
 function addImportedTrack(name: string, language: string, cues: SubtitleCue[]): void {
   const track = makeSubtitleTrack(name, language)
+  track.style.fontFamily = preferredFont()
   track.cues = cues
   sortCues(track.cues)
   edit((p) => {

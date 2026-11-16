@@ -6,7 +6,7 @@ import type { Caps } from '@shared/filtergraph'
 import type { AppInfo, ExportRequest, ExportResult, OpenedProject, Recovery } from '@shared/ipc'
 import { type MediaItem, PROJECT_EXT, type Project, parseProject } from '@shared/model'
 import { runExport } from './export'
-import { type FfmpegPaths, findFfmpeg, run, setFfmpegPaths, usableCapabilities } from './ffmpeg'
+import { type FfmpegPaths, findFfmpeg, run, setFfmpegPaths, usableCapabilities, vendorDirs } from './ffmpeg'
 import {
   cancelConvert, convertToMp4, initMediaCache, prepareMedia, requestProxy, setChunkEncoders, setFastSeek, setProxyFocus,
   stopBackgroundWork
@@ -61,8 +61,11 @@ async function locateFfmpeg(): Promise<void> {
   const dirs = [
     loadSettings().ffmpegDir ?? '',
     join(process.resourcesPath ?? '', 'ffmpeg'),
-    join(app.getAppPath(), 'vendor', 'ffmpeg'),
-    join(process.cwd(), 'vendor', 'ffmpeg'),
+    ...vendorDirs(app.getAppPath()),
+    ...vendorDirs(process.cwd()),
+    // Linux/macOS package managers put ffmpeg on the PATH (also covered below); listed for GUI launches
+    // whose PATH lacks them.
+    ...(process.platform === 'win32' ? [] : ['/usr/local/bin', '/usr/bin', '/opt/homebrew/bin', '/snap/bin']),
     ...(process.env['PATH'] ?? '').split(delimiter)
   ]
   for (const dir of dirs) {
@@ -145,8 +148,9 @@ function listFonts(): Promise<string[]> {
         }
       })
     } else {
+      // fc-list prints "Family,Localized family" and backslash-escapes '-', ',' and ':' inside names.
       execFile('fc-list', [':', 'family'], { maxBuffer: 8 << 20 }, (err, stdout) =>
-        done(err ? '' : stdout.split(/\r?\n/).map((l) => l.split(',')[0]).join('\n'))
+        done(err ? '' : stdout.split(/\r?\n/).map((l) => (l.split(/(?<!\\),/)[0] ?? '').replace(/\\(.)/g, '$1')).join('\n'))
       )
     }
   })

@@ -6,12 +6,25 @@ A desktop video editor built on ffmpeg. Electron + TypeScript + React.
 
 ```bash
 npm install
-npm run fetch-ffmpeg   # downloads ffmpeg 9 (gyan.dev build, checksum-verified) into vendor/ffmpeg
+npm run fetch-ffmpeg   # downloads a static ffmpeg 9 for this system (checksum-verified) into vendor/ffmpeg/<platform>-<arch>
 npm run dev            # development, with hot reload
 ```
 
-Build a Windows installer (bundles ffmpeg, registers `.vcws` files): `npm run package` → `dist/`.
-`npm run package:dir` builds an unpacked app in `dist/win-unpacked/` without the installer.
+Needs Node.js 22 or newer. ffmpeg comes from gyan.dev on Windows and from FFmpeg-Builds (static GPL build, x64 or arm64) on Linux.
+
+### Windows
+
+`build.bat` builds `dist\win-unpacked\ClipWorld.exe` and starts it. `build.bat nolaunch` only builds, and `build.bat installer` makes the installer (bundles ffmpeg, registers `.vcws` files). The npm equivalents are `npm run package:dir` and `npm run package`.
+
+### Linux
+
+```bash
+bash build.sh            # builds dist/linux-unpacked/clipworld and starts it
+bash build.sh nolaunch   # build only
+bash build.sh appimage   # ClipWorld-<version>.AppImage and clipworld-<version>.tar.gz in dist/
+```
+
+The npm equivalents are `npm run package:linux:dir` and `npm run package:linux`. Build Linux packages on Linux: Windows drops the files' execute permission and cannot make AppImages, so the Linux scripts refuse to run there. Fonts come from `fontconfig`, and hardware encoding (NVENC) is used when the NVIDIA driver supports it. On distributions that block unprivileged sandboxes (e.g. Ubuntu 24.04), an AppImage may need `--no-sandbox` to start; the `.tar.gz` build avoids that.
 
 ## Workspace
 

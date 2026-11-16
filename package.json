@@ -15,17 +15,30 @@
     "test:e2e": "electron-vite build && node tests/e2e/smoke.mjs && node tests/e2e/convert.mjs && node tests/e2e/subtitles.mjs",
     "fetch-ffmpeg": "node scripts/fetch-ffmpeg.mjs",
     "package": "electron-vite build && electron-builder --win",
-    "package:dir": "electron-vite build && electron-builder --win --dir"
+    "package:dir": "electron-vite build && electron-builder --win --dir",
+    "package:linux": "node scripts/linux-only.mjs && electron-vite build && electron-builder --linux",
+    "package:linux:dir": "node scripts/linux-only.mjs && electron-vite build && electron-builder --linux --dir"
   },
   "build": {
     "appId": "app.clipworld.editor",
     "productName": "ClipWorld",
     "directories": { "output": "dist" },
     "files": ["out/**/*", "package.json"],
-    "extraResources": [{ "from": "vendor/ffmpeg", "to": "ffmpeg", "filter": ["ffmpeg.exe", "ffprobe.exe", "LICENSE*", "README*"] }],
-    "fileAssociations": [{ "ext": "vcws", "name": "ClipWorld Project", "description": "ClipWorld video project", "role": "Editor" }],
-    "win": { "target": ["nsis"] },
-    "nsis": { "oneClick": false, "allowToChangeInstallationDirectory": true, "perMachine": false }
+    "fileAssociations": [
+      { "ext": "vcws", "name": "ClipWorld Project", "description": "ClipWorld video project", "role": "Editor", "mimeType": "application/x-clipworld-project" }
+    ],
+    "win": {
+      "target": ["nsis"],
+      "extraResources": [{ "from": "vendor/ffmpeg/win32-${arch}", "to": "ffmpeg", "filter": ["ffmpeg.exe", "ffprobe.exe", "LICENSE*", "README*"] }]
+    },
+    "nsis": { "oneClick": false, "allowToChangeInstallationDirectory": true, "perMachine": false },
+    "linux": {
+      "target": ["AppImage", "tar.gz"],
+      "category": "AudioVideo",
+      "executableName": "clipworld",
+      "synopsis": "Video editor built on ffmpeg",
+      "extraResources": [{ "from": "vendor/ffmpeg/linux-${arch}", "to": "ffmpeg", "filter": ["ffmpeg", "ffprobe", "LICENSE*", "README*"] }]
+    }
   },
   "devDependencies": {
     "@types/node": "^26.6.6",

@@ -4,13 +4,16 @@ import { useSyncExternalStore } from 'react'
 import { clamp, transformAt } from '@shared/easing'
 import { fadeFactor } from '@shared/effects'
 import { layerInfo } from '@shared/filtergraph'
-import { type Clip, type MediaItem, type Project, REF_HEIGHT, clipEnd, projectDuration } from '@shared/model'
+import {
+  type Clip, type MediaItem, type Project, REF_HEIGHT, type SubtitleCue, type SubtitleTrack, clipEnd, projectDuration
+} from '@shared/model'
 import { activeClips } from '@shared/timeline-ops'
 import { chunkName } from '@shared/ipc'
 import { type State, get, set, useStore } from '../state/store'
 import { AudioEngine, type EffectChain } from './audio'
 import { renderLayer } from './layers'
-import { measureText, rasterText } from './raster'
+import { measureText, rasterSubtitle, rasterText } from './raster'
+import { clipTrackTime, cueAt } from '@shared/subtitles'
 
 type Mode = 'play' | 'hold' | 'paused'
 type Role = 'active' | 'preload'
@@ -216,14 +219,17 @@ class Player {
 
   /** Whether every video needed for the current frame has a decoded frame available. */
   ready(): boolean {
-    const p = get().project
+    const s = get()
+    const p = s.project
     for (const c of activeClips(p, this.time).visual) {
       const m = p.media.find((x) => x.id === c.mediaId)
       if (!isVideoLike(c, m)) continue
+      // Judge against the current playhead, not the last tick's choice: a seek may not have been synced yet.
+      const want = resolveVideo(s, c, m, this.time, this.activeKeys.get(c.id)?.key)
       const src = this.activeKeys.get(c.id)
-      const slot = src ? this.videos.find((s) => s.clipId === src.key) : undefined
-      if (!src || !slot || slot.el.readyState < 2 || slot.el.seeking) return false
-      if (Math.abs(slot.el.currentTime - src.time) > 0.05) return false
+      const slot = src ? this.videos.find((v) => v.clipId === src.key) : undefined
+      if (!want || !src || src.key !== want.key || !slot || slot.el.readyState < 2 || slot.el.seeking) return false
+      if (Math.abs(slot.el.currentTime - want.time) > 0.05) return false
     }
     return true
   }
@@ -577,6 +583,14 @@ class Player {
         source = t.canvas
         bw = t.w
         bh = t.h
+      } else if (c.type === 'subtitles') {
+        const track = p.subtitles.find((t) => t.id === c.subtitleTrackId)
+        const cue = track && cueAt(track, clipTrackTime(c, this.time))
+        if (!track || !cue) continue
+        const info = layerInfo(c, undefined, p.settings, { w: W, h: H, k: 4 })
+        source = this.subtitle(track, cue, W, H, px * (info?.q ?? 1))
+        bw = W
+        bh = H
       } else {
         const m = p.media.find((x) => x.id === c.mediaId)
         const info = layerInfo(c, m, p.settings)
@@ -616,6 +630,34 @@ class Player {
       ctx.drawImage(layer.image, -cw / 2 - layer.pad, -ch / 2 - layer.pad, cw + layer.pad * 2, ch + layer.pad * 2)
       ctx.restore()
     }
+
+    // Editing guide: the subtitle track open in the Subtitles window, while it is not on the timeline.
+    // Shown in the preview only, never exported.
+    const guide = s.subtitleGuide ? p.subtitles.find((t) => t.id === s.activeSubtitleTrack) : undefined
+    if (guide && !p.clips.some((c) => c.subtitleTrackId === guide.id)) {
+      const cue = cueAt(guide, this.time)
+      if (cue) {
+        ctx.save()
+        ctx.globalAlpha = 0.85
+        ctx.drawImage(this.subtitle(guide, cue, W, H, px), 0, 0, canvas.width, canvas.height)
+        ctx.restore()
+      }
+    }
+  }
+
+  private subtitles = new Map<string, HTMLCanvasElement>()
+
+  /** Full-frame canvas of one cue, cached by everything that changes how it looks. */
+  private subtitle(track: SubtitleTrack, cue: SubtitleCue, W: number, H: number, k: number): HTMLCanvasElement {
+    const kk = Math.max(0.05, Math.min(k, 4096 / W))
+    const key = `${cue.text}|${JSON.stringify(track.style)}|${W}x${H}|${kk.toFixed(3)}`
+    let hit = this.subtitles.get(key)
+    if (!hit) {
+      hit = rasterSubtitle(cue.text, track.style, W, H, kk)
+      this.subtitles.set(key, hit)
+      if (this.subtitles.size > 48) this.subtitles.delete(this.subtitles.keys().next().value!)
+    }
+    return hit
   }
 }
 

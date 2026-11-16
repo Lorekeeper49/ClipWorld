@@ -39,6 +39,16 @@ export interface State {
   /** Timeline zoom, pixels per second. */
   pps: number
   snapping: boolean
+  /** Subtitle track open in the Subtitles window. */
+  activeSubtitleTrack: string | null
+  /** Show that track's current cue in the preview while it is not on the timeline. */
+  subtitleGuide: boolean
+  /** Subtitle selected in the Subtitles window (target of "set start/end to playhead"). */
+  activeCueId: string | null
+  /** A just-added subtitle whose text box should take focus. */
+  focusCue: string | null
+  /** Bumped to ask the Subtitles window to open its export options (File ▸ Export subtitles…). */
+  subtitleExportRequest: number
 
   mediaCache: Record<string, MediaCache>
   /** Whether Chromium can decode each media's original file. */
@@ -66,6 +76,11 @@ export const useStore = create<State>(() => ({
   clipboard: null,
   pps: 60,
   snapping: true,
+  activeSubtitleTrack: null,
+  subtitleGuide: true,
+  activeCueId: null,
+  focusCue: null,
+  subtitleExportRequest: 0,
   mediaCache: {},
   playable: {},
   settings: { shortcuts: {}, previewVolume: 1, recent: [] },
@@ -157,6 +172,8 @@ export function loadProject(project: Project, path: string | null, dirty = false
     redo: [],
     selection: [],
     selectedMediaId: null,
+    activeSubtitleTrack: project.subtitles[0]?.id ?? null,
+    activeCueId: null,
     mediaCache: {},
     playable: {}
   }))

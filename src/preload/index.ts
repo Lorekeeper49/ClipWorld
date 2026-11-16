@@ -25,6 +25,12 @@ const api: Api = {
 
   listFonts: () => ipcRenderer.invoke('fonts:list'),
 
+  pickSubtitleFiles: () => ipcRenderer.invoke('subtitles:pick'),
+  readSubtitleFile: (path, fps) => ipcRenderer.invoke('subtitles:read', path, fps),
+  listSubtitleStreams: (path) => ipcRenderer.invoke('subtitles:streams', path),
+  extractSubtitleStream: (path, index) => ipcRenderer.invoke('subtitles:extract', path, index),
+  saveSubtitleFile: (name, ext, label, content) => ipcRenderer.invoke('subtitles:save', name, ext, label, content),
+
   openProject: (path) => ipcRenderer.invoke('project:open', path),
   saveProject: (path, project) => ipcRenderer.invoke('project:save', path, project),
   writeRecovery: (data) => ipcRenderer.invoke('project:recovery', data),

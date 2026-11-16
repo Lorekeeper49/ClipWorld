@@ -16,9 +16,62 @@ export interface ExportJob {
   caps: Caps
   /** Assets rasterised by the renderer (text, overlays). Reverb responses are generated here. */
   assets?: Partial<ExportAssets>
+  /** Subtitle clips to burn in, with their cue images already written to disk. */
+  subtitleClips?: SubtitleClipAsset[]
   onProgress?: (fraction: number) => void
   signal?: AbortSignal
   keepTmp?: boolean
+}
+
+export interface SubtitleClipAsset {
+  clipId: string
+  /** Frame size (project pixels) and raster scale of the cue images. */
+  w: number
+  h: number
+  k: number
+  /** Clip length on the timeline, seconds. */
+  duration: number
+  /** Fully transparent image of the same size, shown between cues. */
+  gap: string
+  /** Cue images in clip-local timeline seconds. */
+  cues: { image: string; start: number; end: number }[]
+}
+
+const ffconcatPath = (p: string) => `'${p.replace(/\\/g, '/').replace(/'/g, "'\\''")}'`
+const sec = (v: number) => v.toFixed(6)
+
+/**
+ * Writes the ffconcat list that plays a subtitle clip as one image stream: each cue's image for its
+ * duration and the transparent gap image in between, covering exactly the clip's length. A later cue
+ * cuts an overlapping earlier one short.
+ */
+export function writeSubtitleList(file: string, a: SubtitleClipAsset): void {
+  const rows = ['ffconcat version 1.0']
+  const push = (image: string, d: number) => {
+    if (d <= 1e-6) return
+    rows.push(`file ${ffconcatPath(image)}`, `duration ${sec(d)}`)
+  }
+  const cues = a.cues
+    .map((c) => ({ ...c, start: Math.max(0, c.start), end: Math.min(a.duration, c.end) }))
+    .filter((c) => c.end > c.start)
+    .sort((x, y) => x.start - y.start)
+  let t = 0
+  let last = a.gap
+  cues.forEach((c, i) => {
+    const end = Math.min(c.end, cues[i + 1]?.start ?? Infinity)
+    if (c.start > t) push(a.gap, c.start - t)
+    const from = Math.max(t, c.start)
+    push(c.image, end - from)
+    t = Math.max(t, end)
+    last = c.image
+  })
+  if (a.duration > t) {
+    push(a.gap, a.duration - t)
+    last = a.gap
+  }
+  // The concat demuxer ignores the duration of the final entry, so the last file is listed again.
+  rows.push(`file ${ffconcatPath(last)}`)
+  writeFileSync(file, rows.join('\n') + '\n', 'utf8')
 }
 
 export async function runExport(job: ExportJob): Promise<{ args: string[]; filter: string }> {
@@ -27,7 +80,13 @@ export async function runExport(job: ExportJob): Promise<{ args: string[]; filte
     const assets: ExportAssets = {
       text: job.assets?.text ?? {},
       overlays: job.assets?.overlays ?? {},
-      irs: { ...(job.assets?.irs ?? {}) }
+      irs: { ...(job.assets?.irs ?? {}) },
+      subtitles: { ...(job.assets?.subtitles ?? {}) }
+    }
+    for (const s of job.subtitleClips ?? []) {
+      const list = join(job.tmpDir, `subs_${s.clipId}.ffconcat`)
+      writeSubtitleList(list, s)
+      assets.subtitles[s.clipId] = { path: list, w: s.w, h: s.h, k: s.k }
     }
     for (const c of job.project.clips) {
       if (c.type !== 'audio') continue

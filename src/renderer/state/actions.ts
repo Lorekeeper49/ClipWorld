@@ -1,15 +1,20 @@
 // User-facing commands. Menus, toolbar buttons and keyboard shortcuts all call these.
-import { overlayEffects } from '@shared/filtergraph'
-import { layerInfo } from '@shared/filtergraph'
+import { layerInfo, overlayEffects } from '@shared/filtergraph'
 import { CONTAINER_MAP, type ExportSettings } from '@shared/formats'
-import type { ExportResult, RasterAsset } from '@shared/ipc'
-import { type MediaItem, type Project, type TextProps, clipEnd, newProject, projectDuration } from '@shared/model'
+import type { ExportRequest, ExportResult, RasterAsset } from '@shared/ipc'
 import {
-  addTextClip, copyClips, deleteClips, deleteMedia as opDeleteMedia, pasteClips, placeMedia, splitAt, unlinkClips,
-  withLinked
+  type MediaItem, type Project, type SubtitleCue, type SubtitleTrack, type TextProps, clipEnd, makeSubtitleTrack, newProject,
+  projectDuration, uid
+} from '@shared/model'
+import {
+  SUBTITLE_FORMATS, clipCues, clipTrackTime, cueAt, isSubtitleFile, sortCues, timelineCues, writeSubtitles
+} from '@shared/subtitles'
+import {
+  addSubtitleClip, addTextClip, copyClips, deleteClips, deleteMedia as opDeleteMedia, deleteSubtitleTrack, pasteClips,
+  placeMedia, splitAt, trimClip, unlinkClips, withLinked
 } from '@shared/timeline-ops'
 import { checkPlayable, player } from '../engine/player'
-import { canvasToPng, measureText, rasterOverlay, rasterText } from '../engine/raster'
+import { canvasToPng, measureText, rasterOverlay, rasterSubtitle, rasterText } from '../engine/raster'
 import { edit, get, loadProject, patchSettings, projectName, redo, set, toast, undo, useStore } from './store'
 
 // ---------------------------------------------------------------- project lifecycle
@@ -65,7 +70,11 @@ export async function saveProjectAction(saveAs = false): Promise<boolean> {
 
 // ---------------------------------------------------------------- media
 
-export async function importPaths(paths: string[]): Promise<MediaItem[]> {
+export async function importPaths(all: string[]): Promise<MediaItem[]> {
+  // Subtitle files become subtitle tracks rather than media.
+  const subtitleFiles = all.filter(isSubtitleFile)
+  if (subtitleFiles.length) await importSubtitleFilesAction(subtitleFiles)
+  const paths = all.filter((p) => !isSubtitleFile(p))
   if (!paths.length) return []
   if (!get().ffmpegVersion) {
     toast('ffmpeg was not found, so media cannot be imported.', 'error')
@@ -312,20 +321,246 @@ export function addTextAction(text?: Partial<TextProps>): void {
   set({ selection: [id] })
 }
 
+// ---------------------------------------------------------------- subtitles
+
+const activeTrack = (): SubtitleTrack | undefined => {
+  const s = get()
+  return s.project.subtitles.find((t) => t.id === s.activeSubtitleTrack) ?? s.project.subtitles[0]
+}
+
+/** Track time under the playhead: through the track's clip when it is on the timeline, else timeline time. */
+export function trackTimeAt(p: Project, track: SubtitleTrack, t: number): number {
+  const clips = p.clips.filter((c) => c.subtitleTrackId === track.id)
+  if (!clips.length) return t
+  const under = clips.find((c) => t >= c.start && t < clipEnd(c))
+  const nearest = under ?? clips.reduce((a, b) => (Math.abs(b.start - t) < Math.abs(a.start - t) ? b : a))
+  return clipTrackTime(nearest, t)
+}
+
+/** Timeline time where a track time appears (inverse of trackTimeAt), for seeking to a cue. */
+export function timelineTimeOf(p: Project, track: SubtitleTrack, trackTime: number): number {
+  const clips = p.clips.filter((c) => c.subtitleTrackId === track.id)
+  if (!clips.length) return trackTime
+  const covering = clips.find((c) => trackTime >= c.srcIn && trackTime < c.srcIn + c.duration * c.speed)
+  const c = covering ?? clips[0]
+  return c.start + (trackTime - c.srcIn) / c.speed
+}
+
+export function newSubtitleTrackAction(name?: string): string {
+  const n = get().project.subtitles.length + 1
+  const track = makeSubtitleTrack(name ?? (n === 1 ? 'Subtitles' : `Subtitles ${n}`))
+  edit((p) => {
+    p.subtitles.push(track)
+  })
+  set({ activeSubtitleTrack: track.id })
+  return track.id
+}
+
+export function deleteSubtitleTrackAction(trackId: string): void {
+  const track = get().project.subtitles.find((t) => t.id === trackId)
+  if (!track) return
+  edit((p) => deleteSubtitleTrack(p, trackId))
+  set((s) => ({ activeSubtitleTrack: s.project.subtitles[0]?.id ?? null, activeCueId: null }))
+  toast(`Deleted subtitle track “${track.name}”`)
+}
+
+/** Edits a subtitle track; rapid edits to the same field merge into one undo step. */
+export function editSubtitleTrack(trackId: string, key: string, fn: (t: SubtitleTrack) => void): void {
+  edit((p) => {
+    const t = p.subtitles.find((x) => x.id === trackId)
+    if (t) fn(t)
+  }, { key: `sub:${trackId}:${key}` })
+}
+
+/** Changes one cue, keeping the list sorted and start < end. */
+export function updateCueAction(trackId: string, cueId: string, patch: Partial<SubtitleCue>): void {
+  editSubtitleTrack(trackId, `${cueId}:${Object.keys(patch).join(',')}`, (t) => {
+    const c = t.cues.find((x) => x.id === cueId)
+    if (!c) return
+    Object.assign(c, patch)
+    if (c.end < c.start + MIN_CUE) {
+      if (patch.start !== undefined) c.end = c.start + MIN_CUE
+      else c.start = Math.max(0, c.end - MIN_CUE)
+    }
+    c.start = Math.max(0, c.start)
+    sortCues(t.cues)
+  })
+  extendClipsToCues(trackId)
+}
+
+const MIN_CUE = 0.1
+
+/**
+ * When a track is on the timeline as a single clip and a cue falls outside it, grows the clip so the
+ * cue shows (if there is room on its timeline track).
+ */
+function extendClipsToCues(trackId: string): void {
+  const p = get().project
+  const track = p.subtitles.find((t) => t.id === trackId)
+  const clips = p.clips.filter((c) => c.subtitleTrackId === trackId)
+  if (!track || clips.length !== 1 || !track.cues.length) return
+  const c = clips[0]
+  const first = Math.min(...track.cues.map((q) => q.start))
+  const last = Math.max(...track.cues.map((q) => q.end))
+  const startAt = c.start + (first - c.srcIn) / c.speed
+  const endAt = c.start + (last - c.srcIn) / c.speed
+  if (startAt >= c.start - 1e-6 && endAt <= clipEnd(c) + 1e-6) return
+  edit((d) => {
+    if (endAt > clipEnd(c)) trimClip(d, c.id, 'end', endAt)
+    if (startAt < c.start) trimClip(d, c.id, 'start', Math.max(0, startAt))
+  }, { key: `sub:${trackId}:extend` })
+}
+
+export function deleteCueAction(trackId: string, cueId: string): void {
+  edit((p) => {
+    const t = p.subtitles.find((x) => x.id === trackId)
+    if (t) t.cues = t.cues.filter((c) => c.id !== cueId)
+  })
+  if (get().activeCueId === cueId) set({ activeCueId: null })
+}
+
+/** Adds a subtitle at the playhead: 2 s long, or up to the next one. Creates a track if there is none. */
+export function addCueAction(): string | null {
+  const trackId = activeTrack()?.id ?? newSubtitleTrackAction()
+  const p = get().project
+  const track = p.subtitles.find((t) => t.id === trackId)!
+  const start = Math.max(0, trackTimeAt(p, track, player.time))
+  const next = track.cues.find((c) => c.start > start + 1e-6)
+  const end = Math.max(start + MIN_CUE * 5, Math.min(start + 2, next ? next.start : Infinity))
+  const cue: SubtitleCue = { id: uid('q'), start, end, text: '' }
+  edit((d) => {
+    const t = d.subtitles.find((x) => x.id === trackId)!
+    t.cues.push(cue)
+    sortCues(t.cues)
+  })
+  extendClipsToCues(trackId)
+  set({ activeSubtitleTrack: trackId, activeCueId: cue.id, focusCue: cue.id })
+  return cue.id
+}
+
+/** Sets the start or end of the selected subtitle (or the one under the playhead) to the playhead. */
+export function setCueEdgeAction(edge: 'start' | 'end'): void {
+  const track = activeTrack()
+  if (!track) return
+  const p = get().project
+  const t = trackTimeAt(p, track, player.time)
+  const cue = track.cues.find((c) => c.id === get().activeCueId) ?? cueAt(track, t)
+  if (!cue) {
+    toast('Select a subtitle first')
+    return
+  }
+  updateCueAction(track.id, cue.id, edge === 'start' ? { start: t } : { end: t })
+}
+
+export function addSubtitlesToTimelineAction(trackId: string): void {
+  const track = get().project.subtitles.find((t) => t.id === trackId)
+  if (!track?.cues.length) {
+    toast('Add some subtitles to this track first')
+    return
+  }
+  let id: string | null = null
+  edit((p) => {
+    id = addSubtitleClip(p, trackId)
+  })
+  if (id) set({ selection: [id] })
+}
+
+function addImportedTrack(name: string, language: string, cues: SubtitleCue[]): void {
+  const track = makeSubtitleTrack(name, language)
+  track.cues = cues
+  sortCues(track.cues)
+  edit((p) => {
+    p.subtitles.push(track)
+  })
+  set({ activeSubtitleTrack: track.id, activeCueId: null })
+  toast(`Imported ${cues.length} subtitle${cues.length === 1 ? '' : 's'} into “${name}”`)
+}
+
+export async function importSubtitleFilesAction(paths?: string[]): Promise<void> {
+  const files = paths ?? (await window.cw.pickSubtitleFiles())
+  const fps = get().project.settings.fps
+  for (const f of files) {
+    try {
+      const r = await window.cw.readSubtitleFile(f, fps)
+      addImportedTrack(r.name, r.language, r.cues)
+    } catch (err) {
+      toast(`Could not import ${f.split(/[\\/]/).pop()}: ${(err as Error).message.split('\n')[0]}`, 'error')
+    }
+  }
+}
+
+export async function importSubtitleStreamAction(mediaId: string, index: number, label: string, language: string): Promise<void> {
+  const m = get().project.media.find((x) => x.id === mediaId)
+  if (!m) return
+  try {
+    const cues = await window.cw.extractSubtitleStream(m.path, index)
+    addImportedTrack(label, language, cues)
+  } catch (err) {
+    toast(`Could not import subtitles from ${m.name}: ${(err as Error).message.split('\n')[0]}`, 'error')
+  }
+}
+
+export async function exportSubtitlesAction(trackId: string, format: string, timing: 'timeline' | 'original'): Promise<void> {
+  const s = get()
+  const track = s.project.subtitles.find((t) => t.id === trackId)
+  const def = SUBTITLE_FORMATS.find((f) => f.id === format)
+  if (!track || !def) return
+  const cues = (timing === 'timeline' ? timelineCues(s.project.clips, track) : track.cues).filter((c) => c.text.trim())
+  if (!cues.length) {
+    toast('There are no subtitles with text to export', 'error')
+    return
+  }
+  const { width, height, fps } = s.project.settings
+  const content = writeSubtitles(format, track, cues, { fps, width, height, title: track.name })
+  const base = `${projectName(s)} - ${track.name}`.replace(/[\\/:*?"<>|]/g, '_')
+  const path = await window.cw.saveSubtitleFile(base, def.ext, def.label.split(' (')[0], content)
+  if (path) toast(`Saved ${cues.length} subtitles to ${path.split(/[\\/]/).pop()}`)
+}
+
 export function zoomTimeline(factor: number): void {
   set((s) => ({ pps: Math.min(800, Math.max(2, s.pps * factor)) }))
 }
 
 // ---------------------------------------------------------------- export
 
-/** Rasterises text clips and overlay effects exactly as the preview draws them. */
-async function buildAssets(project: Project): Promise<{ text: RasterAsset[]; overlays: RasterAsset[] }> {
+type BuiltAssets = Pick<ExportRequest, 'text' | 'overlays' | 'subtitleImages' | 'subtitleClips'>
+
+/** Largest raster scale for subtitle frames (2 = 4K images for a 1080p project). */
+const SUBTITLE_MAX_K = 2
+
+/** Rasterises text clips, subtitle cues and overlay effects exactly as the preview draws them. */
+async function buildAssets(project: Project): Promise<BuiltAssets> {
   const text: RasterAsset[] = []
   const overlays: RasterAsset[] = []
+  const subtitleImages: BuiltAssets['subtitleImages'] = []
+  const subtitleClips: BuiltAssets['subtitleClips'] = []
+  const imageIds = new Set<string>()
   const st = project.settings
   for (const c of project.clips) {
     if (c.type === 'audio') continue
     let size: { w: number; h: number; k: number } | undefined
+    if (c.type === 'subtitles') {
+      const track = project.subtitles.find((t) => t.id === c.subtitleTrackId)
+      if (!track) continue
+      const info = layerInfo(c, undefined, st, { w: st.width, h: st.height, k: SUBTITLE_MAX_K })
+      const k = info?.q ?? 1
+      size = { w: st.width, h: st.height, k }
+      const gap = `gap:${k}`
+      if (!imageIds.has(gap)) {
+        imageIds.add(gap)
+        subtitleImages.push({ id: gap, png: await canvasToPng(rasterSubtitle('', track.style, st.width, st.height, k)) })
+      }
+      const cues: BuiltAssets['subtitleClips'][number]['cues'] = []
+      for (const placed of clipCues(c, track)) {
+        const id = `${track.id}:${placed.cue.id}:${k}`
+        if (!imageIds.has(id)) {
+          imageIds.add(id)
+          subtitleImages.push({ id, png: await canvasToPng(rasterSubtitle(placed.cue.text, track.style, st.width, st.height, k)) })
+        }
+        cues.push({ image: id, start: placed.start - c.start, end: placed.end - c.start })
+      }
+      subtitleClips.push({ clipId: c.id, w: st.width, h: st.height, k, duration: c.duration, gap, cues })
+    }
     if (c.type === 'text') {
       if (!c.text) continue
       const m = measureText(c.text, st.height)
@@ -345,7 +580,7 @@ async function buildAssets(project: Project): Promise<{ text: RasterAsset[]; ove
       overlays.push({ id: e.id, png: await canvasToPng(rasterOverlay(e, info.bw, info.bh)), w: info.bw, h: info.bh, k: 1 })
     }
   }
-  return { text, overlays }
+  return { text, overlays, subtitleImages, subtitleClips }
 }
 
 export async function runExportAction(settings: ExportSettings): Promise<ExportResult | null> {

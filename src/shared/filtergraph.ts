@@ -27,6 +27,11 @@ export interface ExportAssets {
   overlays: Record<string, string>
   /** Reverb impulse responses (WAV), by effect id. */
   irs: Record<string, string>
+  /**
+   * Subtitle clips, by clip id: `path` is an ffconcat list of full-frame transparent PNGs (one per
+   * cue, plus gaps) timed in clip-local seconds; w/h is the frame size and k the raster scale.
+   */
+  subtitles: Record<string, TextAsset>
 }
 
 export interface Caps {
@@ -58,7 +63,8 @@ export function layerInfo(c: Clip, media: MediaItem | undefined, st: ProjectSett
   let bw: number
   let bh: number
   let srcLimit: number
-  if (c.type === 'text') {
+  if (c.type === 'text' || c.type === 'subtitles') {
+    // Subtitles are full-frame layers: `text` carries the frame size and raster scale for them.
     if (!text) return null
     bw = text.w
     bh = text.h
@@ -122,7 +128,7 @@ function buildVisualLayer(g: Graph, c: Clip, p: Project, assets: ExportAssets): 
   const st = p.settings
   const fps = st.fps
   const media = c.mediaId ? p.media.find((m) => m.id === c.mediaId) : undefined
-  const textAsset = c.type === 'text' ? assets.text[c.id] : undefined
+  const textAsset = c.type === 'text' ? assets.text[c.id] : c.type === 'subtitles' ? assets.subtitles?.[c.id] : undefined
   const info = layerInfo(c, media, st, textAsset)
   if (!info) return null
   const D = c.duration
@@ -134,6 +140,12 @@ function buildVisualLayer(g: Graph, c: Clip, p: Project, assets: ExportAssets): 
   if (c.type === 'text') {
     const i = g.addInput(['-loop', '1', '-framerate', num(fps), '-t', num(D), '-i', textAsset!.path])
     chain = new Chain(g, `[${i}:v]`).add(`scale=${W0}:${H0}:flags=bicubic`, 'format=rgba', 'setsar=1')
+  } else if (c.type === 'subtitles') {
+    // One input per clip however many cues it has: the list already holds clip-local timing (speed included).
+    const i = g.addInput(['-f', 'concat', '-safe', '0', '-i', textAsset!.path])
+    chain = new Chain(g, `[${i}:v]`).add(
+      'setpts=PTS-STARTPTS', `fps=${num(fps)}`, `scale=${W0}:${H0}:flags=bicubic`, 'format=rgba', 'setsar=1', `trim=duration=${num(D)}`
+    )
   } else if (!isTimed(c, media)) {
     const i = g.addInput(['-loop', '1', '-framerate', num(fps), '-t', num(D), '-i', media!.path])
     chain = new Chain(g, `[${i}:v]`).add(`scale=${W0}:${H0}:flags=bicubic`, 'format=rgba', 'setsar=1')
@@ -148,7 +160,7 @@ function buildVisualLayer(g: Graph, c: Clip, p: Project, assets: ExportAssets): 
       `trim=duration=${num(D)}`
     )
   }
-  let alpha = c.type === 'text' || !!media?.hasAlpha
+  let alpha = c.type === 'text' || c.type === 'subtitles' || !!media?.hasAlpha
 
   // ---- effects, in stack order (drop shadow and fades are applied after zoom)
   for (const e of c.effects) {

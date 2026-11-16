@@ -6,7 +6,7 @@ import { get, patchSettings, set } from './store'
 export interface ShortcutDef {
   id: string
   label: string
-  group: 'File' | 'Edit' | 'Playback' | 'Timeline'
+  group: 'File' | 'Edit' | 'Playback' | 'Timeline' | 'Subtitles'
   default: string
   run: () => void
 }
@@ -35,6 +35,10 @@ export const SHORTCUTS: ShortcutDef[] = [
   { id: 'timeline.snap', label: 'Toggle snapping', group: 'Timeline', default: 'S', run: () => set((s) => ({ snapping: !s.snapping })) },
   { id: 'timeline.zoomIn', label: 'Zoom in', group: 'Timeline', default: 'Ctrl+=', run: () => a.zoomTimeline(1.4) },
   { id: 'timeline.zoomOut', label: 'Zoom out', group: 'Timeline', default: 'Ctrl+-', run: () => a.zoomTimeline(1 / 1.4) },
+
+  { id: 'subtitles.add', label: 'Add subtitle at playhead', group: 'Subtitles', default: 'Shift+T', run: () => void a.addCueAction() },
+  { id: 'subtitles.setStart', label: 'Set subtitle start to playhead', group: 'Subtitles', default: '[', run: () => a.setCueEdgeAction('start') },
+  { id: 'subtitles.setEnd', label: 'Set subtitle end to playhead', group: 'Subtitles', default: ']', run: () => a.setCueEdgeAction('end') },
 
   { id: 'play.toggle', label: 'Play / pause', group: 'Playback', default: 'Space', run: () => player.toggle() },
   { id: 'play.prevFrame', label: 'Previous frame', group: 'Playback', default: 'Left', run: () => player.step(-1) },

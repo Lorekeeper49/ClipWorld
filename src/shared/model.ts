@@ -113,7 +113,47 @@ export interface EffectInstance {
   params: Record<string, ParamValue>
 }
 
-export type ClipType = 'video' | 'audio' | 'image' | 'text'
+export interface SubtitleCue {
+  id: string
+  /** Seconds in the subtitle track's own time. */
+  start: number
+  end: number
+  text: string
+}
+
+export interface SubtitleStyle {
+  fontFamily: string
+  /** Pixels at REF_HEIGHT. */
+  fontSize: number
+  bold: boolean
+  italic: boolean
+  fill: string
+  outline: string
+  /** Pixels at REF_HEIGHT. 0 disables the outline. */
+  outlineWidth: number
+  /** Draw a box behind the text. */
+  box: boolean
+  boxColor: string
+  boxOpacity: number
+  position: 'bottom' | 'middle' | 'top'
+  /** Distance from the top/bottom edge as a fraction of the frame height. */
+  margin: number
+  align: 'left' | 'center' | 'right'
+  /** Lines wrap at this fraction of the frame width. */
+  maxWidth: number
+}
+
+export interface SubtitleTrack {
+  id: string
+  name: string
+  /** ISO 639-2 code, e.g. 'eng'. */
+  language: string
+  style: SubtitleStyle
+  /** Kept sorted by start time. */
+  cues: SubtitleCue[]
+}
+
+export type ClipType = 'video' | 'audio' | 'image' | 'text' | 'subtitles'
 
 export interface Clip {
   id: string
@@ -139,6 +179,8 @@ export interface Clip {
   transform: TransformAnim
   zoom: ZoomAnim
   text?: TextProps
+  /** Subtitle clips: the subtitle track shown. srcIn/speed map clip time to the track's time. */
+  subtitleTrackId?: string
   effects: EffectInstance[]
 }
 
@@ -160,6 +202,7 @@ export interface Project {
   /** Display order, top to bottom: video tracks (first = front-most), then audio tracks. */
   tracks: Track[]
   clips: Clip[]
+  subtitles: SubtitleTrack[]
 }
 
 let uidCounter = 0
@@ -214,8 +257,32 @@ export function newProject(): Project {
     settings: { width: 1920, height: 1080, fps: 30 },
     media: [],
     tracks: [makeTrack('video', 1), makeTrack('audio', 1)],
-    clips: []
+    clips: [],
+    subtitles: []
   }
+}
+
+export function defaultSubtitleStyle(): SubtitleStyle {
+  return {
+    fontFamily: 'Segoe UI',
+    fontSize: 54,
+    bold: true,
+    italic: false,
+    fill: '#ffffff',
+    outline: '#000000',
+    outlineWidth: 4,
+    box: false,
+    boxColor: '#000000',
+    boxOpacity: 0.6,
+    position: 'bottom',
+    margin: 0.07,
+    align: 'center',
+    maxWidth: 0.85
+  }
+}
+
+export function makeSubtitleTrack(name: string, language = 'eng'): SubtitleTrack {
+  return { id: uid('s'), name, language, style: defaultSubtitleStyle(), cues: [] }
 }
 
 export function makeClip(partial: Partial<Clip> & Pick<Clip, 'trackId' | 'type' | 'start' | 'duration'>): Clip {
@@ -239,7 +306,7 @@ export const isVisual = (c: Clip): boolean => c.type !== 'audio'
 export const clipEnd = (c: Clip): number => c.start + c.duration
 /** Whether the clip plays a time-based source (and therefore has a meaningful speed). */
 export const isTimed = (c: Clip, media?: MediaItem): boolean =>
-  c.type === 'audio' || (c.type === 'video' && !!media) || (c.type === 'image' && !!media?.animated)
+  c.type === 'audio' || c.type === 'subtitles' || (c.type === 'video' && !!media) || (c.type === 'image' && !!media?.animated)
 
 export function projectDuration(p: Project): number {
   let d = 0
@@ -270,11 +337,19 @@ export function parseProject(raw: unknown): Project {
     settings: { ...base.settings, ...(p.settings ?? {}) },
     media: (p.media ?? []).map((m) => ({ ...m, audioStreams: m.audioStreams ?? [] })),
     tracks: p.tracks.map((t) => ({ ...t, muted: !!t.muted, hidden: !!t.hidden })),
-    clips: []
+    clips: [],
+    // Projects saved before subtitles existed have none.
+    subtitles: (p.subtitles ?? []).map((s) => ({
+      ...s,
+      style: { ...defaultSubtitleStyle(), ...(s.style ?? {}) },
+      cues: [...(s.cues ?? [])].sort((a, b) => a.start - b.start)
+    }))
   }
   const trackIds = new Set(project.tracks.map((t) => t.id))
+  const subtitleIds = new Set(project.subtitles.map((s) => s.id))
   for (const c of p.clips) {
     if (!trackIds.has(c.trackId)) continue
+    if (c.type === 'subtitles' && !subtitleIds.has(c.subtitleTrackId ?? '')) continue
     project.clips.push({
       ...makeClip({ trackId: c.trackId, type: c.type, start: c.start, duration: c.duration }),
       ...c,

@@ -1,7 +1,7 @@
 // The contract between the renderer and the main process.
 import type { Caps } from './filtergraph'
 import type { ExportSettings } from './formats'
-import type { MediaItem, Project } from './model'
+import type { MediaItem, Project, SubtitleCue } from './model'
 
 /** Waveform peak resolution of the cached peak files (one unsigned byte per window). */
 export const PEAKS_PER_SECOND = 50
@@ -63,6 +63,8 @@ export interface AppSettings {
   ffmpegDir?: string
   exportSettings?: ExportSettings
   lastExportDir?: string
+  /** The Subtitles window was added to a layout saved before it existed (done once, so closing it sticks). */
+  subtitlesPanelAdded?: boolean
 }
 
 export interface AppInfo {
@@ -97,9 +99,29 @@ export interface ExportRequest {
   outPath: string
   text: RasterAsset[]
   overlays: RasterAsset[]
+  /** Rendered subtitle cue images (and blank gap images), each written once. */
+  subtitleImages: { id: string; png: Uint8Array }[]
+  /** Subtitle clips to burn in; image fields refer to `subtitleImages` ids. */
+  subtitleClips: {
+    clipId: string
+    w: number
+    h: number
+    k: number
+    duration: number
+    gap: string
+    cues: { image: string; start: number; end: number }[]
+  }[]
 }
 
 export type ExportResult = { ok: true; outPath: string } | { ok: false; cancelled: boolean; error: string }
+
+export interface SubtitleStreamListing {
+  index: number
+  codec: string
+  title: string
+  language: string
+  text: boolean
+}
 
 export type ConvertResult =
   | { ok: true; item: MediaItem; path: string; /** Every stream was copied, so nothing was re-encoded. */ copied: boolean }
@@ -132,6 +154,14 @@ export interface Api {
   pathForFile(file: File): string
 
   listFonts(): Promise<string[]>
+
+  /** Asks for subtitle files to import. */
+  pickSubtitleFiles(): Promise<string[]>
+  readSubtitleFile(path: string, fps: number): Promise<{ name: string; language: string; cues: SubtitleCue[] }>
+  listSubtitleStreams(mediaPath: string): Promise<SubtitleStreamListing[]>
+  extractSubtitleStream(mediaPath: string, index: number): Promise<SubtitleCue[]>
+  /** Asks where to save a subtitle file and writes it. Returns the path, or null if cancelled. */
+  saveSubtitleFile(suggestedName: string, ext: string, label: string, content: string): Promise<string | null>
 
   openProject(path?: string): Promise<OpenedProject | null>
   /** Saves to `path`, or asks for a location when it is null. Returns the path, or null if cancelled. */

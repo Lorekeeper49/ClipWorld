@@ -1,6 +1,7 @@
 import { memo, useCallback, useEffect, useLayoutEffect, useRef } from 'react'
 import { PEAKS_PER_SECOND } from '@shared/ipc'
 import { type Clip, type MediaItem, type Track, clipEnd, isTimed, projectDuration } from '@shared/model'
+import { clipCues } from '@shared/subtitles'
 import {
   type MoveOrigin, addTrack, moveClips, removeTrack, snapPoints, snapTime, stretchClip, trimClip, withLinked
 } from '@shared/timeline-ops'
@@ -43,6 +44,62 @@ function drag(e: React.PointerEvent, onMove: (ev: PointerEvent, dx: number, dy: 
 let dragSeq = 0
 
 // ---------------------------------------------------------------- clip drawing
+
+/** Cue blocks (with their text) inside a subtitle clip, drawn only for the visible part. */
+function SubtitleClipCanvas({ clip, pps, height }: { clip: Clip; pps: number; height: number }) {
+  const ref = useRef<HTMLCanvasElement>(null)
+  const track = useStore((s) => s.project.subtitles.find((t) => t.id === clip.subtitleTrackId))
+  useEffect(() => {
+    const canvas = ref.current
+    if (!canvas || !track) return
+    const placed = clipCues(clip, track)
+    const draw = () => {
+      const clipLeft = clip.start * pps
+      const clipW = clip.duration * pps
+      const visL = Math.max(0, Math.floor(view.left - HEADER_W - clipLeft - 150))
+      const visR = Math.min(clipW, Math.ceil(view.left + view.width - clipLeft + 150))
+      if (visR <= visL) {
+        canvas.style.display = 'none'
+        return
+      }
+      const w = visR - visL
+      const dpr = window.devicePixelRatio || 1
+      canvas.style.display = 'block'
+      canvas.style.left = `${visL}px`
+      canvas.style.width = `${w}px`
+      canvas.width = Math.max(1, Math.round(w * dpr))
+      canvas.height = Math.max(1, Math.round(height * dpr))
+      const ctx = canvas.getContext('2d')!
+      ctx.scale(dpr, dpr)
+      ctx.font = '11px "Segoe UI", system-ui, sans-serif'
+      ctx.textBaseline = 'middle'
+      const top = 18
+      const h = height - top - 4
+      for (const p of placed) {
+        const x0 = (p.start - clip.start) * pps - visL
+        const x1 = (p.end - clip.start) * pps - visL
+        if (x1 < 0 || x0 > w) continue
+        const bw = Math.max(2, x1 - x0 - 1)
+        ctx.fillStyle = 'rgba(255,255,255,0.22)'
+        ctx.fillRect(x0, top, bw, h)
+        ctx.fillStyle = 'rgba(255,255,255,0.75)'
+        ctx.fillRect(x0, top, 1.5, h)
+        if (bw > 24) {
+          ctx.save()
+          ctx.beginPath()
+          ctx.rect(x0, top, bw - 3, h)
+          ctx.clip()
+          ctx.fillStyle = '#fff'
+          ctx.fillText(p.cue.text.replace(/\s*\n\s*/g, ' / '), x0 + 5, top + h / 2)
+          ctx.restore()
+        }
+      }
+    }
+    draw()
+    return view.subscribe(draw)
+  }, [clip, track, pps, height])
+  return <canvas ref={ref} className="clip-canvas" />
+}
 
 function ClipCanvas({ clip, media, pps, height }: { clip: Clip; media: MediaItem | undefined; pps: number; height: number }) {
   const ref = useRef<HTMLCanvasElement>(null)
@@ -127,7 +184,11 @@ interface ClipProps {
 
 const ClipView = memo(function ClipView({ clip, media, pps, height, selected, missing, onDown }: ClipProps) {
   const timed = isTimed(clip, media)
-  const label = clip.type === 'text' ? (clip.text?.content.split('\n')[0] ?? 'Text') : clip.name || media?.name || ''
+  const subName = useStore((s) => (clip.type === 'subtitles' ? s.project.subtitles.find((t) => t.id === clip.subtitleTrackId)?.name : undefined))
+  const label =
+    clip.type === 'text' ? (clip.text?.content.split('\n')[0] ?? 'Text')
+      : clip.type === 'subtitles' ? `Subtitles · ${subName ?? clip.name}`
+        : clip.name || media?.name || ''
   const fx = clip.effects.filter((e) => e.enabled).length
   const speedPct = Math.round(clip.speed * 100)
   return (
@@ -139,7 +200,8 @@ const ClipView = memo(function ClipView({ clip, media, pps, height, selected, mi
       data-clip-type={clip.type}
       onPointerDown={(e) => e.button === 0 && onDown(e, clip, 'body')}
     >
-      {clip.type !== 'text' && !missing && <ClipCanvas clip={clip} media={media} pps={pps} height={height} />}
+      {clip.type === 'subtitles' && <SubtitleClipCanvas clip={clip} pps={pps} height={height} />}
+      {clip.type !== 'text' && clip.type !== 'subtitles' && !missing && <ClipCanvas clip={clip} media={media} pps={pps} height={height} />}
       <div className="clip-label">
         {clip.linkId && <Icon name="link" size={11} />}
         <span className="clip-name">{label}</span>

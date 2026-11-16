@@ -122,6 +122,30 @@ export function addTextClip(p: Project, time: number, text?: Partial<TextProps>)
 }
 
 /**
+ * Puts a subtitle track on the timeline as one clip on a new front video track, spanning its first
+ * cue start to its last cue end, so the subtitles land exactly where they were timed.
+ */
+export function addSubtitleClip(p: Project, subtitleTrackId: string): string | null {
+  const st = p.subtitles.find((s) => s.id === subtitleTrackId)
+  if (!st || !st.cues.length) return null
+  const first = Math.min(...st.cues.map((c) => c.start))
+  const last = Math.max(...st.cues.map((c) => c.end))
+  const duration = Math.max(MIN_CLIP_DURATION, last - first)
+  const t = addTrack(p, 'video')
+  const c = makeClip({
+    trackId: t.id, type: 'subtitles', start: first, duration, srcIn: first, subtitleTrackId, name: st.name
+  })
+  p.clips.push(c)
+  return c.id
+}
+
+/** Removes a subtitle track and every timeline clip that shows it. */
+export function deleteSubtitleTrack(p: Project, subtitleTrackId: string): void {
+  p.clips = p.clips.filter((c) => c.subtitleTrackId !== subtitleTrackId)
+  p.subtitles = p.subtitles.filter((s) => s.id !== subtitleTrackId)
+}
+
+/**
  * Splits clips at `time`. With `ids`, only those clips (and their links); otherwise every clip under
  * the time. Returns the ids of the new right-hand halves.
  */
@@ -345,6 +369,7 @@ export function pasteClips(p: Project, data: ClipboardData, time: number): strin
   const bySource = new Map<string, Clip[]>()
   for (const c of data.clips) {
     if (c.mediaId && !mediaById(p, c.mediaId)) continue
+    if (c.subtitleTrackId && !p.subtitles.some((s) => s.id === c.subtitleTrackId)) continue
     const list = bySource.get(c.trackId) ?? []
     list.push(c)
     bySource.set(c.trackId, list)

@@ -1,7 +1,7 @@
 // Canvas rasterisation shared by the live preview and the export: text and overlay effects
 // (gradient, vignette). The export sends these exact pixels to ffmpeg as PNGs.
 import { n, parseColor, s } from '@shared/effects'
-import { type EffectInstance, REF_HEIGHT, type TextProps } from '@shared/model'
+import { type EffectInstance, REF_HEIGHT, type SubtitleStyle, type TextProps } from '@shared/model'
 
 const LINE_HEIGHT = 1.2
 
@@ -69,6 +69,85 @@ export function rasterText(t: TextProps, H: number, k: number): { canvas: HTMLCa
     ctx.fillText(line, x, y)
   })
   return { canvas, w: m.w, h: m.h }
+}
+
+/** Splits text into lines no wider than `maxW`, breaking at spaces (or inside words that don't fit). */
+function wrapLines(ctx: CanvasRenderingContext2D, text: string, maxW: number): string[] {
+  const out: string[] = []
+  for (const para of text.replace(/\r\n?/g, '\n').split('\n')) {
+    const words = para.split(/\s+/).filter(Boolean)
+    if (!words.length) {
+      out.push('')
+      continue
+    }
+    let line = ''
+    for (let word of words) {
+      const candidate = line ? `${line} ${word}` : word
+      if (ctx.measureText(candidate).width <= maxW || !line) {
+        // A single word wider than the line is broken by characters.
+        while (!line && ctx.measureText(word).width > maxW && word.length > 1) {
+          let cut = word.length - 1
+          while (cut > 1 && ctx.measureText(word.slice(0, cut)).width > maxW) cut--
+          out.push(word.slice(0, cut))
+          word = word.slice(cut)
+        }
+        line = line ? `${line} ${word}` : word
+      } else {
+        out.push(line)
+        line = word
+      }
+    }
+    out.push(line)
+  }
+  return out
+}
+
+/**
+ * Draws one subtitle cue onto a full-frame transparent canvas of (W*k) x (H*k) pixels, positioned and
+ * styled by the track's style. The preview and the export both use this, so they match exactly.
+ */
+export function rasterSubtitle(text: string, st: SubtitleStyle, W: number, H: number, k: number): HTMLCanvasElement {
+  const canvas = document.createElement('canvas')
+  canvas.width = Math.max(2, Math.round(W * k))
+  canvas.height = Math.max(2, Math.round(H * k))
+  const trimmed = text.trim()
+  if (!trimmed) return canvas
+  const ctx = canvas.getContext('2d')!
+  ctx.scale(canvas.width / W, canvas.height / H)
+  const scale = H / REF_HEIGHT
+  const fontPx = Math.max(1, st.fontSize * scale)
+  const outline = Math.max(0, st.outlineWidth * scale)
+  const family = /["',]/.test(st.fontFamily) ? st.fontFamily : `"${st.fontFamily}"`
+  ctx.font = `${st.italic ? 'italic ' : ''}${st.bold ? '700 ' : '400 '}${fontPx}px ${family}, "Segoe UI", sans-serif`
+  ctx.textBaseline = 'middle'
+  ctx.lineJoin = 'round'
+  ctx.miterLimit = 2
+  const maxW = Math.max(fontPx, Math.min(1, Math.max(0.1, st.maxWidth)) * W)
+  const rows = wrapLines(ctx, trimmed, maxW)
+  const lineH = fontPx * 1.25
+  const blockH = rows.length * lineH
+  const margin = Math.min(0.45, Math.max(0, st.margin)) * H
+  const top = st.position === 'top' ? margin : st.position === 'middle' ? (H - blockH) / 2 : H - margin - blockH
+  const left = (W - maxW) / 2
+  const padX = fontPx * 0.35
+  const padY = fontPx * 0.08
+  rows.forEach((row, i) => {
+    const w = ctx.measureText(row).width
+    const x = st.align === 'left' ? left : st.align === 'right' ? left + maxW - w : (W - w) / 2
+    const y = top + (i + 0.5) * lineH
+    if (st.box && row) {
+      ctx.fillStyle = rgba(st.boxColor, Math.min(1, Math.max(0, st.boxOpacity)))
+      ctx.fillRect(x - padX, y - lineH / 2 - padY, w + padX * 2, lineH + padY * 2)
+    }
+    if (outline > 0) {
+      ctx.strokeStyle = st.outline
+      ctx.lineWidth = outline * 2
+      ctx.strokeText(row, x, y)
+    }
+    ctx.fillStyle = st.fill
+    ctx.fillText(row, x, y)
+  })
+  return canvas
 }
 
 /** Draws an overlay effect (gradient or vignette) covering a w x h rectangle. */

@@ -12,6 +12,8 @@ import {
   stopBackgroundWork
 } from './media'
 import { probeMedia } from './probe'
+import { extractSubtitleStream, listSubtitleStreams, readSubtitleFile } from './subtitles'
+import { SUBTITLE_IMPORT_EXTS } from '@shared/subtitles'
 import { allowFile, handleProtocol, registerScheme } from './protocol'
 import { addRecent, flushSettings, loadSettings, saveSettings } from './settings'
 
@@ -276,6 +278,41 @@ function registerIpc(): void {
 
   ipcMain.handle('fonts:list', () => listFonts())
 
+  ipcMain.handle('subtitles:pick', async () => {
+    const test = testDialogAnswer('open')
+    if (test !== undefined) return (test as string[] | null) ?? []
+    const r = await dialog.showOpenDialog(win!, {
+      title: 'Import subtitles',
+      properties: ['openFile', 'multiSelections'],
+      filters: [
+        { name: 'Subtitles', extensions: SUBTITLE_IMPORT_EXTS },
+        { name: 'All files', extensions: ['*'] }
+      ]
+    })
+    return r.canceled ? [] : r.filePaths
+  })
+  ipcMain.handle('subtitles:read', (_e, path: string, fps: number) => readSubtitleFile(path, fps))
+  ipcMain.handle('subtitles:streams', (_e, path: string) => listSubtitleStreams(path))
+  ipcMain.handle('subtitles:extract', (_e, path: string, index: number) => extractSubtitleStream(path, index))
+  ipcMain.handle('subtitles:save', async (_e, name: string, ext: string, label: string, content: string) => {
+    let target: string | null
+    const test = testDialogAnswer('save')
+    if (test !== undefined) target = test as string | null
+    else {
+      const s = loadSettings()
+      const r = await dialog.showSaveDialog(win!, {
+        title: 'Export subtitles',
+        defaultPath: join(s.lastExportDir ?? app.getPath('videos'), `${name}.${ext}`),
+        filters: [{ name: label, extensions: [ext] }]
+      })
+      target = r.canceled ? null : (r.filePath ?? null)
+      if (target) saveSettings({ lastExportDir: dirname(target) })
+    }
+    if (!target) return null
+    writeFileSync(target, content, 'utf8')
+    return target
+  })
+
   ipcMain.handle('project:open', async (_e, path?: string) => {
     let target = path
     if (!target) {
@@ -355,6 +392,17 @@ function registerIpc(): void {
         writeFileSync(file, a.png)
         overlays[a.id] = file
       }
+      const subImages: Record<string, string> = {}
+      req.subtitleImages.forEach((img, i) => {
+        const file = join(tmpDir, `sub_${i}.png`)
+        writeFileSync(file, img.png)
+        subImages[img.id] = file
+      })
+      const subtitleClips = req.subtitleClips.map((s) => ({
+        ...s,
+        gap: subImages[s.gap],
+        cues: s.cues.filter((c) => subImages[c.image]).map((c) => ({ ...c, image: subImages[c.image] }))
+      }))
       await runExport({
         project: req.project,
         settings: req.settings,
@@ -362,6 +410,7 @@ function registerIpc(): void {
         tmpDir,
         caps,
         assets: { text, overlays },
+        subtitleClips,
         signal: exportAbort.signal,
         onProgress: (f) => win?.webContents.send('export:progress', f)
       })

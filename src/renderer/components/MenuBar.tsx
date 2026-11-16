@@ -1,8 +1,9 @@
 import { useState, useSyncExternalStore } from 'react'
-import { PANELS, isPanelOpen, resetLayout, subscribePanels, togglePanel } from '../layout/dock'
+import { PANELS, isPanelOpen, resetLayout, showPanel, subscribePanels, togglePanel } from '../layout/dock'
 import {
-  addTextAction, copyAction, cutAction, deleteSelectionAction, duplicateAction, importMediaAction, newProjectAction,
-  openProjectAction, pasteAction, redo, saveProjectAction, selectAllAction, splitAction, undo, unlinkAction
+  addCueAction, addTextAction, copyAction, cutAction, deleteSelectionAction, duplicateAction, importMediaAction,
+  importSubtitleFilesAction, newProjectAction, openProjectAction, pasteAction, redo, saveProjectAction, selectAllAction,
+  splitAction, undo, unlinkAction
 } from '../state/actions'
 import { bindingFor } from '../state/shortcuts'
 import { guardUnsaved } from '../state/actions'
@@ -64,6 +65,7 @@ export function MenuBar() {
   const canUndo = useStore((s) => s.undo.length > 0)
   const canRedo = useStore((s) => s.redo.length > 0)
   const ffmpeg = useStore((s) => s.ffmpegVersion)
+  const hasSubtitles = useStore((s) => s.project.subtitles.some((t) => t.cues.length > 0))
   useStore((s) => s.settings.shortcuts)
   useSyncExternalStore(subscribePanels, () => PANELS.map((p) => (isPanelOpen(p.id) ? '1' : '0')).join(''))
   const k = bindingFor
@@ -79,7 +81,23 @@ export function MenuBar() {
     { label: 'Save as…', shortcut: k('file.saveAs'), run: () => void saveProjectAction(true) },
     { separator: true },
     { label: 'Import media…', shortcut: k('file.import'), run: () => void importMediaAction() },
+    {
+      label: 'Import subtitles…',
+      run: () => {
+        showPanel('subtitles')
+        void importSubtitleFilesAction()
+      }
+    },
+    { separator: true },
     { label: 'Export…', shortcut: k('file.export'), run: () => set({ modal: 'export' }), testId: 'menu-export' },
+    {
+      label: 'Export subtitles…',
+      disabled: !hasSubtitles,
+      run: () => {
+        showPanel('subtitles')
+        set((s) => ({ subtitleExportRequest: s.subtitleExportRequest + 1 }))
+      }
+    },
     { separator: true },
     { label: 'Exit', run: () => guardUnsaved(() => window.cw.confirmClose()) }
   ]
@@ -96,6 +114,14 @@ export function MenuBar() {
     { label: 'Split at playhead', shortcut: k('timeline.split'), run: splitAction },
     { label: 'Unlink audio from video', shortcut: k('timeline.unlink'), run: unlinkAction, disabled: !hasSelection },
     { label: 'Add text', shortcut: k('timeline.addText'), run: () => addTextAction() },
+    {
+      label: 'Add subtitle at playhead',
+      shortcut: k('subtitles.add'),
+      run: () => {
+        showPanel('subtitles')
+        addCueAction()
+      }
+    },
     { label: 'Select all clips', shortcut: k('edit.selectAll'), run: selectAllAction },
     { separator: true },
     { label: 'Keyboard shortcuts…', run: () => set({ modal: 'shortcuts' }), testId: 'menu-shortcuts' }

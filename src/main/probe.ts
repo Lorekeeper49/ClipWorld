@@ -2,7 +2,7 @@
 import { statSync } from 'node:fs'
 import { basename, extname } from 'node:path'
 import { type AudioStreamInfo, type MediaItem, type MediaKind, uid } from '@shared/model'
-import { ffprobeJson } from './ffmpeg'
+import { ffprobeJson, getFfmpegPaths, run } from './ffmpeg'
 
 const IMAGE_FORMATS = /(^|,)(image2|png_pipe|jpeg_pipe|jpegxl_pipe|bmp_pipe|tiff_pipe|webp_pipe|gif|apng|ico|svg_pipe|psd_pipe|tga_pipe|dds_pipe|exr_pipe|qoi_pipe|avif|heif|jpegls_pipe|pam_pipe|ppm_pipe|pgm_pipe|sgi_pipe)(,|$)/
 const IMAGE_EXTS = new Set(['.png', '.jpg', '.jpeg', '.jfif', '.bmp', '.tif', '.tiff', '.webp', '.gif', '.apng', '.tga', '.ico', '.avif', '.heic', '.heif', '.jxl', '.psd', '.exr', '.dds', '.qoi'])
@@ -14,6 +14,29 @@ function ratio(v: string | undefined): number {
   if (!Number.isFinite(a)) return 0
   if (b === undefined) return a
   return b ? a / b : 0
+}
+
+/** Longest keyframe gap in the first 30 seconds of the video stream (packet flags only, no decoding). */
+export async function probeKeyframeInterval(path: string, duration: number): Promise<number | undefined> {
+  const window = Math.min(30, duration)
+  if (window <= 0) return undefined
+  const r = await run(getFfmpegPaths().ffprobe, [
+    '-v', 'error', '-select_streams', 'v:0', '-read_intervals', `%+${window.toFixed(3)}`,
+    '-show_entries', 'packet=pts_time,flags', '-of', 'csv=p=0', path
+  ]).catch(() => null)
+  if (!r || r.code !== 0) return undefined
+  const keys = r.stdout
+    .split(/\r?\n/)
+    .filter((l) => /,K/.test(l))
+    .map((l) => Number(l.split(',')[0]))
+    .filter(Number.isFinite)
+    .sort((a, b) => a - b)
+  if (!keys.length) return undefined
+  // A single keyframe in the window means the interval is at least the window length.
+  if (keys.length === 1) return window
+  let worst = 0
+  for (let i = 1; i < keys.length; i++) worst = Math.max(worst, keys[i] - keys[i - 1])
+  return worst
 }
 
 export async function probeMedia(path: string): Promise<MediaItem> {
@@ -74,8 +97,11 @@ export async function probeMedia(path: string): Promise<MediaItem> {
     }
   })
 
+  const keyframeInterval = kind === 'video' ? await probeKeyframeInterval(path, duration) : undefined
+
   return {
     id: uid('m'),
+    keyframeInterval,
     kind,
     name: basename(path),
     path,

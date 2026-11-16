@@ -69,7 +69,16 @@ export function handleProtocol(): void {
         return new Response(null, { status: 416, headers: { ...base, 'Content-Range': `bytes */${size}` } })
       }
       start = Math.max(0, start)
-      const stream = Readable.toWeb(createReadStream(path, { start, end })) as unknown as ReadableStream
+      const rs = createReadStream(path, { start, end })
+      if (process.env['CW_DEBUG_PROTOCOL']) {
+        const t0 = performance.now()
+        let bytes = 0
+        rs.on('data', (c) => (bytes += c.length))
+        rs.on('close', () =>
+          console.log(`[proto] ${extname(path)} range ${start}-${range[2] || ''} served ${bytes} B in ${(performance.now() - t0).toFixed(0)} ms`)
+        )
+      }
+      const stream = Readable.toWeb(rs) as unknown as ReadableStream
       return new Response(stream, {
         status: 206,
         headers: { ...base, 'Content-Range': `bytes ${start}-${end}/${size}`, 'Content-Length': String(end - start + 1) }

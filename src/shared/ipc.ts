@@ -13,14 +13,35 @@ export interface Filmstrip {
   tileH: number
 }
 
+/**
+ * A fast-seeking preview copy of a video, built in fixed-length chunks so the part being edited is
+ * ready first and finished work survives a restart. Chunk k covers source time [k*seconds, (k+1)*seconds).
+ */
+export interface ProxyChunks {
+  seconds: number
+  count: number
+  /** URL of chunk k is `${prefix}${chunkName(k)}`. */
+  prefix: string
+  done: number[]
+  /** The original cannot be decoded by the preview, so only finished chunks can be shown. */
+  required: boolean
+  failed?: boolean
+}
+
+export const chunkName = (k: number): string => `${String(k).padStart(5, '0')}.mp4`
+
 /** What the main process has prepared for a media item so the renderer can preview it. */
 export interface MediaCache {
   /** Original file, served over the media protocol. */
   sourceUrl: string
-  /** Proxy video for files Chromium cannot decode (and for GIFs). */
+  /** Chunked fast-seek preview copy (long-keyframe, very large or undecodable video). */
+  chunks?: ProxyChunks
+  /** Proxy for animated images (GIF etc.), with alpha. */
   proxyUrl?: string
   proxyState?: 'pending' | 'ready' | 'error'
   proxyProgress?: number
+  /** Progress of the single pass that extracts every audio track, 0..1. */
+  audioProgress?: number
   /** Extracted audio, by audio stream index. */
   audioUrls: Record<number, string>
   /** Waveform peak files, by audio stream index. */
@@ -91,7 +112,10 @@ export interface Api {
   importMedia(paths: string[]): Promise<{ items: MediaItem[]; errors: string[] }>
   /** Starts (or resumes from cache) preparation of preview assets. Updates arrive via onMediaCache. */
   prepareMedia(items: MediaItem[]): Promise<void>
+  /** The preview cannot decode this video's original: build the chunked preview copy (required). */
   requestProxy(mediaId: string): Promise<void>
+  /** Where the user is working in a video (source seconds), so nearby preview chunks are built first. */
+  proxyFocus(mediaId: string, sourceTime: number): void
   relinkMedia(item: MediaItem): Promise<MediaItem | null>
   onMediaCache(cb: (mediaId: string, patch: Partial<MediaCache>) => void): () => void
   pathForFile(file: File): string

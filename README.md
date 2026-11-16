@@ -41,6 +41,8 @@ The project model (`src/shared/model.ts`) has two renderers:
 - **Preview:** canvas compositor + Web Audio graph (`src/renderer/engine/`).
 - **Export:** an ffmpeg `filter_complex` graph (`src/shared/filtergraph.ts`).
 
+**Fast seeking on long recordings.** Screen and game recordings usually put keyframes several seconds apart, and the preview has to decode from the previous keyframe on every seek. For such videos (and anything above 1440p), ClipWorld builds a 720p preview copy with a keyframe every 0.25 s, in the background, at low priority, in 60-second chunks. Chunks around the playhead are built first, finished chunks are reused after a restart, and the preview switches to a chunk as soon as it exists. Export always reads the original file. The copy uses NVIDIA NVENC when the driver supports it, otherwise x264. On import, all of a video's audio tracks are extracted in one read of the file.
+
 Each effect is defined once in `src/shared/effects.ts`. Colour filters use the CSS filter-spec maths on both sides, and text and gradient overlays are rasterised by the same canvas code for both, so the export matches the preview.
 
 ## Tests

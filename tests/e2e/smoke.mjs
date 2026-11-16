@@ -3,6 +3,7 @@
 import { _electron as electron } from 'playwright'
 import { existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
+import { tmpdir } from 'node:os'
 import { spawnSync } from 'node:child_process'
 
 const root = resolve(import.meta.dirname, '..', '..')
@@ -16,7 +17,8 @@ const ffprobe = join(root, 'vendor', 'ffmpeg', 'ffprobe.exe')
 const src = join(tmp, 'two-tracks.mkv')
 spawnSync(ffmpeg, ['-loglevel', 'error', '-y', '-f', 'lavfi', '-i', 'testsrc2=s=1280x720:r=30:d=6',
   '-f', 'lavfi', '-i', 'sine=f=440:d=6', '-f', 'lavfi', '-i', 'sine=f=660:d=6',
-  '-map', '0:v', '-map', '1:a', '-map', '2:a', '-c:v', 'libx264', '-preset', 'ultrafast', '-pix_fmt', 'yuv420p',
+  // Keyframes 5 s apart, like a screen/game recording, so the fast-seek preview copy gets built.
+  '-map', '0:v', '-map', '1:a', '-map', '2:a', '-c:v', 'libx264', '-preset', 'ultrafast', '-g', '150', '-pix_fmt', 'yuv420p',
   '-c:a', 'aac', '-metadata:s:a:0', 'title=Game', '-metadata:s:a:1', 'title=Voice', src])
 
 const projectPath = join(tmp, 'demo.vcws')
@@ -24,7 +26,8 @@ const exportPath = join(tmp, 'demo-export.mp4')
 const dialogs = join(tmp, 'dialogs.json')
 writeFileSync(dialogs, JSON.stringify({ open: [[src]], save: [projectPath, exportPath] }))
 
-const userData = join(tmp, 'userdata')
+const userData = join(tmpdir(), 'clipworld-e2e-userdata')
+rmSync(userData, { recursive: true, force: true })
 const app = await electron.launch({
   args: [join(root, 'out', 'main', 'index.js'), `--user-data-dir=${userData}`],
   env: { ...process.env, CW_E2E_DIALOGS: dialogs }
@@ -52,11 +55,25 @@ await page.waitForSelector('[data-testid=media-item]')
 await page.waitForFunction(() => document.querySelectorAll('[data-testid=media-audio-track]:not(.pending)').length === 2, null, { timeout: 30000 })
 check(await page.getByTestId('media-audio-track').count() === 2, 'both audio tracks extracted and listed')
 
+step('fast-seek preview copy')
+await page.waitForFunction(() => {
+  const s = window.__cw.get()
+  const m = s.project.media[0]
+  const ch = s.mediaCache[m.id]?.chunks
+  return ch && ch.done.length === ch.count
+}, null, { timeout: 60000 })
+const ki = await page.evaluate(() => window.__cw.get().project.media[0].keyframeInterval)
+check(Math.abs(ki - 5) < 0.1, `keyframe spacing detected (${ki} s) and preview chunks built`)
+
 step('add to timeline')
 await page.getByTestId('media-add').click()
 check(await page.locator('[data-clip-type=video]').count() === 1, 'one video clip')
 check(await page.locator('[data-clip-type=audio]').count() === 2, 'two linked audio clips')
 check(await page.getByTestId('audio-row').count() === 2, 'Audio panel shows both tracks of the selected video')
+await page.evaluate(() => window.__cw.player.seek(3.2))
+await page.waitForFunction(() => window.__cw.player.ready(), null, { timeout: 15000 })
+const shown = await page.evaluate(() => Object.values(window.__cw.player.sources()))
+check(shown[0] === 'chunk', `preview shows the fast-seek copy (${shown})`)
 await page.waitForTimeout(1500)
 await shot('02-imported')
 

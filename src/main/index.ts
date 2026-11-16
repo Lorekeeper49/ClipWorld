@@ -7,7 +7,7 @@ import type { AppInfo, ExportRequest, ExportResult, OpenedProject, Recovery } fr
 import { type MediaItem, PROJECT_EXT, type Project, parseProject } from '@shared/model'
 import { runExport } from './export'
 import { type FfmpegPaths, findFfmpeg, run, setFfmpegPaths, usableCapabilities } from './ffmpeg'
-import { initMediaCache, prepareMedia, requestProxy } from './media'
+import { initMediaCache, prepareMedia, requestProxy, setChunkEncoders, setProxyFocus, stopBackgroundWork } from './media'
 import { probeMedia } from './probe'
 import { allowFile, handleProtocol, registerScheme } from './protocol'
 import { addRecent, flushSettings, loadSettings, saveSettings } from './settings'
@@ -68,6 +68,7 @@ async function locateFfmpeg(): Promise<void> {
       setFfmpegPaths(found)
       ffmpegVersion = version
       caps = await usableCapabilities()
+      setChunkEncoders(caps.encoders)
       return
     }
   }
@@ -249,6 +250,7 @@ function registerIpc(): void {
     for (const m of items) prepareMedia(m)
   })
   ipcMain.handle('media:proxy', (_e, id: string) => requestProxy(id))
+  ipcMain.on('media:focus', (_e, id: string, t: number) => setProxyFocus(id, t))
   ipcMain.handle('media:relink', async (_e, item: MediaItem) => {
     const r = await dialog.showOpenDialog(win!, {
       title: `Locate ${item.name}`,
@@ -401,6 +403,7 @@ if (!app.requestSingleInstanceLock()) {
 
   app.on('window-all-closed', () => {
     flushSettings()
+    stopBackgroundWork()
     app.quit()
   })
 }

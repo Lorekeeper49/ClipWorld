@@ -15,6 +15,7 @@ const api: Api = {
   importMedia: (paths) => ipcRenderer.invoke('media:import', paths),
   prepareMedia: (items) => ipcRenderer.invoke('media:prepare', items),
   requestProxy: (id) => ipcRenderer.invoke('media:proxy', id),
+  proxyFocus: (id, t) => ipcRenderer.send('media:focus', id, t),
   relinkMedia: (item) => ipcRenderer.invoke('media:relink', item),
   onMediaCache: (cb) => on('media:cache', cb),
   pathForFile: (file) => webUtils.getPathForFile(file),

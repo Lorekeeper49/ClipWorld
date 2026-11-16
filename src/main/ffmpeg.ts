@@ -1,6 +1,7 @@
 // ffmpeg / ffprobe process helpers. No Electron imports, so tests can use this module directly.
 import { spawn } from 'node:child_process'
 import { existsSync } from 'node:fs'
+import { constants, setPriority } from 'node:os'
 import { join } from 'node:path'
 import type { Caps } from '@shared/filtergraph'
 
@@ -47,12 +48,21 @@ export interface RunOptions {
   /** Collect stdout as a Buffer instead of text. */
   binary?: (chunk: Buffer) => void
   cwd?: string
+  /** Run below normal priority so background work never competes with the UI and playback. */
+  lowPriority?: boolean
 }
 
 /** Runs a binary with an argument array (never through a shell). */
 export function run(bin: string, args: string[], opts: RunOptions = {}): Promise<RunResult> {
   return new Promise((resolve, reject) => {
     const child = spawn(bin, args, { windowsHide: true, cwd: opts.cwd, stdio: ['ignore', 'pipe', 'pipe'] })
+    if (opts.lowPriority && child.pid) {
+      try {
+        setPriority(child.pid, constants.priority.PRIORITY_BELOW_NORMAL)
+      } catch {
+        /* not permitted: run at normal priority */
+      }
+    }
     let stdout = ''
     let stderr = ''
     const onAbort = () => child.kill()
@@ -111,11 +121,12 @@ export async function ffprobeJson(file: string): Promise<any> {
 
 /** Runs ffmpeg reporting progress 0..1 from `-progress` output. */
 export async function ffmpegProgress(
-  args: string[], duration: number, onProgress: (fraction: number) => void, signal?: AbortSignal
+  args: string[], duration: number, onProgress: (fraction: number) => void, signal?: AbortSignal, lowPriority = false
 ): Promise<void> {
   let buf = ''
   await ffmpeg(['-progress', 'pipe:1', '-nostats', ...args], {
     signal,
+    lowPriority,
     onStdout: (chunk) => {
       buf += chunk
       const lines = buf.split(/\r?\n/)

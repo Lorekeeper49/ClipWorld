@@ -26,11 +26,16 @@ function MediaRow({ m }: { m: MediaItem }) {
   const audioReady = m.audioStreams.filter((a) => cache?.audioUrls[a.index]).length
   const hasTracks = m.kind === 'video' && m.audioStreams.length > 0
 
+  const ch = cache?.chunks
   let status: string | null = null
   if (cache?.missing) status = 'File not found'
   else if (cache?.proxyState === 'pending') status = `Building preview ${Math.round((cache.proxyProgress ?? 0) * 100)}%`
-  else if (cache?.proxyState === 'error') status = 'Preview unavailable (export still works)'
-  else if (m.audioStreams.length && audioReady < m.audioStreams.length) status = `Extracting audio ${audioReady}/${m.audioStreams.length}`
+  else if (cache?.proxyState === 'error' || ch?.failed) status = 'Preview unavailable (export still works)'
+  else if (m.audioStreams.length && audioReady < m.audioStreams.length) {
+    status = `Extracting audio ${Math.round((cache?.audioProgress ?? 0) * 100)}%`
+  } else if (ch && ch.done.length < ch.count) {
+    status = `Optimizing for fast seeking ${Math.floor((ch.done.length / ch.count) * 100)}%`
+  }
 
   const meta: string[] = []
   if (m.kind !== 'audio') meta.push(`${m.width}×${m.height}`)
@@ -54,7 +59,15 @@ function MediaRow({ m }: { m: MediaItem }) {
         <div className="media-info">
           <div className="media-name">{m.name}</div>
           <div className="media-meta">{meta.join(' · ')}</div>
-          {status && <div className={`media-status${cache?.missing || cache?.proxyState === 'error' ? ' bad' : ''}`}>{status}</div>}
+          {status && (
+            <div className={`media-status${cache?.missing || cache?.proxyState === 'error' || ch?.failed ? ' bad' : ''}`}
+              data-testid="media-status"
+              title={ch && !ch.failed && ch.done.length < ch.count
+                ? 'Building a seek-friendly preview copy in the background, starting where you are working. Playback and export use the original meanwhile.'
+                : undefined}>
+              {status}
+            </div>
+          )}
           {uses > 0 && !status && <div className="media-meta">Used {uses}×</div>}
         </div>
         <div className="media-actions">

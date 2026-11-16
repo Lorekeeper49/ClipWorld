@@ -40,6 +40,8 @@ export interface MediaItem {
   hasAlpha: boolean
   videoCodec?: string
   colorSpace?: string
+  /** Longest gap between keyframes near the start of the file, seconds. Long gaps make seeking slow. */
+  keyframeInterval?: number
   audioStreams: AudioStreamInfo[]
 }
 

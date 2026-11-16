@@ -6,7 +6,8 @@ import { fadeFactor } from '@shared/effects'
 import { layerInfo } from '@shared/filtergraph'
 import { type Clip, type MediaItem, type Project, REF_HEIGHT, clipEnd, projectDuration } from '@shared/model'
 import { activeClips } from '@shared/timeline-ops'
-import { get, set, useStore } from '../state/store'
+import { chunkName } from '@shared/ipc'
+import { type State, get, set, useStore } from '../state/store'
 import { AudioEngine, type EffectChain } from './audio'
 import { renderLayer } from './layers'
 import { measureText, rasterText } from './raster'
@@ -16,10 +17,57 @@ type Role = 'active' | 'preload'
 
 interface VideoSlot {
   el: HTMLVideoElement
+  /** Source key (`clipId#part`) this element is assigned to, or null when free. */
   clipId: string | null
+  role: Role
   url: string
   mediaId: string
   failed: boolean
+}
+
+/** Which file shows a video clip at a given moment, and where in that file. */
+interface VideoSource {
+  /** `clipId#o` for the original, `clipId#<k>` for preview chunk k, `clipId#a` for an animated image. */
+  key: string
+  url: string
+  /** Position inside `url`, seconds. */
+  time: number
+  mediaId: string
+  /** Timeline time at which this source stops covering the clip (next chunk or clip end). */
+  until: number
+}
+
+/**
+ * Picks the fastest thing to show for clip `c` at timeline time `t`: the fast-seek preview chunk when
+ * it is built, otherwise the original file. `current` is the key already playing this clip; while
+ * playing, an element showing the original keeps going instead of switching mid-stream.
+ */
+function resolveVideo(s: State, c: Clip, m: MediaItem | undefined, t: number, current?: string): VideoSource | null {
+  if (!m) return null
+  const cache = s.mediaCache[m.id]
+  if (!cache || cache.missing) return null
+  const src = sourceTime(c, t)
+  const end = clipEnd(c)
+  if (m.kind === 'image') {
+    return cache.proxyUrl && cache.proxyState === 'ready'
+      ? { key: `${c.id}#a`, url: cache.proxyUrl, time: src, mediaId: m.id, until: end }
+      : null
+  }
+  const ch = cache.chunks
+  const original: VideoSource | null =
+    cache.sourceUrl && s.playable[m.id] !== 'bad' && !ch?.required
+      ? { key: `${c.id}#o`, url: cache.sourceUrl, time: src, mediaId: m.id, until: end }
+      : null
+  if (original && current === original.key) return original
+  if (ch) {
+    const k = Math.min(ch.count - 1, Math.max(0, Math.floor(src / ch.seconds + 1e-9)))
+    if (ch.done.includes(k)) {
+      const chunkEnd = (k + 1) * ch.seconds
+      const until = k < ch.count - 1 && c.speed > 0 ? Math.min(end, c.start + (chunkEnd - c.srcIn) / c.speed) : end
+      return { key: `${c.id}#${k}`, url: ch.prefix + chunkName(k), time: src - k * ch.seconds, mediaId: m.id, until }
+    }
+  }
+  return original
 }
 
 interface AudioSlot {
@@ -58,6 +106,11 @@ class Player {
   private canvas: HTMLCanvasElement | null = null
   private ctx: CanvasRenderingContext2D | null = null
   private videos: VideoSlot[] = []
+  /** Source chosen for each visible clip on the last tick. */
+  private activeKeys = new Map<string, VideoSource>()
+  private focusSent = new Map<string, number>()
+  private lastShown = new Map<string, HTMLVideoElement>()
+  private focusAt = 0
   private audios: AudioSlot[] = []
   private images = new Map<string, HTMLImageElement>()
   private texts = new Map<string, { key: string; canvas: HTMLCanvasElement; w: number; h: number }>()
@@ -167,11 +220,19 @@ class Player {
     for (const c of activeClips(p, this.time).visual) {
       const m = p.media.find((x) => x.id === c.mediaId)
       if (!isVideoLike(c, m)) continue
-      const slot = this.videos.find((s) => s.clipId === c.id)
-      if (!slot || slot.el.readyState < 2 || slot.el.seeking) return false
-      if (Math.abs(slot.el.currentTime - sourceTime(c, this.time)) > 0.05) return false
+      const src = this.activeKeys.get(c.id)
+      const slot = src ? this.videos.find((s) => s.clipId === src.key) : undefined
+      if (!src || !slot || slot.el.readyState < 2 || slot.el.seeking) return false
+      if (Math.abs(slot.el.currentTime - src.time) > 0.05) return false
     }
     return true
+  }
+
+  /** Which source each visible clip is using: 'original', 'chunk', or 'none' (for tests and diagnostics). */
+  sources(): Record<string, string> {
+    const out: Record<string, string> = {}
+    for (const [clipId, src] of this.activeKeys) out[clipId] = src.key.endsWith('#o') ? 'original' : src.key.endsWith('#a') ? 'proxy' : 'chunk'
+    return out
   }
 
   // ------------------------------------------------------------ internals
@@ -218,6 +279,7 @@ class Player {
     }
     const busy = this.syncVideos(s, p, active.visual, upcoming, mode)
     this.syncAudios(s, p, active.audio, upcoming, mode)
+    this.reportFocus(s, p, active.visual, now)
 
     if (this.audio && s.settings.previewVolume !== this.lastVolume) {
       this.lastVolume = s.settings.previewVolume
@@ -231,20 +293,28 @@ class Player {
 
   private isStalled(): boolean {
     for (const slot of this.videos) {
-      if (!slot.clipId || slot.failed || !slot.url) continue
+      // Only what is on screen can hold playback; an element preloading the next clip cannot.
+      if (!slot.clipId || slot.failed || !slot.url || slot.role !== 'active') continue
       if (slot.el.readyState < 2 || slot.el.seeking) return true
     }
     return false
   }
 
-  private videoUrl(s: ReturnType<typeof get>, m: MediaItem | undefined): string | null {
-    if (!m) return null
-    const cache = s.mediaCache[m.id]
-    if (!cache || cache.missing) return null
-    if (cache.proxyUrl && cache.proxyState === 'ready') return cache.proxyUrl
-    if (m.kind === 'image') return null
-    if (s.playable[m.id] === 'bad') return null
-    return cache.sourceUrl || null
+  /** Tells the main process where the user is working so nearby preview chunks are built first. */
+  private reportFocus(s: State, p: Project, visual: Clip[], now: number): void {
+    if (now - this.focusAt < 400) return
+    this.focusAt = now
+    for (const c of visual) {
+      const m = p.media.find((x) => x.id === c.mediaId)
+      const ch = m ? s.mediaCache[m.id]?.chunks : undefined
+      if (!m || !ch || ch.done.length >= ch.count) continue
+      const src = sourceTime(c, this.time)
+      const prev = this.focusSent.get(m.id)
+      if (prev === undefined || Math.abs(prev - src) > 5) {
+        this.focusSent.set(m.id, src)
+        window.cw.proxyFocus(m.id, src)
+      }
+    }
   }
 
   private syncElement(el: HTMLMediaElement, target: number, c: Clip, mode: Mode, role: Role): void {
@@ -270,48 +340,62 @@ class Player {
   }
 
   /** Returns true while any assigned video is still seeking/loading (so the canvas keeps redrawing). */
-  private syncVideos(s: ReturnType<typeof get>, p: Project, visual: Clip[], upcoming: Clip[], mode: Mode): boolean {
-    const wanted = new Map<string, { clip: Clip; url: string; target: number; role: Role; mediaId: string }>()
+  private syncVideos(s: State, p: Project, visual: Clip[], upcoming: Clip[], mode: Mode): boolean {
+    const wanted = new Map<string, { clip: Clip; src: VideoSource; role: Role }>()
+    this.activeKeys.clear()
+    for (const id of this.lastShown.keys()) if (!visual.some((c) => c.id === id)) this.lastShown.delete(id)
     for (const c of visual) {
       const m = p.media.find((x) => x.id === c.mediaId)
       if (!isVideoLike(c, m)) continue
-      const url = this.videoUrl(s, m)
-      if (url) wanted.set(c.id, { clip: c, url, target: sourceTime(c, this.time), role: 'active', mediaId: m!.id })
+      const current =
+        mode === 'play'
+          ? (this.videos.find((v) => v.role === 'active' && v.clipId?.startsWith(c.id + '#'))?.clipId ?? undefined)
+          : undefined
+      const src = resolveVideo(s, c, m, this.time, current)
+      if (!src) continue
+      wanted.set(src.key, { clip: c, src, role: 'active' })
+      this.activeKeys.set(c.id, src)
+      // Crossing into the next preview chunk: have it loaded and positioned before the boundary.
+      if (this.playing && src.until < clipEnd(c) - EPS && src.until - this.time < PRELOAD_WINDOW) {
+        const next = resolveVideo(s, c, m, src.until + 1e-4)
+        if (next && !wanted.has(next.key)) wanted.set(next.key, { clip: c, src: next, role: 'preload' })
+      }
     }
     for (const c of upcoming) {
       const m = p.media.find((x) => x.id === c.mediaId)
       if (!isVideoLike(c, m)) continue
       // A clip that simply continues an active one takes over its element; no separate preload.
       if (visual.some((a) => continues(a, c))) continue
-      const url = this.videoUrl(s, m)
-      if (url) wanted.set(c.id, { clip: c, url, target: c.srcIn, role: 'preload', mediaId: m!.id })
+      const src = resolveVideo(s, c, m, c.start)
+      if (src && !wanted.has(src.key)) wanted.set(src.key, { clip: c, src, role: 'preload' })
     }
     for (const slot of this.videos) if (slot.clipId && !wanted.has(slot.clipId)) slot.clipId = null
 
     let busy = false
-    for (const [id, w] of wanted) {
-      let slot = this.videos.find((v) => v.clipId === id)
-      if (slot && slot.url !== w.url) {
+    for (const [key, w] of wanted) {
+      let slot = this.videos.find((v) => v.clipId === key)
+      if (slot && slot.url !== w.src.url) {
         slot.clipId = null
         slot = undefined
       }
       if (!slot) {
         const free = this.videos.filter((v) => !v.clipId)
         slot =
-          free.find((v) => v.url === w.url && Math.abs(v.el.currentTime - w.target) < 0.2) ??
-          free.find((v) => v.url === w.url) ??
+          free.find((v) => v.url === w.src.url && Math.abs(v.el.currentTime - w.src.time) < 0.2) ??
+          free.find((v) => v.url === w.src.url) ??
           free[0] ??
           this.createVideoSlot()
-        slot.clipId = id
-        slot.mediaId = w.mediaId
-        if (slot.url !== w.url) {
-          slot.url = w.url
+        slot.clipId = key
+        slot.mediaId = w.src.mediaId
+        if (slot.url !== w.src.url) {
+          slot.url = w.src.url
           slot.failed = false
-          slot.el.src = w.url
+          slot.el.src = w.src.url
         }
       }
+      slot.role = w.role
       if (slot.failed) continue
-      this.syncElement(slot.el, w.target, w.clip, mode, w.role)
+      this.syncElement(slot.el, w.src.time, w.clip, mode, w.role)
       if (w.role === 'active' && (slot.el.seeking || slot.el.readyState < 2)) busy = true
     }
     const free = this.videos.filter((v) => !v.clipId)
@@ -332,7 +416,7 @@ class Player {
     el.muted = true
     el.playsInline = true
     el.preload = 'auto'
-    const slot: VideoSlot = { el, clipId: null, url: '', mediaId: '', failed: false }
+    const slot: VideoSlot = { el, clipId: null, role: 'preload', url: '', mediaId: '', failed: false }
     const redraw = () => {
       this.needsDraw = true
     }
@@ -500,9 +584,18 @@ class Player {
         bw = info.bw
         bh = info.bh
         if (isVideoLike(c, m)) {
-          const slot = this.videos.find((v) => v.clipId === c.id)
-          if (slot && !slot.failed && slot.el.readyState >= 2) source = slot.el
-          else if (m.kind === 'image') source = this.image(s.mediaCache[m.id]?.sourceUrl ?? '')
+          const key = this.activeKeys.get(c.id)?.key
+          const slot = key ? this.videos.find((v) => v.clipId === key) : undefined
+          if (slot && !slot.failed && slot.el.readyState >= 2) {
+            source = slot.el
+            this.lastShown.set(c.id, slot.el)
+          } else {
+            // Switching files (e.g. to a preview chunk): keep showing the previous picture until the
+            // new one has a frame, rather than flashing black.
+            const prev = this.lastShown.get(c.id)
+            if (prev && prev.readyState >= 2 && prev.src) source = prev
+            else if (m.kind === 'image') source = this.image(s.mediaCache[m.id]?.sourceUrl ?? '')
+          }
         } else {
           const url = s.mediaCache[m.id]?.sourceUrl
           if (url) source = this.image(url)

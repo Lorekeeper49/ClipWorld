@@ -453,3 +453,17 @@ input, textarea, select, button { font: inherit; color: inherit; }
 @media (prefers-reduced-motion: reduce) {
   * { transition: none !important; }
 }
+
+/* ---------------------------------------------------------------- masks */
+.mask-buttons { display: flex; gap: 4px; flex-wrap: wrap; }
+.effect .dim.small { margin: -2px 0 2px; line-height: 1.35; }
+
+/* Languages: CJK fonts for languages that need them (Chromium also picks the right glyph shapes from <html lang>). */
+html:lang(ja) body { font-family: "Segoe UI Variable Text", "Segoe UI", "Yu Gothic UI", "Meiryo UI", "Noto Sans CJK JP", "Noto Sans JP", system-ui, sans-serif; }
+.language-list { display: flex; flex-direction: column; gap: 2px; }
+.language-row { display: flex; align-items: center; gap: 10px; padding: 7px 10px; border-radius: var(--radius); cursor: pointer; }
+.language-row:hover { background: var(--raised); }
+.language-row.current { background: var(--accent-soft); }
+.language-row input { accent-color: var(--accent); margin: 0; }
+.language-name { flex: 1 0 auto; white-space: nowrap; }
+.language-row .dim { flex: 0 1 auto; text-align: right; }

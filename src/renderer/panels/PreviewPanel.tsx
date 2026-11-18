@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react'
 import { projectDuration } from '@shared/model'
 import { Btn, Icon, formatTime } from '../components/ui'
 import { player, usePlayerTime, usePlaying } from '../engine/player'
+import { useT } from '../i18n'
 import { patchSettings, useStore } from '../state/store'
 
 function Timecode() {
@@ -22,6 +23,7 @@ export function PreviewPanel() {
   const height = useStore((s) => s.project.settings.height)
   const volume = useStore((s) => s.settings.previewVolume)
   const playing = usePlaying()
+  const t = useT()
 
   // The canvas always fits the video frame inside the panel — nothing else is drawn or zoomable.
   useEffect(() => {
@@ -63,14 +65,14 @@ export function PreviewPanel() {
       <div className="transport">
         <Timecode />
         <div className="transport-buttons">
-          <Btn icon="start" title="Go to start" onClick={() => player.seek(0)} />
-          <Btn icon="prev" title="Previous frame" onClick={() => player.step(-1)} />
-          <Btn icon={playing ? 'pause' : 'play'} title={playing ? 'Pause' : 'Play'} primary onClick={() => player.toggle()} testId="play" />
-          <Btn icon="next" title="Next frame" onClick={() => player.step(1)} />
-          <Btn icon="end" title="Go to end" onClick={() => player.seek(Infinity)} />
+          <Btn icon="start" title={t('actions.play.start')} onClick={() => player.seek(0)} />
+          <Btn icon="prev" title={t('actions.play.prevFrame')} onClick={() => player.step(-1)} />
+          <Btn icon={playing ? 'pause' : 'play'} title={playing ? t('preview.pause') : t('preview.play')} primary onClick={() => player.toggle()} testId="play" />
+          <Btn icon="next" title={t('actions.play.nextFrame')} onClick={() => player.step(1)} />
+          <Btn icon="end" title={t('actions.play.end')} onClick={() => player.seek(Infinity)} />
         </div>
-        <label className="preview-volume" title="Preview volume — does not affect the export">
-          <button type="button" className="btn btn-icon" aria-label="Mute preview"
+        <label className="preview-volume" title={t('preview.volumeHint')}>
+          <button type="button" className="btn btn-icon" aria-label={t('preview.mute')}
             onClick={() => patchSettings({ previewVolume: volume > 0 ? 0 : 1 })}>
             <Icon name={volume > 0 ? 'volume' : 'mute'} />
           </button>

@@ -5,10 +5,11 @@ import { num } from './easing'
 import type { EffectInstance, ParamValue } from './model'
 import { uid } from './model'
 
+/** Names shown in the app are messages: effects.<type>.name, effects.<type>.params.<key>, effects.<type>.options.<key>.<value>. */
 export interface ParamDef {
   key: string
-  label: string
-  type: 'number' | 'color' | 'boolean' | 'select'
+  /** 'media': the id of a still image in the project's Media (image masks). */
+  type: 'number' | 'color' | 'boolean' | 'select' | 'media'
   default: ParamValue
   min?: number
   max?: number
@@ -16,7 +17,11 @@ export interface ParamDef {
   unit?: string
   /** Display multiplier (e.g. 100 to show 0..1 as a percentage). */
   display?: number
-  options?: { value: string; label: string }[]
+  options?: { value: string }[]
+  /** 'media' params: which kinds of media can be picked (default: still images). */
+  accept?: ('image' | 'video')[]
+  /** Only shown (and used) when another parameter has this value. */
+  showIf?: { key: string; value: ParamValue }
 }
 
 /**
@@ -24,12 +29,13 @@ export interface ParamDef {
  *  css      – expressible as a CSS filter function (preview) and a simple ffmpeg filter (export)
  *  overlay  – a raster image (gradient, vignette) drawn over the clip, rasterised identically for both
  *  special  – needs dedicated handling on each side
+ *  mask     – hides parts of the clip; applied before other effects (the difference mask after
+ *             placement, since it compares the clip with what is underneath it)
  */
-export type EffectKind = 'css' | 'overlay' | 'special'
+export type EffectKind = 'css' | 'overlay' | 'special' | 'mask'
 
 export interface EffectDef {
   type: string
-  label: string
   target: 'video' | 'audio'
   group: string
   kind: EffectKind
@@ -40,110 +46,142 @@ const pct = { min: 0, max: 1, step: 0.01, display: 100, unit: '%' } as const
 
 export const EFFECTS: EffectDef[] = [
   // ---- colour
-  { type: 'brightness', label: 'Brightness', target: 'video', group: 'Color', kind: 'css',
-    params: [{ key: 'amount', label: 'Amount', type: 'number', default: 1.2, min: 0, max: 3, step: 0.01, display: 100, unit: '%' }] },
-  { type: 'contrast', label: 'Contrast', target: 'video', group: 'Color', kind: 'css',
-    params: [{ key: 'amount', label: 'Amount', type: 'number', default: 1.2, min: 0, max: 3, step: 0.01, display: 100, unit: '%' }] },
-  { type: 'saturation', label: 'Saturation', target: 'video', group: 'Color', kind: 'css',
-    params: [{ key: 'amount', label: 'Amount', type: 'number', default: 1.4, min: 0, max: 2, step: 0.01, display: 100, unit: '%' }] },
-  { type: 'hue', label: 'Hue shift', target: 'video', group: 'Color', kind: 'css',
-    params: [{ key: 'degrees', label: 'Angle', type: 'number', default: 90, min: -180, max: 180, step: 1, unit: '°' }] },
-  { type: 'grayscale', label: 'Black & white', target: 'video', group: 'Color', kind: 'css',
-    params: [{ key: 'amount', label: 'Amount', type: 'number', default: 1, ...pct }] },
-  { type: 'sepia', label: 'Sepia', target: 'video', group: 'Color', kind: 'css',
-    params: [{ key: 'amount', label: 'Amount', type: 'number', default: 1, ...pct }] },
-  { type: 'invert', label: 'Invert', target: 'video', group: 'Color', kind: 'css',
-    params: [{ key: 'amount', label: 'Amount', type: 'number', default: 1, ...pct }] },
-  { type: 'tint', label: 'Color tint', target: 'video', group: 'Color', kind: 'special',
+  { type: 'brightness', target: 'video', group: 'Color', kind: 'css',
+    params: [{ key: 'amount', type: 'number', default: 1.2, min: 0, max: 3, step: 0.01, display: 100, unit: '%' }] },
+  { type: 'contrast', target: 'video', group: 'Color', kind: 'css',
+    params: [{ key: 'amount', type: 'number', default: 1.2, min: 0, max: 3, step: 0.01, display: 100, unit: '%' }] },
+  { type: 'saturation', target: 'video', group: 'Color', kind: 'css',
+    params: [{ key: 'amount', type: 'number', default: 1.4, min: 0, max: 2, step: 0.01, display: 100, unit: '%' }] },
+  { type: 'hue', target: 'video', group: 'Color', kind: 'css',
+    params: [{ key: 'degrees', type: 'number', default: 90, min: -180, max: 180, step: 1, unit: '°' }] },
+  { type: 'grayscale', target: 'video', group: 'Color', kind: 'css',
+    params: [{ key: 'amount', type: 'number', default: 1, ...pct }] },
+  { type: 'sepia', target: 'video', group: 'Color', kind: 'css',
+    params: [{ key: 'amount', type: 'number', default: 1, ...pct }] },
+  { type: 'invert', target: 'video', group: 'Color', kind: 'css',
+    params: [{ key: 'amount', type: 'number', default: 1, ...pct }] },
+  { type: 'tint', target: 'video', group: 'Color', kind: 'special',
     params: [
-      { key: 'color', label: 'Color', type: 'color', default: '#ff8800' },
-      { key: 'amount', label: 'Amount', type: 'number', default: 0.3, ...pct }
+      { key: 'color', type: 'color', default: '#ff8800' },
+      { key: 'amount', type: 'number', default: 0.3, ...pct }
     ] },
-  { type: 'gradient', label: 'Gradient', target: 'video', group: 'Color', kind: 'overlay',
+  { type: 'gradient', target: 'video', group: 'Color', kind: 'overlay',
     params: [
-      { key: 'color1', label: 'From', type: 'color', default: '#ff2d95' },
-      { key: 'color2', label: 'To', type: 'color', default: '#2d6bff' },
-      { key: 'angle', label: 'Angle', type: 'number', default: 90, min: 0, max: 360, step: 1, unit: '°' },
-      { key: 'opacity', label: 'Opacity', type: 'number', default: 0.5, ...pct }
+      { key: 'color1', type: 'color', default: '#ff2d95' },
+      { key: 'color2', type: 'color', default: '#2d6bff' },
+      { key: 'angle', type: 'number', default: 90, min: 0, max: 360, step: 1, unit: '°' },
+      { key: 'opacity', type: 'number', default: 0.5, ...pct }
     ] },
   // ---- stylise
-  { type: 'blur', label: 'Blur', target: 'video', group: 'Stylize', kind: 'css',
-    params: [{ key: 'radius', label: 'Radius', type: 'number', default: 8, min: 0, max: 100, step: 0.5, unit: 'px' }] },
-  { type: 'sharpen', label: 'Sharpen', target: 'video', group: 'Stylize', kind: 'special',
-    params: [{ key: 'amount', label: 'Amount', type: 'number', default: 0.5, min: 0, max: 2, step: 0.01, display: 100, unit: '%' }] },
-  { type: 'pixelate', label: 'Pixelate', target: 'video', group: 'Stylize', kind: 'special',
-    params: [{ key: 'size', label: 'Block size', type: 'number', default: 16, min: 2, max: 128, step: 1, unit: 'px' }] },
-  { type: 'vignette', label: 'Vignette', target: 'video', group: 'Stylize', kind: 'overlay',
+  { type: 'blur', target: 'video', group: 'Stylize', kind: 'css',
+    params: [{ key: 'radius', type: 'number', default: 8, min: 0, max: 100, step: 0.5, unit: 'px' }] },
+  { type: 'sharpen', target: 'video', group: 'Stylize', kind: 'special',
+    params: [{ key: 'amount', type: 'number', default: 0.5, min: 0, max: 2, step: 0.01, display: 100, unit: '%' }] },
+  { type: 'pixelate', target: 'video', group: 'Stylize', kind: 'special',
+    params: [{ key: 'size', type: 'number', default: 16, min: 2, max: 128, step: 1, unit: 'px' }] },
+  { type: 'vignette', target: 'video', group: 'Stylize', kind: 'overlay',
     params: [
-      { key: 'amount', label: 'Amount', type: 'number', default: 0.6, ...pct },
-      { key: 'size', label: 'Size', type: 'number', default: 0.5, ...pct }
+      { key: 'amount', type: 'number', default: 0.6, ...pct },
+      { key: 'size', type: 'number', default: 0.5, ...pct }
     ] },
-  { type: 'noise', label: 'Film grain', target: 'video', group: 'Stylize', kind: 'special',
-    params: [{ key: 'amount', label: 'Amount', type: 'number', default: 0.2, ...pct }] },
-  { type: 'dropShadow', label: 'Drop shadow', target: 'video', group: 'Stylize', kind: 'special',
+  { type: 'noise', target: 'video', group: 'Stylize', kind: 'special',
+    params: [{ key: 'amount', type: 'number', default: 0.2, ...pct }] },
+  { type: 'dropShadow', target: 'video', group: 'Stylize', kind: 'special',
     params: [
-      { key: 'color', label: 'Color', type: 'color', default: '#000000' },
-      { key: 'opacity', label: 'Opacity', type: 'number', default: 0.7, ...pct },
-      { key: 'blur', label: 'Softness', type: 'number', default: 12, min: 0, max: 100, step: 0.5, unit: 'px' },
-      { key: 'distance', label: 'Distance', type: 'number', default: 12, min: 0, max: 200, step: 1, unit: 'px' },
-      { key: 'angle', label: 'Angle', type: 'number', default: 45, min: 0, max: 360, step: 1, unit: '°' }
+      { key: 'color', type: 'color', default: '#000000' },
+      { key: 'opacity', type: 'number', default: 0.7, ...pct },
+      { key: 'blur', type: 'number', default: 12, min: 0, max: 100, step: 0.5, unit: 'px' },
+      { key: 'distance', type: 'number', default: 12, min: 0, max: 200, step: 1, unit: 'px' },
+      { key: 'angle', type: 'number', default: 45, min: 0, max: 360, step: 1, unit: '°' }
     ] },
-  { type: 'chromaKey', label: 'Chroma key', target: 'video', group: 'Stylize', kind: 'special',
+  { type: 'chromaKey', target: 'video', group: 'Stylize', kind: 'special',
     params: [
-      { key: 'color', label: 'Key color', type: 'color', default: '#00ff00' },
-      { key: 'similarity', label: 'Similarity', type: 'number', default: 0.3, min: 0.01, max: 1, step: 0.01, display: 100, unit: '%' },
-      { key: 'smoothness', label: 'Smoothness', type: 'number', default: 0.1, min: 0, max: 1, step: 0.01, display: 100, unit: '%' }
+      { key: 'color', type: 'color', default: '#00ff00' },
+      { key: 'similarity', type: 'number', default: 0.3, min: 0.01, max: 1, step: 0.01, display: 100, unit: '%' },
+      { key: 'smoothness', type: 'number', default: 0.1, min: 0, max: 1, step: 0.01, display: 100, unit: '%' }
     ] },
-  { type: 'flip', label: 'Flip', target: 'video', group: 'Stylize', kind: 'special',
+  { type: 'flip', target: 'video', group: 'Stylize', kind: 'special',
     params: [
-      { key: 'horizontal', label: 'Horizontal', type: 'boolean', default: true },
-      { key: 'vertical', label: 'Vertical', type: 'boolean', default: false }
+      { key: 'horizontal', type: 'boolean', default: true },
+      { key: 'vertical', type: 'boolean', default: false }
     ] },
-  { type: 'fadeIn', label: 'Fade in', target: 'video', group: 'Transition', kind: 'special',
-    params: [{ key: 'duration', label: 'Duration', type: 'number', default: 0.5, min: 0, max: 10, step: 0.05, unit: 's' }] },
-  { type: 'fadeOut', label: 'Fade out', target: 'video', group: 'Transition', kind: 'special',
-    params: [{ key: 'duration', label: 'Duration', type: 'number', default: 0.5, min: 0, max: 10, step: 0.05, unit: 's' }] },
+  // ---- masks
+  { type: 'colorMask', target: 'video', group: 'Mask', kind: 'mask',
+    params: [
+      { key: 'color', type: 'color', default: '#00ff00' },
+      { key: 'tolerance', type: 'number', default: 0.15, min: 0.01, max: 1, step: 0.005, display: 100, unit: '%' },
+      { key: 'softness', type: 'number', default: 0.05, ...pct },
+      { key: 'feather', type: 'number', default: 0, min: 0, max: 50, step: 0.5, unit: 'px' },
+      { key: 'invert', type: 'boolean', default: false }
+    ] },
+  { type: 'imageMask', target: 'video', group: 'Mask', kind: 'mask',
+    params: [
+      { key: 'image', type: 'media', default: '' },
+      { key: 'mode', type: 'select', default: 'luma', options: [
+        { value: 'luma' },
+        { value: 'alpha' }
+      ] },
+      { key: 'feather', type: 'number', default: 0, min: 0, max: 50, step: 0.5, unit: 'px' },
+      { key: 'invert', type: 'boolean', default: false }
+    ] },
+  { type: 'differenceMask', target: 'video', group: 'Mask', kind: 'mask',
+    params: [
+      { key: 'reference', type: 'select', default: 'below', options: [
+        { value: 'below' },
+        { value: 'plate' }
+      ] },
+      { key: 'plate', type: 'media', default: '', accept: ['image', 'video'], showIf: { key: 'reference', value: 'plate' } },
+      { key: 'plateTime', type: 'number', default: 0, min: 0, max: 86400, step: 0.1, unit: 's', showIf: { key: 'reference', value: 'plate' } },
+      { key: 'tolerance', type: 'number', default: 0.08, min: 0.01, max: 1, step: 0.005, display: 100, unit: '%' },
+      { key: 'softness', type: 'number', default: 0.06, ...pct },
+      { key: 'feather', type: 'number', default: 1, min: 0, max: 50, step: 0.5, unit: 'px' },
+      { key: 'invert', type: 'boolean', default: false }
+    ] },
+  { type: 'fadeIn', target: 'video', group: 'Transition', kind: 'special',
+    params: [{ key: 'duration', type: 'number', default: 0.5, min: 0, max: 10, step: 0.05, unit: 's' }] },
+  { type: 'fadeOut', target: 'video', group: 'Transition', kind: 'special',
+    params: [{ key: 'duration', type: 'number', default: 0.5, min: 0, max: 10, step: 0.05, unit: 's' }] },
 
   // ---- audio
-  { type: 'pitch', label: 'Pitch shift', target: 'audio', group: 'Audio', kind: 'special',
-    params: [{ key: 'semitones', label: 'Semitones', type: 'number', default: 4, min: -12, max: 12, step: 0.1, unit: 'st' }] },
-  { type: 'distortion', label: 'Distortion', target: 'audio', group: 'Audio', kind: 'special',
+  { type: 'pitch', target: 'audio', group: 'Audio', kind: 'special',
+    params: [{ key: 'semitones', type: 'number', default: 4, min: -12, max: 12, step: 0.1, unit: 'st' }] },
+  { type: 'distortion', target: 'audio', group: 'Audio', kind: 'special',
     params: [
-      { key: 'drive', label: 'Drive', type: 'number', default: 8, min: 1, max: 50, step: 0.5, unit: '×' },
-      { key: 'level', label: 'Output', type: 'number', default: 0.6, ...pct }
+      { key: 'drive', type: 'number', default: 8, min: 1, max: 50, step: 0.5, unit: '×' },
+      { key: 'level', type: 'number', default: 0.6, ...pct }
     ] },
-  { type: 'bitcrush', label: 'Bitcrusher', target: 'audio', group: 'Audio', kind: 'special',
+  { type: 'bitcrush', target: 'audio', group: 'Audio', kind: 'special',
     params: [
-      { key: 'bits', label: 'Bit depth', type: 'number', default: 6, min: 1, max: 16, step: 1, unit: 'bit' },
-      { key: 'downsample', label: 'Downsample', type: 'number', default: 6, min: 1, max: 50, step: 1, unit: '×' }
+      { key: 'bits', type: 'number', default: 6, min: 1, max: 16, step: 1, unit: 'bit' },
+      { key: 'downsample', type: 'number', default: 6, min: 1, max: 50, step: 1, unit: '×' }
     ] },
-  { type: 'echo', label: 'Echo', target: 'audio', group: 'Audio', kind: 'special',
+  { type: 'echo', target: 'audio', group: 'Audio', kind: 'special',
     params: [
-      { key: 'delay', label: 'Delay', type: 'number', default: 300, min: 20, max: 2000, step: 10, unit: 'ms' },
-      { key: 'feedback', label: 'Feedback', type: 'number', default: 0.4, min: 0, max: 0.9, step: 0.01, display: 100, unit: '%' }
+      { key: 'delay', type: 'number', default: 300, min: 20, max: 2000, step: 10, unit: 'ms' },
+      { key: 'feedback', type: 'number', default: 0.4, min: 0, max: 0.9, step: 0.01, display: 100, unit: '%' }
     ] },
-  { type: 'reverb', label: 'Reverb', target: 'audio', group: 'Audio', kind: 'special',
+  { type: 'reverb', target: 'audio', group: 'Audio', kind: 'special',
     params: [
-      { key: 'size', label: 'Decay', type: 'number', default: 1.5, min: 0.2, max: 6, step: 0.1, unit: 's' },
-      { key: 'mix', label: 'Mix', type: 'number', default: 0.35, ...pct }
+      { key: 'size', type: 'number', default: 1.5, min: 0.2, max: 6, step: 0.1, unit: 's' },
+      { key: 'mix', type: 'number', default: 0.35, ...pct }
     ] },
-  { type: 'lowpass', label: 'Low-pass (muffle)', target: 'audio', group: 'Audio', kind: 'special',
-    params: [{ key: 'frequency', label: 'Cutoff', type: 'number', default: 1200, min: 60, max: 20000, step: 10, unit: 'Hz' }] },
-  { type: 'highpass', label: 'High-pass (thin)', target: 'audio', group: 'Audio', kind: 'special',
-    params: [{ key: 'frequency', label: 'Cutoff', type: 'number', default: 800, min: 20, max: 12000, step: 10, unit: 'Hz' }] },
-  { type: 'bass', label: 'Bass', target: 'audio', group: 'Audio', kind: 'special',
-    params: [{ key: 'gain', label: 'Gain', type: 'number', default: 8, min: -20, max: 20, step: 0.5, unit: 'dB' }] },
-  { type: 'treble', label: 'Treble', target: 'audio', group: 'Audio', kind: 'special',
-    params: [{ key: 'gain', label: 'Gain', type: 'number', default: 6, min: -20, max: 20, step: 0.5, unit: 'dB' }] },
-  { type: 'tremolo', label: 'Tremolo', target: 'audio', group: 'Audio', kind: 'special',
+  { type: 'lowpass', target: 'audio', group: 'Audio', kind: 'special',
+    params: [{ key: 'frequency', type: 'number', default: 1200, min: 60, max: 20000, step: 10, unit: 'Hz' }] },
+  { type: 'highpass', target: 'audio', group: 'Audio', kind: 'special',
+    params: [{ key: 'frequency', type: 'number', default: 800, min: 20, max: 12000, step: 10, unit: 'Hz' }] },
+  { type: 'bass', target: 'audio', group: 'Audio', kind: 'special',
+    params: [{ key: 'gain', type: 'number', default: 8, min: -20, max: 20, step: 0.5, unit: 'dB' }] },
+  { type: 'treble', target: 'audio', group: 'Audio', kind: 'special',
+    params: [{ key: 'gain', type: 'number', default: 6, min: -20, max: 20, step: 0.5, unit: 'dB' }] },
+  { type: 'tremolo', target: 'audio', group: 'Audio', kind: 'special',
     params: [
-      { key: 'rate', label: 'Rate', type: 'number', default: 6, min: 0.1, max: 20, step: 0.1, unit: 'Hz' },
-      { key: 'depth', label: 'Depth', type: 'number', default: 0.7, ...pct }
+      { key: 'rate', type: 'number', default: 6, min: 0.1, max: 20, step: 0.1, unit: 'Hz' },
+      { key: 'depth', type: 'number', default: 0.7, ...pct }
     ] },
-  { type: 'audioFadeIn', label: 'Fade in', target: 'audio', group: 'Audio', kind: 'special',
-    params: [{ key: 'duration', label: 'Duration', type: 'number', default: 0.5, min: 0, max: 10, step: 0.05, unit: 's' }] },
-  { type: 'audioFadeOut', label: 'Fade out', target: 'audio', group: 'Audio', kind: 'special',
-    params: [{ key: 'duration', label: 'Duration', type: 'number', default: 0.5, min: 0, max: 10, step: 0.05, unit: 's' }] }
+  { type: 'audioFadeIn', target: 'audio', group: 'Audio', kind: 'special',
+    params: [{ key: 'duration', type: 'number', default: 0.5, min: 0, max: 10, step: 0.05, unit: 's' }] },
+  { type: 'audioFadeOut', target: 'audio', group: 'Audio', kind: 'special',
+    params: [{ key: 'duration', type: 'number', default: 0.5, min: 0, max: 10, step: 0.05, unit: 's' }] }
 ]
 
 export const EFFECT_MAP: Record<string, EffectDef> = Object.fromEntries(EFFECTS.map((e) => [e.type, e]))

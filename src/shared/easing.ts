@@ -2,25 +2,22 @@
 import type { EaseName, TransformAnim, TransformState, ZoomAnim } from './model'
 
 interface EaseDef {
-  label: string
   fn: (p: number) => number
   /** Builds an ffmpeg expression from an expression `P` that evaluates to progress 0..1. */
   expr: (P: string) => string
 }
 
 export const EASES: Record<EaseName, EaseDef> = {
-  linear: { label: 'Linear', fn: (p) => p, expr: (P) => P },
-  easeIn: { label: 'Ease in', fn: (p) => p * p, expr: (P) => `pow(${P},2)` },
-  easeOut: { label: 'Ease out', fn: (p) => 1 - (1 - p) ** 2, expr: (P) => `(1-pow(1-${P},2))` },
+  linear: { fn: (p) => p, expr: (P) => P },
+  easeIn: { fn: (p) => p * p, expr: (P) => `pow(${P},2)` },
+  easeOut: { fn: (p) => 1 - (1 - p) ** 2, expr: (P) => `(1-pow(1-${P},2))` },
   easeInOut: {
-    label: 'Ease in-out',
     fn: (p) => (p < 0.5 ? 2 * p * p : 1 - (-2 * p + 2) ** 2 / 2),
     expr: (P) => `if(lt(${P},0.5),2*pow(${P},2),1-pow(2-2*${P},2)/2)`
   },
-  easeInCubic: { label: 'Ease in (strong)', fn: (p) => p ** 3, expr: (P) => `pow(${P},3)` },
-  easeOutCubic: { label: 'Ease out (strong)', fn: (p) => 1 - (1 - p) ** 3, expr: (P) => `(1-pow(1-${P},3))` },
+  easeInCubic: { fn: (p) => p ** 3, expr: (P) => `pow(${P},3)` },
+  easeOutCubic: { fn: (p) => 1 - (1 - p) ** 3, expr: (P) => `(1-pow(1-${P},3))` },
   easeInOutCubic: {
-    label: 'Ease in-out (strong)',
     fn: (p) => (p < 0.5 ? 4 * p ** 3 : 1 - (-2 * p + 2) ** 3 / 2),
     expr: (P) => `if(lt(${P},0.5),4*pow(${P},3),1-pow(2-2*${P},3)/2)`
   }

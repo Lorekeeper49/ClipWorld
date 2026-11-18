@@ -8,7 +8,7 @@ import {
   type ExportSettings, AUDIO_CODECS, CONTAINER_MAP, audioEncoderArgs, pixelFormatFor, videoEncoderArgs
 } from './formats'
 import {
-  type Clip, type MediaItem, type Project, type ProjectSettings, REF_HEIGHT, fitSize, isTimed, projectDuration
+  type Clip, type EffectInstance, type MediaItem, type Project, type ProjectSettings, REF_HEIGHT, fitSize, isTimed, projectDuration
 } from './model'
 
 export interface TextAsset {
@@ -124,6 +124,33 @@ class Chain {
   }
 }
 
+/**
+ * Multiplies a layer's alpha by a grey mask stream of the same size (255 shows, 0 hides), after the
+ * mask's optional invert and feather. Returns the label of the masked layer.
+ */
+function applyMask(g: Graph, layer: string, mask: string, e: EffectInstance, pxScale: number): string {
+  let m = mask
+  const post: string[] = []
+  if (b(e, 'invert')) post.push('negate')
+  const sigma = n(e, 'feather') * pxScale
+  if (sigma > 0.05) post.push(`gblur=sigma=${num(sigma, 3)}:steps=2`)
+  if (post.length) {
+    const o = g.label('m')
+    g.chains.push(`${m}${post.join(',')}${o}`)
+    m = o
+  }
+  const l1 = g.label()
+  const l2 = g.label()
+  const al = g.label('a')
+  const mm = g.label('m')
+  const out = g.label()
+  g.chains.push(`${layer}split${l1}${l2}`)
+  g.chains.push(`${l2}alphaextract${al}`)
+  g.chains.push(`${al}${m}blend=all_mode=multiply${mm}`)
+  g.chains.push(`${l1}${mm}alphamerge${out}`)
+  return out
+}
+
 function buildVisualLayer(g: Graph, c: Clip, p: Project, assets: ExportAssets): { label: string; animatedSize: boolean } | null {
   const st = p.settings
   const fps = st.fps
@@ -161,6 +188,36 @@ function buildVisualLayer(g: Graph, c: Clip, p: Project, assets: ExportAssets): 
     )
   }
   let alpha = c.type === 'text' || c.type === 'subtitles' || !!media?.hasAlpha
+
+  // ---- colour and image masks: hide parts of the clip before any other effect
+  for (const e of c.effects) {
+    if (!e.enabled) continue
+    if (e.type === 'colorMask') {
+      const [r, gr, bl] = parseColor(s(e, 'color'))
+      const hex = [r, gr, bl].map((v) => v.toString(16).padStart(2, '0')).join('')
+      const cur = chain.flush()
+      const keep = g.label()
+      const probe = g.label()
+      const m = g.label('m')
+      g.chains.push(`${cur}split${keep}${probe}`)
+      // colorkey compares RGB distance; the copy is made opaque first so only the colour decides.
+      g.chains.push(
+        `${probe}format=rgb24,format=rgba,colorkey=color=0x${hex}:similarity=${num(clamp(n(e, 'tolerance'), 0.00001, 1), 5)}:blend=${num(clamp(n(e, 'softness'), 0, 1), 5)},alphaextract${m}`
+      )
+      chain = new Chain(g, applyMask(g, keep, m, e, kRef))
+      alpha = true
+    } else if (e.type === 'imageMask') {
+      const img = p.media.find((x) => x.id === s(e, 'image') && x.kind === 'image' && !x.animated)
+      if (!img) continue
+      const i = g.addInput(['-loop', '1', '-framerate', num(fps), '-t', num(D), '-i', img.path])
+      const m = g.label('m')
+      // Brightness uses the same weights as the preview (0.299/0.587/0.114), computed in full range.
+      const mix = s(e, 'mode') === 'alpha' ? 'aa=1' : 'ar=0.299:ag=0.587:ab=0.114:aa=0'
+      g.chains.push(`[${i}:v]scale=${W0}:${H0}:flags=bicubic,format=rgba,colorchannelmixer=${mix},alphaextract,setsar=1${m}`)
+      chain = new Chain(g, applyMask(g, chain.flush(), m, e, kRef))
+      alpha = true
+    }
+  }
 
   // ---- effects, in stack order (drop shadow and fades are applied after zoom)
   for (const e of c.effects) {
@@ -410,10 +467,56 @@ export function buildExport(p: Project, settings: ExportSettings, assets: Export
       const X = animExpr(a0.x, a1.x, tr.ease, 't', c.start, c.duration)
       const Y = animExpr(a0.y, a1.y, tr.ease, 't', c.start, c.duration)
       const moving = layer.animatedSize || a0.x !== a1.x || a0.y !== a1.y
+      const place = `x='(W-w)/2+W*${X}':y='(H-h)/2+H*${Y}':eval=${moving ? 'frame' : 'init'}`
+      let diff = c.effects.find((e) => e.enabled && e.type === 'differenceMask')
+      // A clean background that is missing (deleted media) leaves the clip unmasked.
+      const plate = diff && s(diff, 'reference') === 'plate'
+        ? p.media.find((x) => x.id === s(diff!, 'plate') && (x.kind === 'video' || (x.kind === 'image' && !x.animated)))
+        : undefined
+      if (diff && s(diff, 'reference') === 'plate' && !plate) diff = undefined
       const next = g.label('bg')
-      g.chains.push(
-        `${bg}${layer.label}overlay=x='(W-w)/2+W*${X}':y='(H-h)/2+H*${Y}':eval=${moving ? 'frame' : 'init'}:eof_action=pass:format=auto${next}`
-      )
+      if (!diff) {
+        g.chains.push(`${bg}${layer.label}overlay=${place}:eof_action=pass:format=auto${next}`)
+      } else {
+        // Difference mask: the clip, as placed in the frame, is compared with a reference picture (what is
+        // underneath it, or a clean background) and becomes transparent where they match. Everything runs
+        // on the timeline clock from 0 (the clip sits on a transparent full-length frame), so the
+        // comparison streams frame by frame instead of buffering everything before the clip starts.
+        const base = g.label('cb')
+        const pos = g.label('pos')
+        const keep = g.label('bg')
+        const ref = g.label('ref')
+        const p1 = g.label('p')
+        const p2 = g.label('p')
+        const ga = g.label()
+        const gb = g.label()
+        const m = g.label('m')
+        g.chains.push(`color=c=black@0:s=${W}x${H}:r=${num(st.fps)}:d=${num(total)},format=rgba${base}`)
+        g.chains.push(`${base}${layer.label}overlay=${place}:eof_action=pass:format=auto${pos}`)
+        if (plate) {
+          // One frame of the clean background, fitted into the frame like an untransformed clip, held
+          // for the whole timeline.
+          const at = plate.kind === 'video' ? clamp(n(diff, 'plateTime'), 0, Math.max(0, plate.duration - 0.05)) : 0
+          const i = g.addInput(plate.kind === 'video' ? ['-ss', num(at), '-an', '-i', plate.path] : ['-i', plate.path])
+          const f = fitSize(plate.width, plate.height, W, H)
+          g.chains.push(
+            `[${i}:v]trim=end_frame=1,loop=loop=-1:size=1:start=0,setpts=N/(${num(st.fps)}*TB),` +
+              `scale=${f.w}:${f.h}:flags=bicubic${colorMatrixFor(plate)},format=rgba,pad=${W}:${H}:(ow-iw)/2:(oh-ih)/2:color=black,setsar=1,` +
+              `trim=duration=${num(total)}${ref}`
+          )
+          g.chains.push(`${bg}null${keep}`)
+        } else {
+          g.chains.push(`${bg}split${keep}${ref}`)
+        }
+        g.chains.push(`${pos}split${p1}${p2}`)
+        g.chains.push(`${p1}format=gbrap${ga}`)
+        g.chains.push(`${ref}format=gbrap${gb}`)
+        g.chains.push(
+          `${ga}${gb}blend=all_mode=difference,format=rgb24,format=rgba,colorkey=color=0x000000:similarity=${num(clamp(n(diff, 'tolerance'), 0.00001, 1), 5)}:blend=${num(clamp(n(diff, 'softness'), 0, 1), 5)},alphaextract${m}`
+        )
+        const masked = applyMask(g, p2, m, diff, H / REF_HEIGHT)
+        g.chains.push(`${keep}${masked}overlay=0:0:format=auto${next}`)
+      }
       bg = next
     }
     const enc = settings.videoEncoder

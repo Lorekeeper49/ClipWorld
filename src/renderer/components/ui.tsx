@@ -1,5 +1,6 @@
 // Small UI kit shared by the panels.
 import { type CSSProperties, type ReactNode, useEffect, useRef, useState } from 'react'
+import { t } from '@shared/i18n'
 
 const ICONS: Record<string, string> = {
   play: 'M7 4.5v15l12-7.5z',
@@ -149,7 +150,7 @@ export function Slider({ label, reset, mark, ...p }: SliderProps) {
   const frac = (v: number) => ((clampNum(v, min, max) - min) / (max - min)) * 100
   return (
     <label className="field">
-      {label && <span className="field-label">{label}</span>}
+      {label && <span className="field-label" title={label}>{label}</span>}
       <span className="slider-wrap">
         <input
           type="range"
@@ -161,7 +162,7 @@ export function Slider({ label, reset, mark, ...p }: SliderProps) {
           style={{ '--fill': `${frac(value)}%` } as CSSProperties}
           onChange={(e) => onChange(Number(e.target.value))}
           onDoubleClick={() => reset !== undefined && onChange(reset)}
-          title={reset !== undefined ? 'Double-click to reset' : undefined}
+          title={reset !== undefined ? t('common.doubleClickReset') : undefined}
         />
         {mark !== undefined && <span className="slider-mark" style={{ left: `${frac(mark)}%` }} />}
       </span>
@@ -173,7 +174,7 @@ export function Slider({ label, reset, mark, ...p }: SliderProps) {
 export function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div className="field">
-      <span className="field-label">{label}</span>
+      <span className="field-label" title={label}>{label}</span>
       <span className="field-body">{children}</span>
     </div>
   )
@@ -283,7 +284,7 @@ export function Modal({ title, children, onClose, width = 520, footer }: {
       <div className="modal" style={{ width }} role="dialog" aria-label={title}>
         <header className="modal-head">
           <h2>{title}</h2>
-          {onClose && <Btn icon="close" title="Close" onClick={onClose} />}
+          {onClose && <Btn icon="close" title={t('common.close')} onClick={onClose} />}
         </header>
         <div className="modal-body">{children}</div>
         {footer && <footer className="modal-foot">{footer}</footer>}

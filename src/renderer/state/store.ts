@@ -2,6 +2,7 @@
 // undo/redo. Everything else (selection, zoom, caches) is plain UI state.
 import { type Patch, applyPatches, enablePatches, produceWithPatches } from 'immer'
 import { create } from 'zustand'
+import { t } from '@shared/i18n'
 import type { Caps } from '@shared/filtergraph'
 import type { AppSettings, MediaCache } from '@shared/ipc'
 import { type Clip, type MediaItem, type Project, newProject } from '@shared/model'
@@ -16,7 +17,7 @@ interface HistoryEntry {
   time: number
 }
 
-export type Modal = null | 'export' | 'shortcuts' | 'close' | 'about'
+export type Modal = null | 'export' | 'shortcuts' | 'close' | 'about' | 'language'
 
 export interface Toast {
   id: number
@@ -62,6 +63,8 @@ export interface State {
   /** What to do after the "unsaved changes" dialog resolves. */
   pendingAfterClose: (() => void) | null
   toasts: Toast[]
+  /** The interface language being shown (a resolved code such as "ja", never "system"). */
+  lang: string
 }
 
 export const useStore = create<State>(() => ({
@@ -89,7 +92,8 @@ export const useStore = create<State>(() => ({
   fonts: [],
   modal: null,
   pendingAfterClose: null,
-  toasts: []
+  toasts: [],
+  lang: 'en'
 }))
 
 export const get = useStore.getState
@@ -208,7 +212,7 @@ export function primaryClip(s: State): Clip | undefined {
 export const mediaOf = (s: State, id?: string): MediaItem | undefined => s.project.media.find((m) => m.id === id)
 
 export function projectName(s: State): string {
-  if (!s.projectPath) return 'Untitled'
-  const base = s.projectPath.split(/[\\/]/).pop() ?? 'Untitled'
+  if (!s.projectPath) return t('app.untitled')
+  const base = s.projectPath.split(/[\\/]/).pop() ?? t('app.untitled')
   return base.replace(/\.vcws$/i, '')
 }

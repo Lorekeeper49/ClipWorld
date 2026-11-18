@@ -5,12 +5,16 @@ import {
 import type { ExportResult } from '@shared/ipc'
 import { projectDuration } from '@shared/model'
 import { Btn, Field, Modal, Num, Select, Slider, formatDuration } from '../components/ui'
+import { audioCodecName, containerName, encoderName, videoCodecName } from '@shared/labels'
+import { useT } from '../i18n'
 import { runExportAction } from '../state/actions'
 import { set, useStore } from '../state/store'
 
-const QUALITY_NAMES: [number, string][] = [[25, 'Draft'], [50, 'Good'], [75, 'High'], [90, 'Very high'], [101, 'Maximum']]
+/** Quality bands; names are messages export.qualities.<name>. */
+const QUALITY_NAMES: [number, string][] = [[25, 'draft'], [50, 'good'], [75, 'high'], [90, 'veryHigh'], [101, 'maximum']]
 
 export function ExportDialog() {
+  const t = useT()
   const caps = useStore((s) => s.caps)
   const saved = useStore((s) => s.settings.exportSettings)
   const project = useStore((s) => s.project)
@@ -34,15 +38,15 @@ export function ExportDialog() {
 
   const videoCodecs = container.video
     .filter((v) => VIDEO_CODECS[v].encoders.some((e) => caps.encoders.includes(e.id)))
-    .map((v) => ({ value: v, label: VIDEO_CODECS[v].label }))
+    .map((v) => ({ value: v, label: videoCodecName(v) }))
   const encoders = hasVideo
-    ? VIDEO_CODECS[settings.videoCodec].encoders.filter((e) => caps.encoders.includes(e.id)).map((e) => ({ value: e.id, label: e.label }))
+    ? VIDEO_CODECS[settings.videoCodec].encoders.filter((e) => caps.encoders.includes(e.id)).map((e) => ({ value: e.id, label: encoderName(e.id) }))
     : []
   const audioCodecs = container.audio
     .filter((a) => caps.encoders.includes(AUDIO_CODECS[a].encoder))
-    .map((a) => ({ value: a, label: AUDIO_CODECS[a].label }))
+    .map((a) => ({ value: a, label: audioCodecName(a) }))
   const lossless = AUDIO_CODECS[settings.audioCodec]?.lossless
-  const qualityName = QUALITY_NAMES.find(([limit]) => settings.quality < limit)?.[1] ?? 'Maximum'
+  const qualityName = t(`export.qualities.${QUALITY_NAMES.find(([limit]) => settings.quality < limit)?.[1] ?? 'maximum'}`)
 
   const start = async () => {
     setProgress(0)
@@ -68,22 +72,22 @@ export function ExportDialog() {
 
   return (
     <Modal
-      title="Export"
+      title={t('export.title')}
       onClose={phase === 'running' ? undefined : close}
       width={540}
       footer={
         phase === 'running' ? (
-          <Btn danger onClick={() => void window.cw.cancelExport()} testId="export-cancel">Cancel export</Btn>
+          <Btn danger onClick={() => void window.cw.cancelExport()} testId="export-cancel">{t('export.cancel')}</Btn>
         ) : phase === 'done' ? (
           <>
-            {result?.ok && <Btn icon="folder" onClick={() => void window.cw.showInFolder(result.outPath)}>Show in folder</Btn>}
-            <Btn onClick={() => { setPhase('idle'); setResult(null) }}>Export again</Btn>
-            <Btn primary onClick={close} testId="export-close">Done</Btn>
+            {result?.ok && <Btn icon="folder" onClick={() => void window.cw.showInFolder(result.outPath)}>{t('export.showInFolder')}</Btn>}
+            <Btn onClick={() => { setPhase('idle'); setResult(null) }}>{t('export.again')}</Btn>
+            <Btn primary onClick={close} testId="export-close">{t('common.done')}</Btn>
           </>
         ) : (
           <>
-            <Btn onClick={close}>Cancel</Btn>
-            <Btn primary icon="export" onClick={() => void start()} disabled={duration <= 0} testId="export-start">Export…</Btn>
+            <Btn onClick={close}>{t('common.cancel')}</Btn>
+            <Btn primary icon="export" onClick={() => void start()} disabled={duration <= 0} testId="export-start">{t('actions.file.export')}</Btn>
           </>
         )
       }
@@ -93,7 +97,7 @@ export function ExportDialog() {
           <div className="progress"><div className="progress-fill" style={{ width: `${progress * 100}%` }} /></div>
           <div className="export-progress-row">
             <span>{Math.round(progress * 100)}%</span>
-            <span className="dim">{eta > 0 ? `About ${formatDuration(Math.ceil(eta))} left` : 'Starting…'}</span>
+            <span className="dim">{eta > 0 ? t('export.eta', { time: formatDuration(Math.ceil(eta)) }) : t('export.starting')}</span>
           </div>
         </div>
       )}
@@ -101,14 +105,14 @@ export function ExportDialog() {
         <div className={`export-result${result.ok ? '' : ' bad'}`} data-testid="export-result" data-ok={result.ok}>
           {result.ok ? (
             <>
-              <h3>Export finished</h3>
+              <h3>{t('export.finished')}</h3>
               <p className="path">{result.outPath}</p>
             </>
           ) : result.cancelled ? (
-            <h3>Export cancelled</h3>
+            <h3>{t('export.cancelled')}</h3>
           ) : (
             <>
-              <h3>Export failed</h3>
+              <h3>{t('export.failed')}</h3>
               <pre className="error-text">{result.error}</pre>
             </>
           )}
@@ -116,52 +120,52 @@ export function ExportDialog() {
       )}
       {phase === 'idle' && (
         <div className="form">
-          <Field label="Format">
+          <Field label={t('export.format')}>
             <Select value={settings.container} testId="export-container"
-              options={CONTAINERS.map((c) => ({ value: c.id, label: c.label }))} onChange={(v) => update({ container: v })} />
+              options={CONTAINERS.map((c) => ({ value: c.id, label: containerName(c.id) }))} onChange={(v) => update({ container: v })} />
           </Field>
           {hasVideo && videoCodecs.length > 1 && (
-            <Field label="Video codec">
+            <Field label={t('export.videoCodec')}>
               <Select value={settings.videoCodec} options={videoCodecs} onChange={(v) => update({ videoCodec: v, videoEncoder: '' })} />
             </Field>
           )}
           {hasVideo && encoders.length > 1 && (
-            <Field label="Encoder">
+            <Field label={t('export.encoder')}>
               <Select value={settings.videoEncoder} options={encoders} onChange={(v) => update({ videoEncoder: v })} testId="export-encoder" />
             </Field>
           )}
           {hasVideo && settings.videoEncoder !== 'gif' && (
             <>
-              <Slider label="Quality" value={settings.quality} min={1} max={100} step={1} onChange={(v) => update({ quality: v })} />
-              <p className="dim small indent">{qualityName} — higher quality makes larger files.</p>
+              <Slider label={t('export.quality')} value={settings.quality} min={1} max={100} step={1} onChange={(v) => update({ quality: v })} />
+              <p className="dim small indent">{t('export.qualityHint', { name: qualityName })}</p>
             </>
           )}
           {hasAudio && audioCodecs.length > 1 && (
-            <Field label="Audio codec">
+            <Field label={t('export.audioCodec')}>
               <Select value={settings.audioCodec} options={audioCodecs} onChange={(v) => update({ audioCodec: v })} />
             </Field>
           )}
           {hasAudio && !lossless && (
-            <Field label="Audio bitrate">
+            <Field label={t('export.audioBitrate')}>
               <Num value={settings.audioBitrate} min={32} max={512} step={16} unit="kbps" width={100} onChange={(v) => update({ audioBitrate: v })} />
             </Field>
           )}
           {hasAudio && hasVideo && settings.container !== 'gif' && audioTracks > 1 && (
-            <Field label="Audio tracks">
+            <Field label={t('export.audioTracks')}>
               <Select<'mix' | 'separate'>
                 value={settings.audioMode}
                 options={[
-                  { value: 'mix', label: 'Mix into one track' },
-                  { value: 'separate', label: `Keep ${audioTracks} separate tracks` }
+                  { value: 'mix', label: t('export.mix') },
+                  { value: 'separate', label: t('export.separate', { count: audioTracks }) }
                 ]}
                 onChange={(v) => update({ audioMode: v })}
               />
             </Field>
           )}
           <div className="export-summary">
-            {hasVideo && <span>{project.settings.width} × {project.settings.height} · {project.settings.fps} fps</span>}
-            <span>{formatDuration(duration)} long</span>
-            <span className="dim">Resolution and frame rate are set in the Metadata panel.</span>
+            {hasVideo && <span>{project.settings.width} × {project.settings.height} · {t('common.fps', { fps: project.settings.fps })}</span>}
+            <span>{t('export.length', { time: formatDuration(duration) })}</span>
+            <span className="dim">{t('export.metadataHint')}</span>
           </div>
         </div>
       )}

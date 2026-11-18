@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { EASES, EASE_NAMES } from '@shared/easing'
-import { EFFECTS, EFFECT_MAP, type ParamDef, makeEffect } from '@shared/effects'
+import { EASE_NAMES } from '@shared/easing'
+import { EFFECTS, EFFECT_MAP, type EffectDef, type ParamDef, makeEffect } from '@shared/effects'
+import { easeName, effectGroupName, effectName, optionName, paramName } from '@shared/labels'
 import {
   type Clip, type EaseName, type EffectInstance, MAX_SPEED, MIN_SPEED, type TextProps, type TransformState,
   defaultTransform, defaultZoom, isTimed
@@ -8,10 +9,11 @@ import {
 import { groupOf, stretchClip } from '@shared/timeline-ops'
 import { Btn, Color, Field, Icon, Num, Section, Select, Slider, Toggle, useDismiss } from '../components/ui'
 import { FontPicker } from '../components/FontPicker'
-import { addTextAction } from '../state/actions'
-import { edit, mediaOf, primaryClip, set, useStore } from '../state/store'
+import { t, useT } from '../i18n'
+import { addTextAction, importPaths } from '../state/actions'
+import { edit, mediaOf, primaryClip, set, toast, useStore } from '../state/store'
 
-const easeOptions = EASE_NAMES.map((e) => ({ value: e, label: EASES[e].label }))
+const easeOptions = () => EASE_NAMES.map((e) => ({ value: e, label: easeName(e) }))
 
 /** Edits one clip; rapid changes to the same field merge into a single undo step. */
 function editClip(id: string, key: string, fn: (c: Clip) => void): void {
@@ -24,30 +26,30 @@ function editClip(id: string, key: string, fn: (c: Clip) => void): void {
 // ---------------------------------------------------------------- text
 
 function TextTool({ clip }: { clip: Clip | undefined }) {
-  const t = clip?.type === 'text' ? clip.text : undefined
+  const tp = clip?.type === 'text' ? clip.text : undefined
   const up = (key: keyof TextProps, v: TextProps[keyof TextProps]) =>
     clip && editClip(clip.id, `text.${key}`, (c) => { if (c.text) (c.text as unknown as Record<string, unknown>)[key] = v })
   return (
-    <Section title="Text" icon="text" right={<Btn small icon="plus" onClick={() => addTextAction()} testId="add-text">Add text</Btn>}>
-      {!t || !clip ? (
-        <p className="dim">Add a text clip at the playhead, or select one on the timeline to edit it.</p>
+    <Section title={t('tools.text.title')} icon="text" right={<Btn small icon="plus" onClick={() => addTextAction()} testId="add-text">{t('actions.timeline.addText')}</Btn>}>
+      {!tp || !clip ? (
+        <p className="dim">{t('tools.text.empty')}</p>
       ) : (
         <>
-          <textarea className="textarea" rows={2} value={t.content} spellCheck={false} data-testid="text-content"
+          <textarea className="textarea" rows={2} value={tp.content} spellCheck={false} data-testid="text-content"
             onChange={(e) => up('content', e.target.value)} />
-          <Field label="Font"><FontPicker value={t.fontFamily} onChange={(f) => up('fontFamily', f)} /></Field>
-          <Slider label="Size" value={t.fontSize} min={8} max={400} step={1} unit="px" onChange={(v) => up('fontSize', v)} />
-          <Field label="Style">
-            <Btn small active={t.bold} onClick={() => up('bold', !t.bold)} title="Bold"><b>B</b></Btn>
-            <Btn small active={t.italic} onClick={() => up('italic', !t.italic)} title="Italic"><i>I</i></Btn>
+          <Field label={t('tools.text.font')}><FontPicker value={tp.fontFamily} onChange={(f) => up('fontFamily', f)} /></Field>
+          <Slider label={t('tools.text.size')} value={tp.fontSize} min={8} max={400} step={1} unit="px" onChange={(v) => up('fontSize', v)} />
+          <Field label={t('tools.text.style')}>
+            <Btn small active={tp.bold} onClick={() => up('bold', !tp.bold)} title={t('tools.text.bold')}><b>B</b></Btn>
+            <Btn small active={tp.italic} onClick={() => up('italic', !tp.italic)} title={t('tools.text.italic')}><i>I</i></Btn>
             <span className="toolbar-sep" />
             {(['left', 'center', 'right'] as const).map((al) => (
-              <Btn small key={al} active={t.align === al} onClick={() => up('align', al)} title={`Align ${al}`}>{al[0].toUpperCase() + al.slice(1)}</Btn>
+              <Btn small key={al} active={tp.align === al} onClick={() => up('align', al)} title={t(`tools.text.alignTitle.${al}`)}>{t(`tools.text.align.${al}`)}</Btn>
             ))}
           </Field>
-          <Color label="Fill" value={t.fill} onChange={(v) => up('fill', v)} />
-          <Color label="Outline" value={t.outline} onChange={(v) => up('outline', v)} />
-          <Slider label="Outline width" value={t.outlineWidth} min={0} max={40} step={0.5} unit="px" onChange={(v) => up('outlineWidth', v)} />
+          <Color label={t('tools.text.fill')} value={tp.fill} onChange={(v) => up('fill', v)} />
+          <Color label={t('tools.text.outline')} value={tp.outline} onChange={(v) => up('outline', v)} />
+          <Slider label={t('tools.text.outlineWidth')} value={tp.outlineWidth} min={0} max={40} step={0.5} unit="px" onChange={(v) => up('outlineWidth', v)} />
         </>
       )}
     </Section>
@@ -65,23 +67,24 @@ function ClipTool({ clip }: { clip: Clip }) {
     edit((p) => { stretchClip(p, clip.id, 'end', clip.start + (clip.duration * clip.speed) / sp) }, { key: `${clip.id}:speed` })
   }
   return (
-    <Section title="Speed" icon="film">
-      <Slider label="Speed" value={clip.speed} min={0.1} max={8} step={0.01} display={100} unit="%" reset={1} mark={1} onChange={setSpeed} testId="speed" />
-      <Toggle label="Keep audio pitch when speed changes" value={clip.preservePitch}
+    <Section title={t('tools.speed.title')} icon="film">
+      <Slider label={t('tools.speed.title')} value={clip.speed} min={0.1} max={8} step={0.01} display={100} unit="%" reset={1} mark={1} onChange={setSpeed} testId="speed" />
+      <Toggle label={t('tools.speed.keepPitch')} value={clip.preservePitch}
         onChange={(v) => edit((p) => { for (const c of groupOf(p, p.clips.find((x) => x.id === clip.id)!)) c.preservePitch = v })} />
-      <p className="dim small">Dragging a clip's edge on the timeline changes its speed to fit the new length.</p>
+      <p className="dim small">{t('tools.speed.hint')}</p>
     </Section>
   )
 }
 
 // ---------------------------------------------------------------- transform
 
-const TRANSFORM_FIELDS: { key: keyof TransformState; label: string; min: number; max: number; step: number; display: number; unit: string }[] = [
-  { key: 'x', label: 'Position X', min: -2, max: 2, step: 0.001, display: 100, unit: '%' },
-  { key: 'y', label: 'Position Y', min: -2, max: 2, step: 0.001, display: 100, unit: '%' },
-  { key: 'scale', label: 'Scale', min: 0.01, max: 10, step: 0.01, display: 100, unit: '%' },
-  { key: 'rotation', label: 'Rotation', min: -720, max: 720, step: 0.5, display: 1, unit: '°' },
-  { key: 'opacity', label: 'Opacity', min: 0, max: 1, step: 0.01, display: 100, unit: '%' }
+/** Names are messages: tools.transform.fields.<key>. */
+const TRANSFORM_FIELDS: { key: keyof TransformState; min: number; max: number; step: number; display: number; unit: string }[] = [
+  { key: 'x', min: -2, max: 2, step: 0.001, display: 100, unit: '%' },
+  { key: 'y', min: -2, max: 2, step: 0.001, display: 100, unit: '%' },
+  { key: 'scale', min: 0.01, max: 10, step: 0.01, display: 100, unit: '%' },
+  { key: 'rotation', min: -720, max: 720, step: 0.5, display: 1, unit: '°' },
+  { key: 'opacity', min: 0, max: 1, step: 0.01, display: 100, unit: '%' }
 ]
 
 function TransformTool({ clip }: { clip: Clip }) {
@@ -93,17 +96,17 @@ function TransformTool({ clip }: { clip: Clip }) {
       if (which === 'start' && !c.transform.animate) c.transform.end[key] = v
     })
   return (
-    <Section title="Transform" icon="move"
-      right={<Btn small icon="reset" title="Reset transform" onClick={() => editClip(clip.id, 'tr.reset', (c) => { c.transform = defaultTransform() })} />}>
-      <Toggle label="Animate from start to end" value={tr.animate} testId="transform-animate"
+    <Section title={t('tools.transform.title')} icon="move"
+      right={<Btn small icon="reset" title={t('tools.transform.reset')} onClick={() => editClip(clip.id, 'tr.reset', (c) => { c.transform = defaultTransform() })} />}>
+      <Toggle label={t('tools.transform.animate')} value={tr.animate} testId="transform-animate"
         onChange={(v) => editClip(clip.id, 'tr.animate', (c) => { c.transform.animate = v })} />
       <div className={`pairs${tr.animate ? ' two' : ''}`}>
         <span />
-        <span className="pair-head">{tr.animate ? 'Start' : ''}</span>
-        {tr.animate && <span className="pair-head">End</span>}
+        <span className="pair-head">{tr.animate ? t('tools.start') : ''}</span>
+        {tr.animate && <span className="pair-head">{t('tools.end')}</span>}
         {TRANSFORM_FIELDS.map((f) => (
           <div className="pair-row" key={f.key}>
-            <span className="field-label">{f.label}</span>
+            <span className="field-label">{t(`tools.transform.fields.${f.key}`)}</span>
             <Num value={tr.start[f.key]} min={f.min} max={f.max} step={f.step} display={f.display} unit={f.unit} width={78}
               testId={`tr-start-${f.key}`} onChange={(v) => setVal('start', f.key, v)} />
             {tr.animate && (
@@ -114,8 +117,8 @@ function TransformTool({ clip }: { clip: Clip }) {
         ))}
       </div>
       {tr.animate && (
-        <Field label="Ease">
-          <Select<EaseName> value={tr.ease} options={easeOptions} onChange={(v) => editClip(clip.id, 'tr.ease', (c) => { c.transform.ease = v })} />
+        <Field label={t('tools.ease')}>
+          <Select<EaseName> value={tr.ease} options={easeOptions()} onChange={(v) => editClip(clip.id, 'tr.ease', (c) => { c.transform.ease = v })} />
         </Field>
       )}
     </Section>
@@ -128,18 +131,18 @@ function ZoomTool({ clip }: { clip: Clip }) {
   const z = clip.zoom
   const up = (key: 'start' | 'end' | 'focusX' | 'focusY', v: number) => editClip(clip.id, `zoom.${key}`, (c) => { c.zoom[key] = v })
   return (
-    <Section title="Zoom on video" icon="zoom"
-      right={<Btn small icon="reset" title="Reset zoom" onClick={() => editClip(clip.id, 'zoom.reset', (c) => { c.zoom = defaultZoom() })} />}>
-      <Toggle label="Zoom into the clip over its length" value={z.enabled} testId="zoom-enabled"
+    <Section title={t('tools.zoom.title')} icon="zoom"
+      right={<Btn small icon="reset" title={t('tools.zoom.reset')} onClick={() => editClip(clip.id, 'zoom.reset', (c) => { c.zoom = defaultZoom() })} />}>
+      <Toggle label={t('tools.zoom.enable')} value={z.enabled} testId="zoom-enabled"
         onChange={(v) => editClip(clip.id, 'zoom.enabled', (c) => { c.zoom.enabled = v })} />
       {z.enabled && (
         <>
-          <Slider label="Start zoom" value={z.start} min={0.25} max={8} step={0.01} display={100} unit="%" reset={1} mark={1} onChange={(v) => up('start', v)} />
-          <Slider label="End zoom" value={z.end} min={0.25} max={8} step={0.01} display={100} unit="%" reset={1} mark={1} onChange={(v) => up('end', v)} />
-          <Slider label="Focus X" value={z.focusX} min={0} max={1} step={0.01} display={100} unit="%" reset={0.5} onChange={(v) => up('focusX', v)} />
-          <Slider label="Focus Y" value={z.focusY} min={0} max={1} step={0.01} display={100} unit="%" reset={0.5} onChange={(v) => up('focusY', v)} />
-          <Field label="Ease">
-            <Select<EaseName> value={z.ease} options={easeOptions} onChange={(v) => editClip(clip.id, 'zoom.ease', (c) => { c.zoom.ease = v })} />
+          <Slider label={t('tools.zoom.start')} value={z.start} min={0.25} max={8} step={0.01} display={100} unit="%" reset={1} mark={1} onChange={(v) => up('start', v)} />
+          <Slider label={t('tools.zoom.end')} value={z.end} min={0.25} max={8} step={0.01} display={100} unit="%" reset={1} mark={1} onChange={(v) => up('end', v)} />
+          <Slider label={t('tools.zoom.focusX')} value={z.focusX} min={0} max={1} step={0.01} display={100} unit="%" reset={0.5} onChange={(v) => up('focusX', v)} />
+          <Slider label={t('tools.zoom.focusY')} value={z.focusY} min={0} max={1} step={0.01} display={100} unit="%" reset={0.5} onChange={(v) => up('focusY', v)} />
+          <Field label={t('tools.ease')}>
+            <Select<EaseName> value={z.ease} options={easeOptions()} onChange={(v) => editClip(clip.id, 'zoom.ease', (c) => { c.zoom.ease = v })} />
           </Field>
         </>
       )}
@@ -149,16 +152,112 @@ function ZoomTool({ clip }: { clip: Clip }) {
 
 // ---------------------------------------------------------------- effects
 
-function ParamControl({ def, effect, onChange }: { def: ParamDef; effect: EffectInstance; onChange: (v: number | string | boolean) => void }) {
+/** Picks a still image (or video, where allowed) from the project's Media, or imports a new one. */
+function MediaPicker({ value, accept, onChange, testId }: { value: string; accept: ('image' | 'video')[]; onChange: (id: string) => void; testId?: string }) {
+  const media = useStore((s) => s.project.media)
+  const usable = media.filter((m) => (m.kind === 'image' && !m.animated && accept.includes('image')) || (m.kind === 'video' && accept.includes('video')))
+  const missing = value && !usable.some((m) => m.id === value)
+  const what = accept.includes('video') ? 'imageOrVideo' : 'image'
+  return (
+    <select className="select" value={missing ? '' : value} data-testid={testId}
+      onChange={async (e) => {
+        const v = e.target.value
+        if (v !== '__import') {
+          onChange(v)
+          return
+        }
+        const items = await importPaths(await window.cw.pickMedia())
+        const pick = items.find((m) => (m.kind === 'image' && !m.animated && accept.includes('image')) || (m.kind === 'video' && accept.includes('video')))
+        if (pick) onChange(pick.id)
+        else if (items.length) toast(t(`tools.picker.${what}.unusable`), 'error')
+      }}>
+      <option value="">{missing ? t(`tools.picker.${what}.missing`) : t(`tools.picker.${what}.choose`)}</option>
+      {usable.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
+      <option value="__import">{t('tools.picker.import')}</option>
+    </select>
+  )
+}
+
+function ParamControl({ fx, def, effect, onChange }: { fx: EffectDef; def: ParamDef; effect: EffectInstance; onChange: (v: number | string | boolean) => void }) {
   const v = effect.params[def.key] ?? def.default
-  if (def.type === 'color') return <Color label={def.label} value={String(v)} onChange={onChange} />
-  if (def.type === 'boolean') return <Toggle label={def.label} value={!!v} onChange={onChange} />
+  const label = paramName(fx, def)
+  if (def.type === 'color') return <Color label={label} value={String(v)} onChange={onChange} />
+  if (def.type === 'boolean') return <Toggle label={label} value={!!v} onChange={onChange} />
   if (def.type === 'select') {
-    return <Field label={def.label}><Select value={String(v)} options={def.options ?? []} onChange={onChange} /></Field>
+    const options = (def.options ?? []).map((o) => ({ value: o.value, label: optionName(fx, def, o.value) }))
+    return <Field label={label}><Select value={String(v)} options={options} onChange={onChange} /></Field>
+  }
+  if (def.type === 'media') {
+    return (
+      <Field label={label}>
+        <MediaPicker value={String(v)} accept={def.accept ?? ['image']} onChange={onChange} testId={`param-${def.key}`} />
+      </Field>
+    )
   }
   return (
-    <Slider label={def.label} value={Number(v)} min={def.min} max={def.max} step={def.step} display={def.display} unit={def.unit}
+    <Slider label={label} value={Number(v)} min={def.min} max={def.max} step={def.step} display={def.display} unit={def.unit}
       reset={Number(def.default)} onChange={onChange} />
+  )
+}
+
+/**
+ * One effect in a clip's stack. `shown` is the list being displayed (effects or masks); moving swaps
+ * with its neighbour in that list, wherever the two sit in the clip's full stack.
+ */
+function EffectCard({ clipId, effect, shown, hint }: { clipId: string; effect: EffectInstance; shown: EffectInstance[]; hint?: string }) {
+  const def = EFFECT_MAP[effect.type]
+  if (!def) return null
+  const pos = shown.findIndex((x) => x.id === effect.id)
+  const mutate = (key: string, fn: (list: EffectInstance[]) => void) => editClip(clipId, `fx.${key}`, (c) => fn(c.effects))
+  const swapWith = (other: EffectInstance | undefined) =>
+    other && mutate('order', (l) => {
+      const i = l.findIndex((x) => x.id === effect.id)
+      const j = l.findIndex((x) => x.id === other.id)
+      if (i >= 0 && j >= 0) [l[i], l[j]] = [l[j], l[i]]
+    })
+  const set = (key: string, v: number | string | boolean) =>
+    mutate(`${effect.id}.${key}`, (l) => {
+      const x = l.find((y) => y.id === effect.id)
+      if (x) x.params[key] = v
+    })
+  const visible = def.params.filter((pd) => !pd.showIf || (effect.params[pd.showIf.key] ?? def.params.find((d) => d.key === pd.showIf!.key)?.default) === pd.showIf.value)
+  return (
+    <div className={`effect${effect.enabled ? '' : ' disabled'}`} data-testid="effect" data-effect-type={effect.type}>
+      <div className="effect-head">
+        <input type="checkbox" checked={effect.enabled} title={t('tools.effects.enable')}
+          onChange={(ev) => mutate(`${effect.id}.on`, (l) => { const x = l.find((y) => y.id === effect.id); if (x) x.enabled = ev.target.checked })} />
+        <span className="effect-name">{effectName(def)}</span>
+        <Btn small icon="up" title={t('tools.effects.moveUp')} disabled={pos <= 0} onClick={() => swapWith(shown[pos - 1])} />
+        <Btn small icon="down" title={t('tools.effects.moveDown')} disabled={pos >= shown.length - 1} onClick={() => swapWith(shown[pos + 1])} />
+        <Btn small icon="trash" title={t('tools.effects.remove')} onClick={() => mutate('remove', (l) => { const i = l.findIndex((y) => y.id === effect.id); if (i >= 0) l.splice(i, 1) })} />
+      </div>
+      {effect.enabled && hint && <p className="dim small">{hint}</p>}
+      {effect.enabled && visible.map((pd) => <ParamControl key={pd.key} fx={def} def={pd} effect={effect} onChange={(v) => set(pd.key, v)} />)}
+    </div>
+  )
+}
+
+
+function MaskTool({ clip }: { clip: Clip }) {
+  const masks = clip.effects.filter((e) => EFFECT_MAP[e.type]?.kind === 'mask')
+  const add = (type: string) =>
+    edit((p) => {
+      const c = p.clips.find((x) => x.id === clip.id)
+      if (!c) return
+      // Masks go before the clip's other effects, which is also the order they are applied in.
+      const firstEffect = c.effects.findIndex((e) => EFFECT_MAP[e.type]?.kind !== 'mask')
+      c.effects.splice(firstEffect < 0 ? c.effects.length : firstEffect, 0, makeEffect(type))
+    })
+  return (
+    <Section title={t('tools.mask.title')} icon="eyeOff">
+      <div className="mask-buttons">
+        <Btn small icon="plus" onClick={() => add('colorMask')} testId="add-color-mask" title={t('tools.mask.colorHint')}>{t('tools.mask.color')}</Btn>
+        <Btn small icon="plus" onClick={() => add('imageMask')} testId="add-image-mask" title={t('tools.mask.imageHint')}>{t('tools.mask.image')}</Btn>
+        <Btn small icon="plus" onClick={() => add('differenceMask')} testId="add-difference-mask" title={t('tools.mask.differenceHint')}>{t('tools.mask.difference')}</Btn>
+      </div>
+      {masks.length === 0 && <p className="dim">{t('tools.mask.empty')}</p>}
+      {masks.map((e) => <EffectCard key={e.id} clipId={clip.id} effect={e} shown={masks} hint={t(`tools.mask.hints.${e.type}`)} />)}
+    </Section>
   )
 }
 
@@ -173,15 +272,15 @@ function EffectsTool({ clip }: { clip: Clip }) {
   const target = targets.find((c) => c.id === targetId) ?? clip
   useEffect(() => setTargetId(clip.id), [clip.id])
   const kind = target.type === 'audio' ? 'audio' : 'video'
-  const available = EFFECTS.filter((e) => e.target === kind)
+  // Masks have their own section.
+  const available = EFFECTS.filter((e) => e.target === kind && e.kind !== 'mask')
   const groups = [...new Set(available.map((e) => e.group))]
+  const shown = target.effects.filter((e) => EFFECT_MAP[e.type] && EFFECT_MAP[e.type].kind !== 'mask')
   const [adding, setAdding] = useState('')
-
-  const mutate = (key: string, fn: (list: EffectInstance[]) => void) => editClip(target.id, `fx.${key}`, (c) => fn(c.effects))
-  const label = (c: Clip) => (c.type === 'audio' ? `Audio · ${c.name || 'track'}` : c.type === 'text' ? 'Text' : 'Video')
+  const label = (c: Clip) => (c.type === 'audio' ? t('tools.effects.audioTarget', { name: c.name || t('tools.effects.track') }) : c.type === 'text' ? t('tools.effects.textTarget') : t('tools.effects.videoTarget'))
 
   return (
-    <Section title="Filters & effects" icon="sparkle">
+    <Section title={t('tools.effects.title')} icon="sparkle">
       {targets.length > 1 && (
         <div className="seg" role="tablist">
           {targets.map((c) => (
@@ -195,32 +294,15 @@ function EffectsTool({ clip }: { clip: Clip }) {
           setAdding('')
           if (type) edit((p) => { p.clips.find((c) => c.id === target.id)?.effects.push(makeEffect(type)) })
         }}>
-        <option value="">+ Add {kind === 'audio' ? 'an audio effect' : 'a filter or effect'}…</option>
+        <option value="">{kind === 'audio' ? t('tools.effects.addAudio') : t('tools.effects.addVideo')}</option>
         {groups.map((g) => (
-          <optgroup label={g} key={g}>
-            {available.filter((e) => e.group === g).map((e) => <option key={e.type} value={e.type}>{e.label}</option>)}
+          <optgroup label={effectGroupName(g)} key={g}>
+            {available.filter((e) => e.group === g).map((e) => <option key={e.type} value={e.type}>{effectName(e)}</option>)}
           </optgroup>
         ))}
       </select>
-      {target.effects.length === 0 && <p className="dim">No effects yet. Add as many as you like — they apply top to bottom.</p>}
-      {target.effects.map((e, i) => {
-        const def = EFFECT_MAP[e.type]
-        if (!def) return null
-        return (
-          <div className={`effect${e.enabled ? '' : ' disabled'}`} key={e.id} data-testid="effect" data-effect-type={e.type}>
-            <div className="effect-head">
-              <input type="checkbox" checked={e.enabled} title="Enable" onChange={(ev) => mutate(`${e.id}.on`, (l) => { l[i].enabled = ev.target.checked })} />
-              <span className="effect-name">{def.label}</span>
-              <Btn small icon="up" title="Move up" disabled={i === 0} onClick={() => mutate('order', (l) => { [l[i - 1], l[i]] = [l[i], l[i - 1]] })} />
-              <Btn small icon="down" title="Move down" disabled={i === target.effects.length - 1} onClick={() => mutate('order', (l) => { [l[i + 1], l[i]] = [l[i], l[i + 1]] })} />
-              <Btn small icon="trash" title="Remove" onClick={() => mutate('remove', (l) => { l.splice(i, 1) })} />
-            </div>
-            {e.enabled && def.params.map((pd) => (
-              <ParamControl key={pd.key} def={pd} effect={e} onChange={(v) => mutate(`${e.id}.${pd.key}`, (l) => { l[i].params[pd.key] = v })} />
-            ))}
-          </div>
-        )
-      })}
+      {shown.length === 0 && <p className="dim">{t('tools.effects.empty')}</p>}
+      {shown.map((e) => <EffectCard key={e.id} clipId={target.id} effect={e} shown={shown} />)}
     </Section>
   )
 }
@@ -228,6 +310,7 @@ function EffectsTool({ clip }: { clip: Clip }) {
 // ---------------------------------------------------------------- panel
 
 export function ToolsPanel() {
+  useT()
   const clip = useStore(primaryClip)
   const visual = clip && clip.type !== 'audio'
   return (
@@ -236,12 +319,13 @@ export function ToolsPanel() {
       {!clip && (
         <div className="empty small">
           <Icon name="sparkle" size={22} />
-          <p className="dim">Select a clip on the timeline to zoom, transform or add filters and effects.</p>
+          <p className="dim">{t('tools.empty')}</p>
         </div>
       )}
       {clip && <ClipTool clip={clip} />}
       {clip && visual && <ZoomTool clip={clip} />}
       {clip && visual && <TransformTool clip={clip} />}
+      {clip && visual && <MaskTool clip={clip} />}
       {clip && <EffectsTool clip={clip} />}
     </div>
   )

@@ -1,0 +1,816 @@
+{
+  "app": {
+    "untitled": "Untitled",
+    "starting": "Starting ClipWorld…",
+    "ffmpegNotFound": "ffmpeg not found",
+    "noFfmpeg": "ffmpeg was not found, so importing and exporting are unavailable. Run {{command}} in the project folder, then restart.",
+    "restored": "Restored unsaved work from your last session"
+  },
+  "common": {
+    "cancel": "Cancel",
+    "close": "Close",
+    "done": "Done",
+    "save": "Save",
+    "doubleClickReset": "Double-click to reset",
+    "fps": "{{fps}} fps",
+    "seconds": "{{s}} s",
+    "audioTracks_one": "{{count}} audio track",
+    "audioTracks_other": "{{count}} audio tracks"
+  },
+  "menu": {
+    "file": "File",
+    "edit": "Edit",
+    "window": "Window",
+    "help": "Help",
+    "importSubtitles": "Import subtitles…",
+    "exportSubtitles": "Export subtitles…",
+    "exit": "Exit",
+    "shortcuts": "Keyboard shortcuts…",
+    "language": "Language",
+    "resetLayout": "Reset layout",
+    "devTools": "Developer tools",
+    "about": "About ClipWorld"
+  },
+  "panels": {
+    "media": "Media",
+    "subtitles": "Subtitles",
+    "preview": "Preview",
+    "tools": "Tools",
+    "metadata": "Metadata",
+    "audio": "Audio",
+    "timeline": "Timeline"
+  },
+  "dock": {
+    "panelOpened": "{{title}} opened",
+    "panelClosed": "{{title}} closed",
+    "groupMaximized": "{{title}} maximized",
+    "groupRestored": "{{title}} restored",
+    "groupFloated": "{{title}} floated",
+    "groupDocked": "{{title}} docked",
+    "groupPoppedOut": "{{title}} opened in a new window",
+    "closeTab": "Close {{title}}",
+    "movePickTarget": "Moving {{source}}. Target {{target}}, {{current}} of {{total}}. Enter to choose where, Escape to cancel.",
+    "movePickTab": "Tab into {{target}}. Arrows to change, Enter to confirm, Escape to go back.",
+    "movePickSplit": "Split {{position}} of {{target}}. Arrows to change, Enter to confirm, Escape to go back.",
+    "movedTab": "{{source}} docked into {{target}}.",
+    "movedSplit": "{{source}} split {{position}} of {{target}}.",
+    "moveCancelled": "Move cancelled.",
+    "moveNotAllowed": "That move is not allowed.",
+    "positions": {
+      "left": "left",
+      "right": "right",
+      "top": "above",
+      "bottom": "below"
+    }
+  },
+  "actions": {
+    "file": {
+      "new": "New project",
+      "open": "Open project…",
+      "save": "Save",
+      "saveAs": "Save as…",
+      "import": "Import media…",
+      "export": "Export…"
+    },
+    "edit": {
+      "undo": "Undo",
+      "redo": "Redo",
+      "cut": "Cut",
+      "copy": "Copy",
+      "paste": "Paste at playhead",
+      "duplicate": "Duplicate",
+      "delete": "Delete",
+      "selectAll": "Select all clips",
+      "deselect": "Deselect"
+    },
+    "timeline": {
+      "split": "Split at playhead",
+      "unlink": "Unlink audio from video",
+      "addText": "Add text",
+      "snap": "Toggle snapping",
+      "zoomIn": "Zoom in",
+      "zoomOut": "Zoom out"
+    },
+    "subtitles": {
+      "add": "Add subtitle at playhead",
+      "setStart": "Set subtitle start to playhead",
+      "setEnd": "Set subtitle end to playhead"
+    },
+    "play": {
+      "toggle": "Play / pause",
+      "prevFrame": "Previous frame",
+      "nextFrame": "Next frame",
+      "back1s": "Back 1 second",
+      "fwd1s": "Forward 1 second",
+      "start": "Go to start",
+      "end": "Go to end"
+    }
+  },
+  "close": {
+    "title": "Unsaved changes",
+    "message": "“{{name}}” has changes that have not been saved.",
+    "dontSave": "Don't save"
+  },
+  "about": {
+    "title": "About ClipWorld",
+    "tagline": "A video editor built on ffmpeg.",
+    "ffmpeg": "ffmpeg {{version}} does the importing, audio extraction, proxies, thumbnails and exporting.",
+    "projects": "Projects are saved as .vcws files."
+  },
+  "language": {
+    "title": "Language",
+    "system": "System default",
+    "translated": "{{percent}} translated",
+    "pseudo": "Pseudo-language (for testing)",
+    "pseudoHint": "Shows text that isn't translatable yet, or that gets cut off",
+    "missingFallback": "Anything a language doesn't have yet is shown in English."
+  },
+  "dialogs": {
+    "importMedia": "Import media",
+    "mediaFiles": "Media",
+    "allFiles": "All files",
+    "locate": "Locate {{name}}",
+    "importSubtitles": "Import subtitles",
+    "subtitleFiles": "Subtitles",
+    "exportSubtitles": "Export subtitles",
+    "openProject": "Open project",
+    "saveProject": "Save project",
+    "projectFiles": "ClipWorld project",
+    "exportVideo": "Export video"
+  },
+  "errors": {
+    "exportRunning": "An export is already running",
+    "ffmpegMissing": "ffmpeg was not found. Run \"npm run fetch-ffmpeg\" or set its location in settings.",
+    "cancelled": "Cancelled",
+    "ffmpegFailed": "ffmpeg failed (exit {{code}})",
+    "couldNotRead": "Could not read {{name}}",
+    "noContent": "{{name}} has no video, audio or image content",
+    "subtitlesUnreadable": "Could not read the subtitles",
+    "noSubtitlesIn": "No subtitles found in {{name}}",
+    "subtitleTrackEmpty": "That subtitle track is empty",
+    "mediaNotLoaded": "This media is not loaded",
+    "onlyVideoConverts": "Only video files can be converted",
+    "alreadyMp4": "This file is already an MP4",
+    "alreadyConverting": "Already converting"
+  },
+  "media": {
+    "import": "Import",
+    "items_one": "{{count}} item",
+    "items_other": "{{count}} items",
+    "emptyTitle": "Import video, audio or images",
+    "emptyHint": "Drop files here or use Import. A video's audio tracks are extracted automatically.",
+    "mp4Tip": "MP4 files are recommended for the smoothest video.",
+    "audioN": "Audio {{n}}",
+    "status": {
+      "missing": "File not found",
+      "converting": "Converting to MP4 {{percent}}%",
+      "buildingPreview": "Building preview {{percent}}%",
+      "previewUnavailable": "Preview unavailable (export still works)",
+      "extractingAudio": "Extracting audio {{percent}}%",
+      "optimizing": "Optimizing for fast seeking {{percent}}%",
+      "optimized": "Optimized for fast seeking"
+    },
+    "dragHint": "Drag to the timeline, or double-click to add at the playhead",
+    "optimizingHint": "Building a seek-friendly preview copy in the background, starting where you are working. Playback and export use the original meanwhile.",
+    "used": "Used {{count}}×",
+    "convert": "Convert to MP4",
+    "convertHint": "Save an MP4 copy next to the original and use it in this project. MP4 plays most smoothly in the preview.\nStreams are copied without re-encoding when possible. {{name}} itself is not changed.",
+    "fastSeekOn": "Optimize for fast seeking",
+    "fastSeekHint": "Having trouble with slow or choppy seeking in this video? This builds a 720p preview copy in the background, starting where you are working, so jumping around the timeline is quick. It uses roughly half a gigabyte per hour of video. Exports always use the original file.",
+    "fastSeekStop": "Stop optimizing",
+    "fastSeekStopHint": "Stop building the fast-seek preview copy. Finished parts are kept, so turning it back on resumes.",
+    "fastSeekOff": "Turn off fast seeking",
+    "fastSeekOffHint": "Stop using the fast-seek preview copy. It stays on disk, so turning it back on is instant.",
+    "locate": "Locate file…",
+    "add": "Add to timeline at playhead",
+    "delete": "Delete from project (removes its clips from the timeline)",
+    "trackHint": "Drag to the timeline to use this audio track on its own",
+    "mono": "mono",
+    "stereo": "stereo",
+    "channels": "{{count}} ch"
+  },
+  "preview": {
+    "play": "Play",
+    "pause": "Pause",
+    "volumeHint": "Preview volume — does not affect the export",
+    "mute": "Mute preview"
+  },
+  "audio": {
+    "empty": "Select a video on the timeline to see and mix its audio tracks.",
+    "none": "The selected clip has no audio tracks.",
+    "original": "100% is the original level",
+    "defaultName": "Audio",
+    "mute": "Mute",
+    "unmute": "Unmute",
+    "volumeHint": "0% to 500% — double-click to reset to 100%",
+    "level": "Output level"
+  },
+  "metadata": {
+    "exportFrame": "Export frame",
+    "resolution": "Resolution",
+    "size": "Size",
+    "frameRate": "Frame rate",
+    "customRate": "Custom rate",
+    "custom": "Custom",
+    "presets": {
+      "vertical": "Vertical 1080p",
+      "portrait": "Portrait 4:5",
+      "square": "Square"
+    },
+    "match": "Match “{{name}}”",
+    "applyHint": "Changes apply immediately to the preview and to the export. Timeline length: {{length}}.",
+    "source": "Source file",
+    "name": "Name",
+    "folder": "Folder",
+    "type": "Type",
+    "kinds": {
+      "video": "video",
+      "audio": "audio",
+      "image": "image",
+      "animated": "animated image"
+    },
+    "duration": "Duration",
+    "videoCodec": "Video codec",
+    "audio": "Audio",
+    "fileSize": "Size",
+    "clip": "Selected clip",
+    "startsAt": "Starts at",
+    "length": "Length",
+    "sourceIn": "Source in",
+    "speed": "Speed"
+  },
+  "shortcuts": {
+    "title": "Keyboard shortcuts",
+    "hint": "Click a shortcut, then press the new key combination. Escape cancels.",
+    "conflict": "{{keys}} was assigned to “{{action}}”, which now has no shortcut.",
+    "resetAll": "Reset all to defaults",
+    "resetTo": "Reset to {{keys}}",
+    "press": "Press keys…",
+    "none": "None",
+    "groups": {
+      "File": "File",
+      "Edit": "Edit",
+      "Playback": "Playback",
+      "Timeline": "Timeline",
+      "Subtitles": "Subtitles"
+    }
+  },
+  "fonts": {
+    "search_one": "Search {{count}} installed font",
+    "search_other": "Search {{count}} installed fonts",
+    "none": "No fonts match"
+  },
+  "export": {
+    "title": "Export",
+    "format": "Format",
+    "videoCodec": "Video codec",
+    "encoder": "Encoder",
+    "quality": "Quality",
+    "qualityHint": "{{name}} — higher quality makes larger files.",
+    "qualities": {
+      "draft": "Draft",
+      "good": "Good",
+      "high": "High",
+      "veryHigh": "Very high",
+      "maximum": "Maximum"
+    },
+    "audioCodec": "Audio codec",
+    "audioBitrate": "Audio bitrate",
+    "audioTracks": "Audio tracks",
+    "mix": "Mix into one track",
+    "separate": "Keep {{count}} separate tracks",
+    "length": "{{time}} long",
+    "metadataHint": "Resolution and frame rate are set in the Metadata window.",
+    "starting": "Starting…",
+    "eta": "About {{time}} left",
+    "cancel": "Cancel export",
+    "finished": "Export finished",
+    "cancelled": "Export cancelled",
+    "failed": "Export failed",
+    "showInFolder": "Show in folder",
+    "again": "Export again"
+  },
+  "subtitles": {
+    "defaultTrackName": "Subtitles",
+    "defaultTrackNameN": "Subtitles {{n}}",
+    "languageUnspecified": "Other / unspecified",
+    "emptyTitle": "Create subtitles",
+    "emptyHint": "Type them in here, or import a subtitle file. Each track can be exported as a subtitle file, and added to the timeline to put it in the video.",
+    "newTrack": "New subtitle track",
+    "deleteTrack": "Delete this subtitle track (and its clips on the timeline)",
+    "trackName": "Track name",
+    "toTimeline": "Add to timeline",
+    "toTimelineHint": "Put this track on the timeline as a clip. That puts the subtitles into the exported video, and lets you move, stretch, transform and add effects to them.",
+    "onTimeline": "On timeline",
+    "onTimelineClips": "On timeline ({{count}} clips)",
+    "onTimelineHint": "This track is in the video. Select its clip on the timeline to move it or add effects.",
+    "import": "Import",
+    "importFile": "Subtitle file… ({{formats}})",
+    "searching": "Looking for subtitle tracks in your videos…",
+    "noStreams": "None of the project's videos contain subtitle tracks.",
+    "pictureBased": "Picture-based subtitles (DVD/Blu-ray) cannot be turned into text",
+    "streamName": "{{name}} subtitles",
+    "trackN": "Track {{n}}",
+    "exportFile": "Export file",
+    "timing": "Timing",
+    "timingTimeline": "Match the video (where the clip sits on the timeline)",
+    "timingOriginal": "Original subtitle times",
+    "save": "Save…",
+    "guide": "Show in preview",
+    "style": "Style",
+    "textColor": "Text",
+    "box": "Background box",
+    "boxColor": "Box colour",
+    "boxOpacity": "Box opacity",
+    "position": "Position",
+    "positions": {
+      "bottom": "Bottom",
+      "middle": "Middle",
+      "top": "Top"
+    },
+    "margin": "Edge margin",
+    "lineWidth": "Line width",
+    "count_one": "{{count}} subtitle",
+    "count_other": "{{count}} subtitles",
+    "add": "Add",
+    "addHint": "Add a subtitle at the playhead ({{keys}})",
+    "setStart": "Start ⇤",
+    "setStartHint": "Set the selected subtitle's start to the playhead ({{keys}})",
+    "setEnd": "⇥ End",
+    "setEndHint": "Set the selected subtitle's end to the playhead ({{keys}})",
+    "emptyList": "No subtitles yet. Move the playhead to where someone speaks and press {{keys}} or {{add}}.",
+    "overlap": "Overlaps the previous subtitle",
+    "jump": "Click to jump here",
+    "placeholder": "Type the subtitle…",
+    "deleteCue": "Delete subtitle"
+  },
+  "timeline": {
+    "withKeys": "{{action}} ({{keys}})",
+    "split": "Split",
+    "deleteSelected": "Delete selected",
+    "snapping": "Snapping",
+    "addTextHere": "Add text at playhead",
+    "hint": "Drag a clip's edge to change its speed · Alt+drag to trim",
+    "edgeHint": "Drag to change speed · Alt+drag to trim",
+    "video": "Video",
+    "audio": "Audio",
+    "addVideoTrack": "Add video track",
+    "addAudioTrack": "Add audio track",
+    "zoom": "Timeline zoom (Ctrl+wheel)",
+    "fit": "Fit timeline to window",
+    "removeTrack": "Remove empty track",
+    "showTrack": "Show track",
+    "hideTrack": "Hide track",
+    "muteTrack": "Mute track",
+    "unmuteTrack": "Unmute track",
+    "text": "Text",
+    "subtitlesClip": "Subtitles · {{name}}"
+  },
+  "toasts": {
+    "saved": "Project saved",
+    "openFailed": "Could not open project: {{error}}",
+    "saveFailed": "Could not save: {{error}}",
+    "noFfmpeg": "ffmpeg was not found, so media cannot be imported.",
+    "alreadyImported": "Already imported",
+    "removed": "Removed {{name}}",
+    "removedWithClips_one": "Removed {{name}} and {{count}} clip from the timeline",
+    "removedWithClips_other": "Removed {{name}} and {{count}} clips from the timeline",
+    "relinkFailed": "Could not relink: {{error}}",
+    "convertFailed": "Could not convert {{name}}: {{error}}",
+    "converted": "Converted to {{name}}. The original file was not changed.",
+    "convertedCopy": "Converted to {{name}} without re-encoding. The original file was not changed.",
+    "nothingToSplit": "Nothing to split at the playhead",
+    "trackDeleted": "Deleted subtitle track “{{name}}”",
+    "selectSubtitle": "Select a subtitle first",
+    "trackEmpty": "Add some subtitles to this track first",
+    "subtitlesImported_one": "Imported {{count}} subtitle into “{{name}}”",
+    "subtitlesImported_other": "Imported {{count}} subtitles into “{{name}}”",
+    "importFailed": "Could not import {{name}}: {{error}}",
+    "streamImportFailed": "Could not import subtitles from {{name}}: {{error}}",
+    "nothingToExport": "There are no subtitles with text to export",
+    "subtitlesSaved_one": "Saved {{count}} subtitle to {{name}}",
+    "subtitlesSaved_other": "Saved {{count}} subtitles to {{name}}",
+    "timelineEmpty": "The timeline is empty"
+  },
+  "tools": {
+    "empty": "Select a clip on the timeline to zoom, transform or add filters and effects.",
+    "start": "Start",
+    "end": "End",
+    "ease": "Ease",
+    "text": {
+      "title": "Text",
+      "empty": "Add a text clip at the playhead, or select one on the timeline to edit it.",
+      "default": "Your text",
+      "font": "Font",
+      "size": "Size",
+      "style": "Style",
+      "bold": "Bold",
+      "italic": "Italic",
+      "align": {
+        "left": "Left",
+        "center": "Center",
+        "right": "Right"
+      },
+      "alignTitle": {
+        "left": "Align left",
+        "center": "Align center",
+        "right": "Align right"
+      },
+      "fill": "Fill",
+      "outline": "Outline",
+      "outlineWidth": "Outline width"
+    },
+    "speed": {
+      "title": "Speed",
+      "keepPitch": "Keep audio pitch when speed changes",
+      "hint": "Dragging a clip's edge on the timeline changes its speed to fit the new length."
+    },
+    "transform": {
+      "title": "Transform",
+      "reset": "Reset transform",
+      "animate": "Animate from start to end",
+      "fields": {
+        "x": "Position X",
+        "y": "Position Y",
+        "scale": "Scale",
+        "rotation": "Rotation",
+        "opacity": "Opacity"
+      }
+    },
+    "zoom": {
+      "title": "Zoom on video",
+      "reset": "Reset zoom",
+      "enable": "Zoom into the clip over its length",
+      "start": "Start zoom",
+      "end": "End zoom",
+      "focusX": "Focus X",
+      "focusY": "Focus Y"
+    },
+    "mask": {
+      "title": "Mask",
+      "color": "Color",
+      "colorHint": "Make one colour see-through",
+      "image": "Image",
+      "imageHint": "Show and hide parts of the clip with an image",
+      "difference": "Difference",
+      "differenceHint": "Hide what matches the video underneath or a clean background (clone shots)",
+      "empty": "Hide parts of this clip so what's underneath shows through. Masks apply before filters and effects.",
+      "hints": {
+        "colorMask": "Makes one colour see-through. Raise Tolerance to include similar shades.",
+        "imageMask": "White areas of the image show the clip and black areas hide it (grey is in between). The image is stretched over the clip.",
+        "differenceMask": "Hides the parts of this clip that match the reference. For a clone shot, put two takes from the same fixed camera on top of each other and compare the top one with a clean background: a frame with nobody in shot."
+      }
+    },
+    "picker": {
+      "import": "Import a file…",
+      "image": {
+        "choose": "Choose an image…",
+        "missing": "(missing — choose an image)",
+        "unusable": "That file can't be used here: choose a still image"
+      },
+      "imageOrVideo": {
+        "choose": "Choose an image or video…",
+        "missing": "(missing — choose an image or video)",
+        "unusable": "That file can't be used here: choose a still image or a video"
+      }
+    },
+    "effects": {
+      "title": "Filters & effects",
+      "addVideo": "+ Add a filter or effect…",
+      "addAudio": "+ Add an audio effect…",
+      "empty": "No effects yet. Add as many as you like — they apply top to bottom.",
+      "videoTarget": "Video",
+      "textTarget": "Text",
+      "audioTarget": "Audio · {{name}}",
+      "track": "track",
+      "enable": "Enable",
+      "moveUp": "Move up",
+      "moveDown": "Move down",
+      "remove": "Remove"
+    }
+  },
+  "effects": {
+    "groups": {
+      "Color": "Color",
+      "Stylize": "Stylize",
+      "Mask": "Mask",
+      "Transition": "Transition",
+      "Audio": "Audio"
+    },
+    "brightness": {
+      "name": "Brightness",
+      "params": {
+        "amount": "Amount"
+      }
+    },
+    "contrast": {
+      "name": "Contrast",
+      "params": {
+        "amount": "Amount"
+      }
+    },
+    "saturation": {
+      "name": "Saturation",
+      "params": {
+        "amount": "Amount"
+      }
+    },
+    "hue": {
+      "name": "Hue shift",
+      "params": {
+        "degrees": "Angle"
+      }
+    },
+    "grayscale": {
+      "name": "Black & white",
+      "params": {
+        "amount": "Amount"
+      }
+    },
+    "sepia": {
+      "name": "Sepia",
+      "params": {
+        "amount": "Amount"
+      }
+    },
+    "invert": {
+      "name": "Invert",
+      "params": {
+        "amount": "Amount"
+      }
+    },
+    "tint": {
+      "name": "Color tint",
+      "params": {
+        "color": "Color",
+        "amount": "Amount"
+      }
+    },
+    "gradient": {
+      "name": "Gradient",
+      "params": {
+        "color1": "From",
+        "color2": "To",
+        "angle": "Angle",
+        "opacity": "Opacity"
+      }
+    },
+    "blur": {
+      "name": "Blur",
+      "params": {
+        "radius": "Radius"
+      }
+    },
+    "sharpen": {
+      "name": "Sharpen",
+      "params": {
+        "amount": "Amount"
+      }
+    },
+    "pixelate": {
+      "name": "Pixelate",
+      "params": {
+        "size": "Block size"
+      }
+    },
+    "vignette": {
+      "name": "Vignette",
+      "params": {
+        "amount": "Amount",
+        "size": "Size"
+      }
+    },
+    "noise": {
+      "name": "Film grain",
+      "params": {
+        "amount": "Amount"
+      }
+    },
+    "dropShadow": {
+      "name": "Drop shadow",
+      "params": {
+        "color": "Color",
+        "opacity": "Opacity",
+        "blur": "Softness",
+        "distance": "Distance",
+        "angle": "Angle"
+      }
+    },
+    "chromaKey": {
+      "name": "Chroma key",
+      "params": {
+        "color": "Key color",
+        "similarity": "Similarity",
+        "smoothness": "Smoothness"
+      }
+    },
+    "flip": {
+      "name": "Flip",
+      "params": {
+        "horizontal": "Horizontal",
+        "vertical": "Vertical"
+      }
+    },
+    "colorMask": {
+      "name": "Color mask",
+      "params": {
+        "color": "Color",
+        "tolerance": "Tolerance",
+        "softness": "Softness",
+        "feather": "Feather",
+        "invert": "Invert (keep only this color)"
+      }
+    },
+    "imageMask": {
+      "name": "Image mask",
+      "params": {
+        "image": "Image",
+        "mode": "Use",
+        "feather": "Feather",
+        "invert": "Invert"
+      },
+      "options": {
+        "mode": {
+          "luma": "Brightness (white shows, black hides)",
+          "alpha": "Transparency (opaque shows)"
+        }
+      }
+    },
+    "differenceMask": {
+      "name": "Difference mask (clone)",
+      "params": {
+        "reference": "Compare with",
+        "plate": "Background",
+        "plateTime": "Frame at",
+        "tolerance": "Tolerance",
+        "softness": "Softness",
+        "feather": "Feather",
+        "invert": "Invert (keep only what matches)"
+      },
+      "options": {
+        "reference": {
+          "below": "What is underneath the clip",
+          "plate": "A clean background"
+        }
+      }
+    },
+    "fadeIn": {
+      "name": "Fade in",
+      "params": {
+        "duration": "Duration"
+      }
+    },
+    "fadeOut": {
+      "name": "Fade out",
+      "params": {
+        "duration": "Duration"
+      }
+    },
+    "pitch": {
+      "name": "Pitch shift",
+      "params": {
+        "semitones": "Semitones"
+      }
+    },
+    "distortion": {
+      "name": "Distortion",
+      "params": {
+        "drive": "Drive",
+        "level": "Output"
+      }
+    },
+    "bitcrush": {
+      "name": "Bitcrusher",
+      "params": {
+        "bits": "Bit depth",
+        "downsample": "Downsample"
+      }
+    },
+    "echo": {
+      "name": "Echo",
+      "params": {
+        "delay": "Delay",
+        "feedback": "Feedback"
+      }
+    },
+    "reverb": {
+      "name": "Reverb",
+      "params": {
+        "size": "Decay",
+        "mix": "Mix"
+      }
+    },
+    "lowpass": {
+      "name": "Low-pass (muffle)",
+      "params": {
+        "frequency": "Cutoff"
+      }
+    },
+    "highpass": {
+      "name": "High-pass (thin)",
+      "params": {
+        "frequency": "Cutoff"
+      }
+    },
+    "bass": {
+      "name": "Bass",
+      "params": {
+        "gain": "Gain"
+      }
+    },
+    "treble": {
+      "name": "Treble",
+      "params": {
+        "gain": "Gain"
+      }
+    },
+    "tremolo": {
+      "name": "Tremolo",
+      "params": {
+        "rate": "Rate",
+        "depth": "Depth"
+      }
+    },
+    "audioFadeIn": {
+      "name": "Fade in",
+      "params": {
+        "duration": "Duration"
+      }
+    },
+    "audioFadeOut": {
+      "name": "Fade out",
+      "params": {
+        "duration": "Duration"
+      }
+    }
+  },
+  "easing": {
+    "linear": "Linear",
+    "easeIn": "Ease in",
+    "easeOut": "Ease out",
+    "easeInOut": "Ease in-out",
+    "easeInCubic": "Ease in (strong)",
+    "easeOutCubic": "Ease out (strong)",
+    "easeInOutCubic": "Ease in-out (strong)"
+  },
+  "formats": {
+    "containers": {
+      "mp4": "MP4",
+      "mkv": "Matroska (MKV)",
+      "mov": "QuickTime (MOV)",
+      "webm": "WebM",
+      "avi": "AVI",
+      "gif": "Animated GIF",
+      "mp3": "MP3 (audio only)",
+      "wav": "WAV (audio only)",
+      "flac": "FLAC (audio only)",
+      "ogg": "Ogg (audio only)",
+      "m4a": "M4A (audio only)"
+    },
+    "video": {
+      "h264": "H.264 (most compatible)",
+      "hevc": "H.265 / HEVC",
+      "vp9": "VP9",
+      "av1": "AV1",
+      "prores": "Apple ProRes",
+      "mpeg4": "MPEG-4 Part 2",
+      "gif": "Animated GIF"
+    },
+    "encoders": {
+      "libx264": "Software (x264)",
+      "h264_nvenc": "NVIDIA NVENC",
+      "h264_qsv": "Intel Quick Sync",
+      "h264_amf": "AMD AMF",
+      "libx265": "Software (x265)",
+      "hevc_nvenc": "NVIDIA NVENC",
+      "hevc_qsv": "Intel Quick Sync",
+      "libvpx-vp9": "Software (libvpx)",
+      "av1_nvenc": "NVIDIA NVENC",
+      "libsvtav1": "Software (SVT-AV1)",
+      "libaom-av1": "Software (libaom, slow)",
+      "prores_ks": "Software",
+      "mpeg4": "Software",
+      "gif": "Software"
+    },
+    "audio": {
+      "aac": "AAC",
+      "mp3": "MP3",
+      "opus": "Opus",
+      "vorbis": "Vorbis",
+      "flac": "FLAC (lossless)",
+      "pcm": "PCM 16-bit (uncompressed)"
+    }
+  },
+  "subtitleFormats": {
+    "srt": "SubRip (.srt) — most compatible",
+    "vtt": "WebVTT (.vtt) — web players",
+    "ass": "Advanced SubStation Alpha (.ass) — keeps styling",
+    "ssa": "SubStation Alpha (.ssa)",
+    "sbv": "YouTube SubViewer (.sbv)",
+    "ttml": "TTML / DFXP (.ttml)",
+    "smi": "SAMI (.smi)",
+    "sub": "MicroDVD (.sub) — frame based",
+    "lrc": "LRC lyrics (.lrc)",
+    "txt": "Plain-text transcript (.txt)"
+  }
+}

@@ -16,6 +16,7 @@ import { extractSubtitleStream, listSubtitleStreams, readSubtitleFile } from './
 import { SUBTITLE_IMPORT_EXTS } from '@shared/subtitles'
 import { allowFile, handleProtocol, registerScheme } from './protocol'
 import { addRecent, flushSettings, loadSettings, saveSettings } from './settings'
+import { resolveLanguage, setLanguage, t } from '@shared/i18n'
 
 const isDev = !!process.env['ELECTRON_RENDERER_URL']
 let win: BrowserWindow | null = null
@@ -203,6 +204,11 @@ function createWindow(): void {
 
 // ---------------------------------------------------------------- IPC
 
+/** Native dialogs and main-process messages follow the language chosen in the app. */
+function applyLanguage(): void {
+  setLanguage(resolveLanguage(loadSettings().language, app.getPreferredSystemLanguages()))
+}
+
 function registerIpc(): void {
   ipcMain.handle('app:info', async (): Promise<AppInfo> => {
     let recovery: Recovery | null = null
@@ -221,22 +227,26 @@ function registerIpc(): void {
       settings: loadSettings(),
       openPath: projectPathFromArgv(process.argv),
       recovery,
-      isDev
+      isDev,
+      systemLanguages: app.getPreferredSystemLanguages()
     }
   })
-  ipcMain.handle('settings:save', (_e, patch) => saveSettings(patch))
+  ipcMain.handle('settings:save', (_e, patch) => {
+    saveSettings(patch)
+    if ('language' in patch) applyLanguage()
+  })
 
   ipcMain.handle('media:pick', async () => {
     const test = testDialogAnswer('open')
     if (test !== undefined) return (test as string[] | null) ?? []
     const r = await dialog.showOpenDialog(win!, {
-      title: 'Import media',
+      title: t('dialogs.importMedia'),
       properties: ['openFile', 'multiSelections'],
       filters: [
-        { name: 'Media', extensions: ['mp4', 'mkv', 'mov', 'webm', 'avi', 'm4v', 'flv', 'wmv', 'ts', 'mts', 'm2ts', 'mpg', 'mpeg', '3gp', 'ogv', 'mxf',
+        { name: t('dialogs.mediaFiles'), extensions: ['mp4', 'mkv', 'mov', 'webm', 'avi', 'm4v', 'flv', 'wmv', 'ts', 'mts', 'm2ts', 'mpg', 'mpeg', '3gp', 'ogv', 'mxf',
           'mp3', 'wav', 'flac', 'ogg', 'opus', 'm4a', 'aac', 'wma', 'aiff', 'aif', 'ac3',
           'png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'tif', 'tiff', 'avif', 'tga', 'jfif', 'apng'] },
-        { name: 'All files', extensions: ['*'] }
+        { name: t('dialogs.allFiles'), extensions: ['*'] }
       ]
     })
     return r.canceled ? [] : r.filePaths
@@ -269,7 +279,7 @@ function registerIpc(): void {
   ipcMain.handle('media:convert-cancel', (_e, id: string) => cancelConvert(id))
   ipcMain.handle('media:relink', async (_e, item: MediaItem) => {
     const r = await dialog.showOpenDialog(win!, {
-      title: `Locate ${item.name}`,
+      title: t('dialogs.locate', { name: item.name }),
       defaultPath: item.path,
       properties: ['openFile']
     })
@@ -286,11 +296,11 @@ function registerIpc(): void {
     const test = testDialogAnswer('open')
     if (test !== undefined) return (test as string[] | null) ?? []
     const r = await dialog.showOpenDialog(win!, {
-      title: 'Import subtitles',
+      title: t('dialogs.importSubtitles'),
       properties: ['openFile', 'multiSelections'],
       filters: [
-        { name: 'Subtitles', extensions: SUBTITLE_IMPORT_EXTS },
-        { name: 'All files', extensions: ['*'] }
+        { name: t('dialogs.subtitleFiles'), extensions: SUBTITLE_IMPORT_EXTS },
+        { name: t('dialogs.allFiles'), extensions: ['*'] }
       ]
     })
     return r.canceled ? [] : r.filePaths
@@ -305,7 +315,7 @@ function registerIpc(): void {
     else {
       const s = loadSettings()
       const r = await dialog.showSaveDialog(win!, {
-        title: 'Export subtitles',
+        title: t('dialogs.exportSubtitles'),
         defaultPath: join(s.lastExportDir ?? app.getPath('videos'), `${name}.${ext}`),
         filters: [{ name: label, extensions: [ext] }]
       })
@@ -324,9 +334,9 @@ function registerIpc(): void {
       if (test !== undefined) target = (test as string | null) ?? undefined
       else {
         const r = await dialog.showOpenDialog(win!, {
-          title: 'Open project',
+          title: t('dialogs.openProject'),
           properties: ['openFile'],
-          filters: [{ name: 'ClipWorld project', extensions: [PROJECT_EXT] }]
+          filters: [{ name: t('dialogs.projectFiles'), extensions: [PROJECT_EXT] }]
         })
         target = r.canceled ? undefined : r.filePaths[0]
       }
@@ -343,9 +353,9 @@ function registerIpc(): void {
       if (test !== undefined) target = test as string | null
       else {
         const r = await dialog.showSaveDialog(win!, {
-          title: 'Save project',
-          defaultPath: `Untitled.${PROJECT_EXT}`,
-          filters: [{ name: 'ClipWorld project', extensions: [PROJECT_EXT] }]
+          title: t('dialogs.saveProject'),
+          defaultPath: `${t('app.untitled')}.${PROJECT_EXT}`,
+          filters: [{ name: t('dialogs.projectFiles'), extensions: [PROJECT_EXT] }]
         })
         target = r.canceled ? null : (r.filePath ?? null)
       }
@@ -370,7 +380,7 @@ function registerIpc(): void {
     if (test !== undefined) return test as string | null
     const s = loadSettings()
     const r = await dialog.showSaveDialog(win!, {
-      title: 'Export video',
+      title: t('dialogs.exportVideo'),
       defaultPath: join(s.lastExportDir ?? app.getPath('videos'), `${name}.${ext}`),
       filters: [{ name: label, extensions: [ext] }]
     })
@@ -379,7 +389,7 @@ function registerIpc(): void {
     return r.filePath
   })
   ipcMain.handle('export:start', async (_e, req: ExportRequest): Promise<ExportResult> => {
-    if (exportAbort) return { ok: false, cancelled: false, error: 'An export is already running' }
+    if (exportAbort) return { ok: false, cancelled: false, error: t('errors.exportRunning') }
     exportAbort = new AbortController()
     const tmpDir = join(app.getPath('temp'), `clipworld-export-${Date.now()}`)
     try {
@@ -454,6 +464,7 @@ if (!app.requestSingleInstanceLock()) {
   })
 
   void app.whenReady().then(async () => {
+    applyLanguage()
     Menu.setApplicationMenu(null)
     handleProtocol()
     initMediaCache(join(app.getPath('userData'), 'cache'), (id, patch) => win?.webContents.send('media:cache', id, patch))

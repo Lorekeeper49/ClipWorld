@@ -65,6 +65,8 @@ export interface AppSettings {
   lastExportDir?: string
   /** The Subtitles window was added to a layout saved before it existed (done once, so closing it sticks). */
   subtitlesPanelAdded?: boolean
+  /** Interface language code ("ja"), or "system" / unset to follow the operating system. */
+  language?: string
 }
 
 export interface AppInfo {
@@ -77,6 +79,8 @@ export interface AppInfo {
   /** Unsaved work from a session that did not exit cleanly. */
   recovery: Recovery | null
   isDev: boolean
+  /** The operating system's preferred languages, most preferred first ("ja-JP", "en-US"). */
+  systemLanguages: string[]
 }
 
 export interface Recovery {

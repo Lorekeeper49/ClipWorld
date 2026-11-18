@@ -7,7 +7,7 @@ import { rasterOverlay, rgba } from './raster'
 
 type Ctx = CanvasRenderingContext2D
 
-class Scratch {
+export class Scratch {
   private canvases: HTMLCanvasElement[] = []
   get(i: number, w: number, h: number): { canvas: HTMLCanvasElement; ctx: Ctx } {
     let c = this.canvases[i]
@@ -177,6 +177,199 @@ function chromaKey(src: HTMLCanvasElement, e: EffectInstance): HTMLCanvasElement
   return canvas
 }
 
+// ---------------------------------------------------------------- masks
+//
+// Masks produce a canvas whose alpha is the mask (1 shows, 0 hides), which is then multiplied into the
+// layer with 'destination-in'. The colour and difference masks use the same formula as ffmpeg's
+// colorkey: diff = |rgb - key| / sqrt(3) on 0..1 channels, then (diff - tolerance) / softness.
+
+interface GlFilter {
+  canvas: HTMLCanvasElement
+  gl: WebGLRenderingContext
+  textures: WebGLTexture[]
+  u: Record<string, WebGLUniformLocation | null>
+}
+
+function makeGlFilter(fragment: string, uniforms: string[], inputs: number): GlFilter | null {
+  const canvas = document.createElement('canvas')
+  const gl = canvas.getContext('webgl', { premultipliedAlpha: true, alpha: true })
+  if (!gl) return null
+  const vs = gl.createShader(gl.VERTEX_SHADER)!
+  gl.shaderSource(vs, 'attribute vec2 p;varying vec2 uv;void main(){uv=vec2(p.x*0.5+0.5,0.5-p.y*0.5);gl_Position=vec4(p,0.0,1.0);}')
+  gl.compileShader(vs)
+  const fs = gl.createShader(gl.FRAGMENT_SHADER)!
+  gl.shaderSource(fs, `#ifdef GL_FRAGMENT_PRECISION_HIGH
+precision highp float;
+#else
+precision mediump float;
+#endif
+${fragment}`)
+  gl.compileShader(fs)
+  const prog = gl.createProgram()!
+  gl.attachShader(prog, vs)
+  gl.attachShader(prog, fs)
+  gl.linkProgram(prog)
+  if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) {
+    console.warn('mask shader failed', gl.getShaderInfoLog(fs))
+    return null
+  }
+  gl.useProgram(prog)
+  const buf = gl.createBuffer()
+  gl.bindBuffer(gl.ARRAY_BUFFER, buf)
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW)
+  const loc = gl.getAttribLocation(prog, 'p')
+  gl.enableVertexAttribArray(loc)
+  gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0)
+  const textures: WebGLTexture[] = []
+  for (let i = 0; i < inputs; i++) {
+    const tex = gl.createTexture()!
+    gl.activeTexture(gl.TEXTURE0 + i)
+    gl.bindTexture(gl.TEXTURE_2D, tex)
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR)
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR)
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE)
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE)
+    gl.uniform1i(gl.getUniformLocation(prog, `tex${i}`), i)
+    textures.push(tex)
+  }
+  const u: GlFilter['u'] = {}
+  for (const name of uniforms) u[name] = gl.getUniformLocation(prog, name)
+  return { canvas, gl, textures, u }
+}
+
+function runGlFilter(f: GlFilter, sources: CanvasImageSource[], w: number, h: number, set: (gl: WebGLRenderingContext, u: GlFilter['u']) => void): HTMLCanvasElement {
+  const { canvas, gl, textures, u } = f
+  if (canvas.width !== w || canvas.height !== h) {
+    canvas.width = w
+    canvas.height = h
+  }
+  gl.viewport(0, 0, w, h)
+  gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, false)
+  sources.forEach((src, i) => {
+    gl.activeTexture(gl.TEXTURE0 + i)
+    gl.bindTexture(gl.TEXTURE_2D, textures[i])
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, src as TexImageSource)
+  })
+  set(gl, u)
+  gl.clearColor(0, 0, 0, 0)
+  gl.clear(gl.COLOR_BUFFER_BIT)
+  gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4)
+  return canvas
+}
+
+const KEY_RAMP = 'float ramp(float diff){return blend>0.0001?clamp((diff-sim)/blend,0.0,1.0):(diff>sim?1.0:0.0);}'
+let colorGl: GlFilter | null | undefined
+let diffGl: GlFilter | null | undefined
+
+/** Mask that hides one colour (alpha 0 where the layer is that colour). */
+function colorMaskCanvas(src: HTMLCanvasElement, e: EffectInstance): HTMLCanvasElement | null {
+  if (colorGl === undefined) {
+    colorGl = makeGlFilter(
+      `uniform sampler2D tex0;uniform vec3 key;uniform float sim;uniform float blend;varying vec2 uv;${KEY_RAMP}
+void main(){vec3 d=texture2D(tex0,uv).rgb-key;float m=ramp(sqrt(dot(d,d)/3.0));gl_FragColor=vec4(m);}`,
+      ['key', 'sim', 'blend'], 1
+    )
+  }
+  if (!colorGl) return null
+  const [r, g, bl] = parseColor(s(e, 'color'))
+  return runGlFilter(colorGl, [src], src.width, src.height, (gl, u) => {
+    gl.uniform3f(u.key, r / 255, g / 255, bl / 255)
+    gl.uniform1f(u.sim, Math.min(1, Math.max(0.00001, n(e, 'tolerance'))))
+    gl.uniform1f(u.blend, Math.min(1, Math.max(0, n(e, 'softness'))))
+  })
+}
+
+/** Mask that hides whatever matches the reference picture (difference mask). */
+export function differenceMaskCanvas(src: HTMLCanvasElement, reference: CanvasImageSource, e: EffectInstance): HTMLCanvasElement | null {
+  if (diffGl === undefined) {
+    diffGl = makeGlFilter(
+      `uniform sampler2D tex0;uniform sampler2D tex1;uniform float sim;uniform float blend;varying vec2 uv;${KEY_RAMP}
+void main(){vec3 d=texture2D(tex0,uv).rgb-texture2D(tex1,uv).rgb;float m=ramp(sqrt(dot(d,d)/3.0));gl_FragColor=vec4(m);}`,
+      ['sim', 'blend'], 2
+    )
+  }
+  if (!diffGl) return null
+  return runGlFilter(diffGl, [src, reference], src.width, src.height, (gl, u) => {
+    gl.uniform1f(u.sim, Math.min(1, Math.max(0.00001, n(e, 'tolerance'))))
+    gl.uniform1f(u.blend, Math.min(1, Math.max(0, n(e, 'softness'))))
+  })
+}
+
+const imageMasks = new Map<string, HTMLCanvasElement>()
+
+/** Mask from an image stretched over the layer: its brightness (or transparency) becomes the mask. */
+function imageMaskCanvas(img: HTMLImageElement, mode: string, w: number, h: number): HTMLCanvasElement {
+  const key = `${img.src}|${w}x${h}|${mode}`
+  let hit = imageMasks.get(key)
+  if (hit) return hit
+  hit = document.createElement('canvas')
+  hit.width = w
+  hit.height = h
+  const ctx = hit.getContext('2d', { willReadFrequently: true })!
+  ctx.imageSmoothingQuality = 'high'
+  ctx.drawImage(img, 0, 0, w, h)
+  const data = ctx.getImageData(0, 0, w, h)
+  const px = data.data
+  for (let i = 0; i < px.length; i += 4) {
+    // Same weights as the export (colorchannelmixer 0.299/0.587/0.114).
+    const v = mode === 'alpha' ? px[i + 3] : Math.round(0.299 * px[i] + 0.587 * px[i + 1] + 0.114 * px[i + 2])
+    px[i] = px[i + 1] = px[i + 2] = 255
+    px[i + 3] = v
+  }
+  ctx.putImageData(data, 0, 0)
+  imageMasks.set(key, hit)
+  if (imageMasks.size > 16) imageMasks.delete(imageMasks.keys().next().value!)
+  return hit
+}
+
+/**
+ * Multiplies `target`'s alpha by a mask canvas after the mask's invert and feather. Feathering extends
+ * the mask's edges before blurring, like ffmpeg's gblur, so the frame border stays solid.
+ */
+export function applyMask(
+  target: { canvas: HTMLCanvasElement; ctx: Ctx }, mask: CanvasImageSource, e: EffectInstance, featherPx: number, sc: Scratch
+): void {
+  const w = target.canvas.width
+  const h = target.canvas.height
+  let m: CanvasImageSource = mask
+  if (b(e, 'invert')) {
+    const inv = sc.get(6, w, h)
+    inv.ctx.fillStyle = '#fff'
+    inv.ctx.fillRect(0, 0, w, h)
+    inv.ctx.globalCompositeOperation = 'destination-out'
+    inv.ctx.drawImage(m, 0, 0, w, h)
+    inv.ctx.globalCompositeOperation = 'source-over'
+    m = inv.canvas
+  }
+  if (featherPx > 0.05) {
+    const ext = Math.ceil(featherPx * 3)
+    const pad = sc.get(8, w + ext * 2, h + ext * 2)
+    const src = m
+    pad.ctx.drawImage(src, 0, 0, 1, h, 0, ext, ext, h)
+    pad.ctx.drawImage(src, w - 1, 0, 1, h, w + ext, ext, ext, h)
+    pad.ctx.drawImage(src, 0, 0, w, 1, ext, 0, w, ext)
+    pad.ctx.drawImage(src, 0, h - 1, w, 1, ext, h + ext, w, ext)
+    pad.ctx.drawImage(src, 0, 0, 1, 1, 0, 0, ext, ext)
+    pad.ctx.drawImage(src, w - 1, 0, 1, 1, w + ext, 0, ext, ext)
+    pad.ctx.drawImage(src, 0, h - 1, 1, 1, 0, h + ext, ext, ext)
+    pad.ctx.drawImage(src, w - 1, h - 1, 1, 1, w + ext, h + ext, ext, ext)
+    pad.ctx.drawImage(src, ext, ext, w, h)
+    const blurred = sc.get(7, w, h)
+    blurred.ctx.filter = `blur(${featherPx}px)`
+    blurred.ctx.drawImage(pad.canvas, -ext, -ext)
+    blurred.ctx.filter = 'none'
+    m = blurred.canvas
+  }
+  target.ctx.globalCompositeOperation = 'destination-in'
+  target.ctx.drawImage(m, 0, 0, w, h)
+  target.ctx.globalCompositeOperation = 'source-over'
+}
+
+/** What the layer renderer needs from the player: loaded images for image masks. */
+export interface LayerEnv {
+  image(mediaId: string): HTMLImageElement | null
+}
+
 // ---------------------------------------------------------------- layer rendering
 
 export interface LayerResult {
@@ -195,7 +388,7 @@ export function needsProcessing(clip: Clip): boolean {
  * @param pxRef  canvas pixels per reference pixel (REF_HEIGHT-based units such as blur radius)
  */
 export function renderLayer(
-  clip: Clip, source: CanvasImageSource, cw: number, ch: number, pxRef: number, local: number
+  clip: Clip, source: CanvasImageSource, cw: number, ch: number, pxRef: number, local: number, env?: LayerEnv
 ): LayerResult {
   if (!needsProcessing(clip)) return { image: source, pad: 0 }
 
@@ -207,6 +400,19 @@ export function renderLayer(
     return next
   }
   a.ctx.drawImage(source, 0, 0, cw, ch)
+
+  // Colour and image masks come first, as in the export. (The difference mask is applied by the
+  // player after placement, since it compares the placed clip with what is underneath.)
+  for (const e of clip.effects) {
+    if (!e.enabled) continue
+    if (e.type === 'colorMask') {
+      const m = colorMaskCanvas(a.canvas, e)
+      if (m) applyMask(a, m, e, n(e, 'feather') * pxRef, scratch)
+    } else if (e.type === 'imageMask') {
+      const img = env?.image(s(e, 'image'))
+      if (img) applyMask(a, imageMaskCanvas(img, s(e, 'mode'), cw, ch), e, n(e, 'feather') * pxRef, scratch)
+    }
+  }
 
   const effects = clip.effects.filter((e) => e.enabled && EFFECT_MAP[e.type]?.target === 'video')
   let i = 0

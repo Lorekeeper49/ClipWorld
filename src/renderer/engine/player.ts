@@ -2,16 +2,17 @@
 // compositor and the Web Audio graph. It reads the project straight from the store every frame.
 import { useSyncExternalStore } from 'react'
 import { clamp, transformAt } from '@shared/easing'
-import { fadeFactor } from '@shared/effects'
+import { fadeFactor, n as nParam, s as sParam } from '@shared/effects'
 import { layerInfo } from '@shared/filtergraph'
 import {
-  type Clip, type MediaItem, type Project, REF_HEIGHT, type SubtitleCue, type SubtitleTrack, clipEnd, projectDuration
+  type Clip, type EffectInstance, type MediaItem, type Project, REF_HEIGHT, type SubtitleCue, type SubtitleTrack, clipEnd, fitSize,
+  projectDuration
 } from '@shared/model'
 import { activeClips } from '@shared/timeline-ops'
 import { chunkName } from '@shared/ipc'
 import { type State, get, set, useStore } from '../state/store'
 import { AudioEngine, type EffectChain } from './audio'
-import { renderLayer } from './layers'
+import { type LayerEnv, Scratch, applyMask, differenceMaskCanvas, renderLayer } from './layers'
 import { measureText, rasterSubtitle, rasterText } from './raster'
 import { clipTrackTime, cueAt } from '@shared/subtitles'
 
@@ -621,14 +622,33 @@ class Player {
       if (alpha <= 0) continue
       const cw = Math.max(1, Math.round(bw * px))
       const ch = Math.max(1, Math.round(bh * px))
-      const layer = renderLayer(c, source, cw, ch, (H / REF_HEIGHT) * px, local)
-      ctx.save()
-      ctx.globalAlpha = alpha
-      ctx.translate((W / 2 + tr.x * W) * px, (H / 2 + tr.y * H) * px)
-      if (tr.rotation) ctx.rotate((tr.rotation * Math.PI) / 180)
-      if (tr.scale !== 1) ctx.scale(tr.scale, tr.scale)
-      ctx.drawImage(layer.image, -cw / 2 - layer.pad, -ch / 2 - layer.pad, cw + layer.pad * 2, ch + layer.pad * 2)
-      ctx.restore()
+      const layer = renderLayer(c, source, cw, ch, (H / REF_HEIGHT) * px, local, this.layerEnv)
+      const place = (target: CanvasRenderingContext2D) => {
+        target.save()
+        target.globalAlpha = alpha
+        target.translate((W / 2 + tr.x * W) * px, (H / 2 + tr.y * H) * px)
+        if (tr.rotation) target.rotate((tr.rotation * Math.PI) / 180)
+        if (tr.scale !== 1) target.scale(tr.scale, tr.scale)
+        target.drawImage(layer.image, -cw / 2 - layer.pad, -ch / 2 - layer.pad, cw + layer.pad * 2, ch + layer.pad * 2)
+        target.restore()
+      }
+      // Difference mask: as in the export, the clip is placed on a transparent frame, compared with the
+      // reference (what the canvas already shows underneath, or a clean background), and hidden where
+      // they match.
+      const diff = c.effects.find((e) => e.enabled && e.type === 'differenceMask')
+      const reference = diff
+        ? sParam(diff, 'reference') === 'plate' ? this.plate(p, s, diff, canvas.width, canvas.height) : canvas
+        : null
+      if (!diff || !reference) {
+        // A clean background still loading (or missing) shows the clip unmasked for now.
+        place(ctx)
+        continue
+      }
+      const pos = this.frameScratch.get(0, canvas.width, canvas.height)
+      place(pos.ctx)
+      const mask = differenceMaskCanvas(pos.canvas, reference, diff)
+      if (mask) applyMask(pos, mask, diff, nParam(diff, 'feather') * (H / REF_HEIGHT) * px, this.frameScratch)
+      ctx.drawImage(pos.canvas, 0, 0)
     }
 
     // Editing guide: the subtitle track open in the Subtitles window, while it is not on the timeline.
@@ -643,6 +663,70 @@ class Player {
         ctx.restore()
       }
     }
+  }
+
+  /** Scratch canvases at preview-frame size (difference masks). */
+  private frameScratch = new Scratch()
+
+  /** Image lookups for image masks: the media's still image, once loaded. */
+  private layerEnv: LayerEnv = {
+    image: (mediaId) => {
+      const url = get().mediaCache[mediaId]?.sourceUrl
+      return url ? this.image(url) : null
+    }
+  }
+
+  private plates = new Map<string, { canvas: HTMLCanvasElement; ready: boolean }>()
+
+  /**
+   * A difference mask's clean background as a full-frame canvas: an image, or one frame of a video,
+   * fitted into the frame like an untransformed clip on black (as in the export). Null until loaded.
+   */
+  private plate(p: Project, s: State, e: EffectInstance, w: number, h: number): HTMLCanvasElement | null {
+    const m = p.media.find((x) => x.id === sParam(e, 'plate') && (x.kind === 'video' || (x.kind === 'image' && !x.animated)))
+    const url = m ? s.mediaCache[m.id]?.sourceUrl : undefined
+    if (!m || !url) return null
+    const at = m.kind === 'video' ? clamp(nParam(e, 'plateTime'), 0, Math.max(0, m.duration - 0.05)) : 0
+    const key = `${m.id}|${at.toFixed(3)}|${w}x${h}`
+    const hit = this.plates.get(key)
+    if (hit) return hit.ready ? hit.canvas : null
+    const canvas = document.createElement('canvas')
+    canvas.width = w
+    canvas.height = h
+    const entry = { canvas, ready: false }
+    this.plates.set(key, entry)
+    if (this.plates.size > 8) this.plates.delete(this.plates.keys().next().value!)
+    const paint = (src: CanvasImageSource) => {
+      const c2 = canvas.getContext('2d')!
+      c2.fillStyle = '#000'
+      c2.fillRect(0, 0, w, h)
+      c2.imageSmoothingQuality = 'high'
+      const f = fitSize(m.width, m.height, w, h)
+      c2.drawImage(src, (w - f.w) / 2, (h - f.h) / 2, f.w, f.h)
+      entry.ready = true
+      this.needsDraw = true
+    }
+    if (m.kind === 'image') {
+      const img = new Image()
+      img.crossOrigin = 'anonymous'
+      img.onload = () => paint(img)
+      img.src = url
+    } else {
+      const v = document.createElement('video')
+      v.crossOrigin = 'anonymous'
+      v.muted = true
+      v.preload = 'auto'
+      v.addEventListener('loadedmetadata', () => {
+        v.currentTime = at
+      }, { once: true })
+      v.addEventListener('seeked', () => {
+        paint(v)
+        v.removeAttribute('src')
+        v.load()
+      }, { once: true })
+      v.src = url
+    }
+    return null
   }
 
   private subtitles = new Map<string, HTMLCanvasElement>()

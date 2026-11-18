@@ -4,6 +4,7 @@ import { Btn, Icon, formatDuration } from '../components/ui'
 import {
   addToTimeline, convertToMp4Action, deleteMediaAction, importMediaAction, importPaths, relinkMediaAction, setFastSeekAction
 } from '../state/actions'
+import { useT } from '../i18n'
 import { set, useStore } from '../state/store'
 
 export const MEDIA_MIME = 'application/x-clipworld-media'
@@ -21,6 +22,7 @@ function Thumb({ m }: { m: MediaItem }) {
 }
 
 function MediaRow({ m }: { m: MediaItem }) {
+  const t = useT()
   const selected = useStore((s) => s.selectedMediaId === m.id)
   const cache = useStore((s) => s.mediaCache[m.id])
   const uses = useStore((s) => s.project.clips.reduce((n, c) => n + (c.mediaId === m.id ? 1 : 0), 0))
@@ -32,16 +34,16 @@ function MediaRow({ m }: { m: MediaItem }) {
   const converting = cache?.convertProgress !== undefined
   const canConvert = m.kind === 'video' && !/\.(mp4|m4v)$/i.test(m.path) && !cache?.missing && !converting
   let status: string | null = null
-  if (cache?.missing) status = 'File not found'
-  else if (converting) status = `Converting to MP4 ${Math.floor((cache!.convertProgress ?? 0) * 100)}%`
-  else if (cache?.proxyState === 'pending') status = `Building preview ${Math.round((cache.proxyProgress ?? 0) * 100)}%`
-  else if (cache?.proxyState === 'error' || ch?.failed) status = 'Preview unavailable (export still works)'
+  if (cache?.missing) status = t('media.status.missing')
+  else if (converting) status = t('media.status.converting', { percent: Math.floor((cache!.convertProgress ?? 0) * 100) })
+  else if (cache?.proxyState === 'pending') status = t('media.status.buildingPreview', { percent: Math.round((cache.proxyProgress ?? 0) * 100) })
+  else if (cache?.proxyState === 'error' || ch?.failed) status = t('media.status.previewUnavailable')
   else if (m.audioStreams.length && audioReady < m.audioStreams.length) {
-    status = `Extracting audio ${Math.round((cache?.audioProgress ?? 0) * 100)}%`
+    status = t('media.status.extractingAudio', { percent: Math.round((cache?.audioProgress ?? 0) * 100) })
   } else if (ch && ch.done.length < ch.count) {
-    status = `Optimizing for fast seeking ${Math.floor((ch.done.length / ch.count) * 100)}%`
+    status = t('media.status.optimizing', { percent: Math.floor((ch.done.length / ch.count) * 100) })
   } else if (m.fastSeek && ch) {
-    status = 'Optimized for fast seeking'
+    status = t('media.status.optimized')
   }
   const fastSeekDone = !!ch && ch.done.length >= ch.count
   // Videos the preview cannot decode always get the copy; the button is for the user's own choice.
@@ -49,7 +51,7 @@ function MediaRow({ m }: { m: MediaItem }) {
 
   const meta: string[] = []
   if (m.kind !== 'audio') meta.push(`${m.width}×${m.height}`)
-  if (m.kind === 'video') meta.push(`${Number(m.fps.toFixed(2))} fps`)
+  if (m.kind === 'video') meta.push(t('common.fps', { fps: Number(m.fps.toFixed(2)) }))
   if (m.duration > 0) meta.push(formatDuration(m.duration))
 
   return (
@@ -63,7 +65,7 @@ function MediaRow({ m }: { m: MediaItem }) {
         }}
         onClick={() => set({ selectedMediaId: m.id })}
         onDoubleClick={() => !cache?.missing && addToTimeline(m.id)}
-        title={`${m.path}\nDrag to the timeline, or double-click to add at the playhead`}
+        title={`${m.path}\n${t('media.dragHint')}`}
       >
         <Thumb m={m} />
         <div className="media-info">
@@ -73,48 +75,46 @@ function MediaRow({ m }: { m: MediaItem }) {
             <div className={`media-status${cache?.missing || cache?.proxyState === 'error' || ch?.failed ? ' bad' : ''}`}
               data-testid="media-status"
               title={ch && !ch.failed && ch.done.length < ch.count
-                ? 'Building a seek-friendly preview copy in the background, starting where you are working. Playback and export use the original meanwhile.'
+                ? t('media.optimizingHint')
                 : undefined}>
               {status}
             </div>
           )}
-          {uses > 0 && !status && <div className="media-meta">Used {uses}×</div>}
+          {uses > 0 && !status && <div className="media-meta">{t('media.used', { count: uses })}</div>}
           <div className="media-buttons">
             {canConvert && (
               <button type="button" className="media-convert" data-testid="convert-mp4"
-                title={`Save an MP4 copy next to the original and use it in this project. MP4 plays most smoothly in the preview.\nStreams are copied without re-encoding when possible. ${m.name} itself is not changed.`}
+                title={t('media.convertHint', { name: m.name })}
                 onClick={(e) => { e.stopPropagation(); void convertToMp4Action(m.id) }}>
-                Convert to MP4
+                {t('media.convert')}
               </button>
             )}
             {converting && (
               <button type="button" className="media-convert" data-testid="convert-cancel"
                 onClick={(e) => { e.stopPropagation(); void window.cw.cancelConvert(m.id) }}>
-                Cancel
+                {t('common.cancel')}
               </button>
             )}
             {canFastSeek && (
               <button type="button" className="media-convert" data-testid={m.fastSeek ? 'fast-seek-off' : 'fast-seek-on'}
                 title={m.fastSeek
                   ? (fastSeekDone
-                    ? 'Stop using the fast-seek preview copy. It stays on disk, so turning it back on is instant.'
-                    : 'Stop building the fast-seek preview copy. Finished parts are kept, so turning it back on resumes.')
-                  : 'Having trouble with slow or choppy seeking in this video? This builds a 720p preview copy in the background, ' +
-                    'starting where you are working, so jumping around the timeline is quick. It uses roughly half a gigabyte ' +
-                    'per hour of video. Exports always use the original file.'}
+                    ? t('media.fastSeekOffHint')
+                    : t('media.fastSeekStopHint'))
+                  : t('media.fastSeekHint')}
                 onClick={(e) => { e.stopPropagation(); setFastSeekAction(m.id, !m.fastSeek) }}>
-                {m.fastSeek ? (fastSeekDone ? 'Turn off fast seeking' : 'Stop optimizing') : 'Optimize for fast seeking'}
+                {m.fastSeek ? (fastSeekDone ? t('media.fastSeekOff') : t('media.fastSeekStop')) : t('media.fastSeekOn')}
               </button>
             )}
           </div>
         </div>
         <div className="media-actions">
           {cache?.missing ? (
-            <Btn small icon="folder" title="Locate file…" onClick={(e) => { e.stopPropagation(); void relinkMediaAction(m.id) }} />
+            <Btn small icon="folder" title={t('media.locate')} onClick={(e) => { e.stopPropagation(); void relinkMediaAction(m.id) }} />
           ) : (
-            <Btn small icon="plus" title="Add to timeline at playhead" testId="media-add" onClick={(e) => { e.stopPropagation(); addToTimeline(m.id) }} />
+            <Btn small icon="plus" title={t('media.add')} testId="media-add" onClick={(e) => { e.stopPropagation(); addToTimeline(m.id) }} />
           )}
-          <Btn small icon="trash" title="Delete from project (removes its clips from the timeline)" testId="media-delete"
+          <Btn small icon="trash" title={t('media.delete')} testId="media-delete"
             onClick={(e) => { e.stopPropagation(); deleteMediaAction(m.id) }} />
         </div>
       </div>
@@ -122,7 +122,7 @@ function MediaRow({ m }: { m: MediaItem }) {
         <div className="media-tracks">
           <button type="button" className="media-tracks-head" onClick={() => setOpen(!open)}>
             <Icon name={open ? 'down' : 'right'} size={12} />
-            {m.audioStreams.length} audio track{m.audioStreams.length === 1 ? '' : 's'}
+            {t('common.audioTracks', { count: m.audioStreams.length })}
           </button>
           {open && m.audioStreams.map((a) => (
             <div
@@ -135,11 +135,11 @@ function MediaRow({ m }: { m: MediaItem }) {
                 e.dataTransfer.effectAllowed = 'copy'
               }}
               onDoubleClick={() => addToTimeline(m.id, undefined, undefined, a.index)}
-              title="Drag to the timeline to use this audio track on its own"
+              title={t('media.trackHint')}
             >
               <Icon name="music" size={12} />
               <span className="media-track-name">{a.title}</span>
-              <span className="media-track-meta">{a.codec} · {a.channels === 1 ? 'mono' : a.channels === 2 ? 'stereo' : `${a.channels} ch`}</span>
+              <span className="media-track-meta">{a.codec} · {a.channels === 1 ? t('media.mono') : a.channels === 2 ? t('media.stereo') : t('media.channels', { count: a.channels })}</span>
             </div>
           ))}
         </div>
@@ -149,6 +149,7 @@ function MediaRow({ m }: { m: MediaItem }) {
 }
 
 export function MediaPanel() {
+  const t = useT()
   const media = useStore((s) => s.project.media)
   const [over, setOver] = useState(false)
   return (
@@ -173,14 +174,14 @@ export function MediaPanel() {
       }}
     >
       <div className="panel-toolbar">
-        <Btn icon="upload" primary onClick={() => void importMediaAction()} testId="import-media">Import</Btn>
-        <span className="toolbar-hint">{media.length ? `${media.length} item${media.length === 1 ? '' : 's'}` : ''}</span>
+        <Btn icon="upload" primary onClick={() => void importMediaAction()} testId="import-media">{t('media.import')}</Btn>
+        <span className="toolbar-hint">{media.length ? t('media.items', { count: media.length }) : ''}</span>
       </div>
       {media.length === 0 ? (
         <div className="empty">
           <Icon name="upload" size={28} />
-          <p>Import video, audio or images</p>
-          <p className="dim">Drop files here or use Import. A video's audio tracks are extracted automatically.</p>
+          <p>{t('media.emptyTitle')}</p>
+          <p className="dim">{t('media.emptyHint')}</p>
         </div>
       ) : (
         <ul className="media-list">
@@ -189,7 +190,7 @@ export function MediaPanel() {
       )}
       <p className="media-tip" data-testid="media-tip">
         <Icon name="info" size={13} />
-        MP4 files are recommended for the smoothest video.
+        {t('media.mp4Tip')}
       </p>
     </div>
   )

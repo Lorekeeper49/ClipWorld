@@ -6,6 +6,7 @@ import type { SubtitleCue } from '@shared/model'
 import { uid } from '@shared/model'
 import { parseSbv, parseSrt, parseTimecode, sortCues } from '@shared/subtitles'
 import { FfmpegError, getFfmpegPaths, run, tail } from './ffmpeg'
+import { t } from '@shared/i18n'
 
 export interface ReadSubtitles {
   name: string
@@ -62,7 +63,7 @@ export function parseTtml(xml: string, fps = 30): SubtitleCue[] {
 /** Converts whatever ffmpeg can read (a subtitle file or a video's subtitle stream) to SRT text. */
 async function ffmpegToSrt(args: string[]): Promise<string> {
   const r = await run(getFfmpegPaths().ffmpeg, ['-hide_banner', '-nostdin', '-loglevel', 'error', ...args, '-f', 'srt', '-'])
-  if (r.code !== 0 || !r.stdout.trim()) throw new FfmpegError(`Could not read the subtitles\n${tail(r.stderr)}`, r.stderr)
+  if (r.code !== 0 || !r.stdout.trim()) throw new FfmpegError(`${t('errors.subtitlesUnreadable')}\n${tail(r.stderr)}`, r.stderr)
   return r.stdout
 }
 
@@ -82,8 +83,8 @@ export async function readSubtitleFile(path: string, fps = 30): Promise<ReadSubt
   else if (ext === 'sub') cues = parseSrt(await ffmpegToSrt(['-f', 'microdvd', '-subfps', String(fps || 25), '-i', path]))
   else cues = parseSrt(await ffmpegToSrt(['-i', path]))
   cues = nonEmpty(cues)
-  if (!cues.length) throw new Error(`No subtitles found in ${basename(path)}`)
-  return { name: name.replace(/\.([a-z]{2,3})$/i, '') || 'Subtitles', language, cues }
+  if (!cues.length) throw new Error(t('errors.noSubtitlesIn', { name: basename(path) }))
+  return { name: name.replace(/\.([a-z]{2,3})$/i, '') || t('subtitles.defaultTrackName'), language, cues }
 }
 
 export interface SubtitleStreamInfo {
@@ -113,7 +114,7 @@ export async function listSubtitleStreams(path: string): Promise<SubtitleStreamI
 
 export async function extractSubtitleStream(path: string, index: number): Promise<SubtitleCue[]> {
   const cues = nonEmpty(parseSrt(await ffmpegToSrt(['-i', path, '-map', `0:s:${index}`])))
-  if (!cues.length) throw new Error('That subtitle track is empty')
+  if (!cues.length) throw new Error(t('errors.subtitleTrackEmpty'))
   return cues
 }
 

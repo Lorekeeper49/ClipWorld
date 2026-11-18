@@ -1,52 +1,53 @@
 // Keyboard shortcuts: defaults, user overrides (stored in app settings) and the global key handler.
+import { t } from '@shared/i18n'
 import { player } from '../engine/player'
 import * as a from './actions'
 import { get, patchSettings, set } from './store'
 
 export interface ShortcutDef {
+  /** Also the message key of its name: actions.<id>. */
   id: string
-  label: string
   group: 'File' | 'Edit' | 'Playback' | 'Timeline' | 'Subtitles'
   default: string
   run: () => void
 }
 
 export const SHORTCUTS: ShortcutDef[] = [
-  { id: 'file.new', label: 'New project', group: 'File', default: 'Ctrl+N', run: a.newProjectAction },
-  { id: 'file.open', label: 'Open project…', group: 'File', default: 'Ctrl+O', run: () => a.openProjectAction() },
-  { id: 'file.save', label: 'Save', group: 'File', default: 'Ctrl+S', run: () => void a.saveProjectAction() },
-  { id: 'file.saveAs', label: 'Save as…', group: 'File', default: 'Ctrl+Shift+S', run: () => void a.saveProjectAction(true) },
-  { id: 'file.import', label: 'Import media…', group: 'File', default: 'Ctrl+I', run: () => void a.importMediaAction() },
-  { id: 'file.export', label: 'Export…', group: 'File', default: 'Ctrl+Shift+E', run: () => set({ modal: 'export' }) },
+  { id: 'file.new', group: 'File', default: 'Ctrl+N', run: a.newProjectAction },
+  { id: 'file.open', group: 'File', default: 'Ctrl+O', run: () => a.openProjectAction() },
+  { id: 'file.save', group: 'File', default: 'Ctrl+S', run: () => void a.saveProjectAction() },
+  { id: 'file.saveAs', group: 'File', default: 'Ctrl+Shift+S', run: () => void a.saveProjectAction(true) },
+  { id: 'file.import', group: 'File', default: 'Ctrl+I', run: () => void a.importMediaAction() },
+  { id: 'file.export', group: 'File', default: 'Ctrl+Shift+E', run: () => set({ modal: 'export' }) },
 
-  { id: 'edit.undo', label: 'Undo', group: 'Edit', default: 'Ctrl+Z', run: a.undo },
-  { id: 'edit.redo', label: 'Redo', group: 'Edit', default: 'Ctrl+Y', run: a.redo },
-  { id: 'edit.cut', label: 'Cut', group: 'Edit', default: 'Ctrl+X', run: a.cutAction },
-  { id: 'edit.copy', label: 'Copy', group: 'Edit', default: 'Ctrl+C', run: () => void a.copyAction() },
-  { id: 'edit.paste', label: 'Paste at playhead', group: 'Edit', default: 'Ctrl+V', run: a.pasteAction },
-  { id: 'edit.duplicate', label: 'Duplicate', group: 'Edit', default: 'Ctrl+D', run: a.duplicateAction },
-  { id: 'edit.delete', label: 'Delete', group: 'Edit', default: 'Delete', run: a.deleteSelectionAction },
-  { id: 'edit.selectAll', label: 'Select all clips', group: 'Edit', default: 'Ctrl+A', run: a.selectAllAction },
-  { id: 'edit.deselect', label: 'Deselect', group: 'Edit', default: 'Escape', run: () => set({ selection: [] }) },
+  { id: 'edit.undo', group: 'Edit', default: 'Ctrl+Z', run: a.undo },
+  { id: 'edit.redo', group: 'Edit', default: 'Ctrl+Y', run: a.redo },
+  { id: 'edit.cut', group: 'Edit', default: 'Ctrl+X', run: a.cutAction },
+  { id: 'edit.copy', group: 'Edit', default: 'Ctrl+C', run: () => void a.copyAction() },
+  { id: 'edit.paste', group: 'Edit', default: 'Ctrl+V', run: a.pasteAction },
+  { id: 'edit.duplicate', group: 'Edit', default: 'Ctrl+D', run: a.duplicateAction },
+  { id: 'edit.delete', group: 'Edit', default: 'Delete', run: a.deleteSelectionAction },
+  { id: 'edit.selectAll', group: 'Edit', default: 'Ctrl+A', run: a.selectAllAction },
+  { id: 'edit.deselect', group: 'Edit', default: 'Escape', run: () => set({ selection: [] }) },
 
-  { id: 'timeline.split', label: 'Split at playhead', group: 'Timeline', default: 'Ctrl+K', run: a.splitAction },
-  { id: 'timeline.unlink', label: 'Unlink audio from video', group: 'Timeline', default: 'Ctrl+U', run: a.unlinkAction },
-  { id: 'timeline.addText', label: 'Add text', group: 'Timeline', default: 'T', run: () => a.addTextAction() },
-  { id: 'timeline.snap', label: 'Toggle snapping', group: 'Timeline', default: 'S', run: () => set((s) => ({ snapping: !s.snapping })) },
-  { id: 'timeline.zoomIn', label: 'Zoom in', group: 'Timeline', default: 'Ctrl+=', run: () => a.zoomTimeline(1.4) },
-  { id: 'timeline.zoomOut', label: 'Zoom out', group: 'Timeline', default: 'Ctrl+-', run: () => a.zoomTimeline(1 / 1.4) },
+  { id: 'timeline.split', group: 'Timeline', default: 'Ctrl+K', run: a.splitAction },
+  { id: 'timeline.unlink', group: 'Timeline', default: 'Ctrl+U', run: a.unlinkAction },
+  { id: 'timeline.addText', group: 'Timeline', default: 'T', run: () => a.addTextAction() },
+  { id: 'timeline.snap', group: 'Timeline', default: 'S', run: () => set((s) => ({ snapping: !s.snapping })) },
+  { id: 'timeline.zoomIn', group: 'Timeline', default: 'Ctrl+=', run: () => a.zoomTimeline(1.4) },
+  { id: 'timeline.zoomOut', group: 'Timeline', default: 'Ctrl+-', run: () => a.zoomTimeline(1 / 1.4) },
 
-  { id: 'subtitles.add', label: 'Add subtitle at playhead', group: 'Subtitles', default: 'Shift+T', run: () => void a.addCueAction() },
-  { id: 'subtitles.setStart', label: 'Set subtitle start to playhead', group: 'Subtitles', default: '[', run: () => a.setCueEdgeAction('start') },
-  { id: 'subtitles.setEnd', label: 'Set subtitle end to playhead', group: 'Subtitles', default: ']', run: () => a.setCueEdgeAction('end') },
+  { id: 'subtitles.add', group: 'Subtitles', default: 'Shift+T', run: () => void a.addCueAction() },
+  { id: 'subtitles.setStart', group: 'Subtitles', default: '[', run: () => a.setCueEdgeAction('start') },
+  { id: 'subtitles.setEnd', group: 'Subtitles', default: ']', run: () => a.setCueEdgeAction('end') },
 
-  { id: 'play.toggle', label: 'Play / pause', group: 'Playback', default: 'Space', run: () => player.toggle() },
-  { id: 'play.prevFrame', label: 'Previous frame', group: 'Playback', default: 'Left', run: () => player.step(-1) },
-  { id: 'play.nextFrame', label: 'Next frame', group: 'Playback', default: 'Right', run: () => player.step(1) },
-  { id: 'play.back1s', label: 'Back 1 second', group: 'Playback', default: 'Shift+Left', run: () => player.seek(player.time - 1) },
-  { id: 'play.fwd1s', label: 'Forward 1 second', group: 'Playback', default: 'Shift+Right', run: () => player.seek(player.time + 1) },
-  { id: 'play.start', label: 'Go to start', group: 'Playback', default: 'Home', run: () => player.seek(0) },
-  { id: 'play.end', label: 'Go to end', group: 'Playback', default: 'End', run: () => player.seek(Infinity) }
+  { id: 'play.toggle', group: 'Playback', default: 'Space', run: () => player.toggle() },
+  { id: 'play.prevFrame', group: 'Playback', default: 'Left', run: () => player.step(-1) },
+  { id: 'play.nextFrame', group: 'Playback', default: 'Right', run: () => player.step(1) },
+  { id: 'play.back1s', group: 'Playback', default: 'Shift+Left', run: () => player.seek(player.time - 1) },
+  { id: 'play.fwd1s', group: 'Playback', default: 'Shift+Right', run: () => player.seek(player.time + 1) },
+  { id: 'play.start', group: 'Playback', default: 'Home', run: () => player.seek(0) },
+  { id: 'play.end', group: 'Playback', default: 'End', run: () => player.seek(Infinity) }
 ]
 
 const KEY_NAMES: Record<string, string> = {
@@ -70,6 +71,9 @@ export function acceleratorFromEvent(e: KeyboardEvent): string | null {
   parts.push(key)
   return parts.join('+')
 }
+
+/** The action's name in the current language. */
+export const shortcutLabel = (id: string): string => t(`actions.${id}`)
 
 export function bindingFor(id: string): string {
   const def = SHORTCUTS.find((s) => s.id === id)

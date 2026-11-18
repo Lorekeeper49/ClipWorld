@@ -1,4 +1,6 @@
 // User-facing commands. Menus, toolbar buttons and keyboard shortcuts all call these.
+import { t } from '@shared/i18n'
+import { containerName, subtitleFormatName } from '@shared/labels'
 import { layerInfo, overlayEffects } from '@shared/filtergraph'
 import { CONTAINER_MAP, type ExportSettings } from '@shared/formats'
 import type { ExportRequest, ExportResult, RasterAsset } from '@shared/ipc'
@@ -43,7 +45,7 @@ export async function openProjectPath(path?: string): Promise<void> {
     adopt(opened.project, opened.path)
     patchSettings({ recent: [opened.path, ...get().settings.recent.filter((r) => r !== opened.path)].slice(0, 10) })
   } catch (err) {
-    toast(`Could not open project: ${(err as Error).message}`, 'error')
+    toast(t('toasts.openFailed', { error: (err as Error).message }), 'error')
   }
 }
 
@@ -60,10 +62,10 @@ export async function saveProjectAction(saveAs = false): Promise<boolean> {
     set((cur) => ({ projectPath: path, dirty: cur.project !== s.project }))
     patchSettings({ recent: [path, ...get().settings.recent.filter((r) => r !== path)].slice(0, 10) })
     void window.cw.writeRecovery(null)
-    toast('Project saved')
+    toast(t('toasts.saved'))
     return true
   } catch (err) {
-    toast(`Could not save: ${(err as Error).message}`, 'error')
+    toast(t('toasts.saveFailed', { error: (err as Error).message }), 'error')
     return false
   }
 }
@@ -77,13 +79,13 @@ export async function importPaths(all: string[]): Promise<MediaItem[]> {
   const paths = all.filter((p) => !isSubtitleFile(p))
   if (!paths.length) return []
   if (!get().ffmpegVersion) {
-    toast('ffmpeg was not found, so media cannot be imported.', 'error')
+    toast(t('toasts.noFfmpeg'), 'error')
     return []
   }
   const existing = new Set(get().project.media.map((m) => m.path.toLowerCase()))
   const fresh = paths.filter((p) => !existing.has(p.toLowerCase()))
   if (!fresh.length) {
-    toast('Already imported')
+    toast(t('toasts.alreadyImported'))
     return []
   }
   const { items, errors } = await window.cw.importMedia(fresh)
@@ -135,7 +137,7 @@ export function deleteMediaAction(mediaId: string): void {
     selectedMediaId: cur.selectedMediaId === mediaId ? null : cur.selectedMediaId,
     selection: cur.selection.filter((id) => cur.project.clips.some((c) => c.id === id))
   }))
-  toast(used ? `Removed ${m.name} and ${used} clip${used === 1 ? '' : 's'} from the timeline` : `Removed ${m.name}`)
+  toast(used ? t('toasts.removedWithClips', { name: m.name, count: used }) : t('toasts.removed', { name: m.name }))
 }
 
 export async function relinkMediaAction(mediaId: string): Promise<void> {
@@ -154,7 +156,7 @@ export async function relinkMediaAction(mediaId: string): Promise<void> {
       if (i >= 0) p.media[i] = fresh
     })
   } catch (err) {
-    toast(`Could not relink: ${(err as Error).message}`, 'error')
+    toast(t('toasts.relinkFailed', { error: (err as Error).message }), 'error')
   }
 }
 
@@ -167,7 +169,7 @@ export async function convertToMp4Action(mediaId: string): Promise<void> {
   if (!m) return
   const r = await window.cw.convertToMp4(mediaId)
   if (!r.ok) {
-    if (!r.cancelled) toast(`Could not convert ${m.name}: ${r.error.split('\n')[0]}`, 'error')
+    if (!r.cancelled) toast(t('toasts.convertFailed', { name: m.name, error: r.error.split('\n')[0] }), 'error')
     return
   }
   if (!get().project.media.some((x) => x.id === mediaId)) return // deleted while converting
@@ -186,7 +188,7 @@ export async function convertToMp4Action(mediaId: string): Promise<void> {
   })
   void window.cw.prepareMedia([item])
   const name = r.path.split(/[\\/]/).pop()
-  toast(`Converted to ${name}${r.copied ? ' without re-encoding' : ''}. The original file was not changed.`)
+  toast(r.copied ? t('toasts.convertedCopy', { name }) : t('toasts.converted', { name }))
 }
 
 /** Turns the optional fast-seek preview copy of a video on or off; the choice is saved in the project. */
@@ -245,18 +247,18 @@ export function initMediaCacheListener(): () => void {
 
 export function splitAction(): void {
   const s = get()
-  const t = player.time
+  const at = player.time
   let created: string[] = []
   // With a selection under the playhead, split just that; otherwise split everything under it.
   const sel = withLinked(s.project, s.selection)
   const under = sel.filter((id) => {
     const c = s.project.clips.find((x) => x.id === id)
-    return c && t > c.start && t < clipEnd(c)
+    return c && at > c.start && at < clipEnd(c)
   })
   const ok = edit((p) => {
-    created = splitAt(p, t, under.length ? under : undefined)
+    created = splitAt(p, at, under.length ? under : undefined)
   })
-  if (!ok) toast('Nothing to split at the playhead')
+  if (!ok) toast(t('toasts.nothingToSplit'))
   else if (under.length) set({ selection: created })
 }
 
@@ -316,7 +318,7 @@ export function unlinkAction(): void {
 export function addTextAction(text?: Partial<TextProps>): void {
   let id = ''
   edit((p) => {
-    id = addTextClip(p, player.time, { fontFamily: preferredFont(), ...text })
+    id = addTextClip(p, player.time, { fontFamily: preferredFont(), content: t('tools.text.default'), ...text })
   })
   set({ selection: [id] })
 }
@@ -357,7 +359,7 @@ export function timelineTimeOf(p: Project, track: SubtitleTrack, trackTime: numb
 
 export function newSubtitleTrackAction(name?: string): string {
   const n = get().project.subtitles.length + 1
-  const track = makeSubtitleTrack(name ?? (n === 1 ? 'Subtitles' : `Subtitles ${n}`))
+  const track = makeSubtitleTrack(name ?? (n === 1 ? t('subtitles.defaultTrackName') : t('subtitles.defaultTrackNameN', { n })))
   track.style.fontFamily = preferredFont()
   edit((p) => {
     p.subtitles.push(track)
@@ -371,7 +373,7 @@ export function deleteSubtitleTrackAction(trackId: string): void {
   if (!track) return
   edit((p) => deleteSubtitleTrack(p, trackId))
   set((s) => ({ activeSubtitleTrack: s.project.subtitles[0]?.id ?? null, activeCueId: null }))
-  toast(`Deleted subtitle track “${track.name}”`)
+  toast(t('toasts.trackDeleted', { name: track.name }))
 }
 
 /** Edits a subtitle track; rapid edits to the same field merge into one undo step. */
@@ -453,19 +455,19 @@ export function setCueEdgeAction(edge: 'start' | 'end'): void {
   const track = activeTrack()
   if (!track) return
   const p = get().project
-  const t = trackTimeAt(p, track, player.time)
-  const cue = track.cues.find((c) => c.id === get().activeCueId) ?? cueAt(track, t)
+  const at = trackTimeAt(p, track, player.time)
+  const cue = track.cues.find((c) => c.id === get().activeCueId) ?? cueAt(track, at)
   if (!cue) {
-    toast('Select a subtitle first')
+    toast(t('toasts.selectSubtitle'))
     return
   }
-  updateCueAction(track.id, cue.id, edge === 'start' ? { start: t } : { end: t })
+  updateCueAction(track.id, cue.id, edge === 'start' ? { start: at } : { end: at })
 }
 
 export function addSubtitlesToTimelineAction(trackId: string): void {
   const track = get().project.subtitles.find((t) => t.id === trackId)
   if (!track?.cues.length) {
-    toast('Add some subtitles to this track first')
+    toast(t('toasts.trackEmpty'))
     return
   }
   let id: string | null = null
@@ -484,7 +486,7 @@ function addImportedTrack(name: string, language: string, cues: SubtitleCue[]): 
     p.subtitles.push(track)
   })
   set({ activeSubtitleTrack: track.id, activeCueId: null })
-  toast(`Imported ${cues.length} subtitle${cues.length === 1 ? '' : 's'} into “${name}”`)
+  toast(t('toasts.subtitlesImported', { count: cues.length, name }))
 }
 
 export async function importSubtitleFilesAction(paths?: string[]): Promise<void> {
@@ -495,7 +497,7 @@ export async function importSubtitleFilesAction(paths?: string[]): Promise<void>
       const r = await window.cw.readSubtitleFile(f, fps)
       addImportedTrack(r.name, r.language, r.cues)
     } catch (err) {
-      toast(`Could not import ${f.split(/[\\/]/).pop()}: ${(err as Error).message.split('\n')[0]}`, 'error')
+      toast(t('toasts.importFailed', { name: f.split(/[\\/]/).pop(), error: (err as Error).message.split('\n')[0] }), 'error')
     }
   }
 }
@@ -507,7 +509,7 @@ export async function importSubtitleStreamAction(mediaId: string, index: number,
     const cues = await window.cw.extractSubtitleStream(m.path, index)
     addImportedTrack(label, language, cues)
   } catch (err) {
-    toast(`Could not import subtitles from ${m.name}: ${(err as Error).message.split('\n')[0]}`, 'error')
+    toast(t('toasts.streamImportFailed', { name: m.name, error: (err as Error).message.split('\n')[0] }), 'error')
   }
 }
 
@@ -518,14 +520,14 @@ export async function exportSubtitlesAction(trackId: string, format: string, tim
   if (!track || !def) return
   const cues = (timing === 'timeline' ? timelineCues(s.project.clips, track) : track.cues).filter((c) => c.text.trim())
   if (!cues.length) {
-    toast('There are no subtitles with text to export', 'error')
+    toast(t('toasts.nothingToExport'), 'error')
     return
   }
   const { width, height, fps } = s.project.settings
   const content = writeSubtitles(format, track, cues, { fps, width, height, title: track.name })
   const base = `${projectName(s)} - ${track.name}`.replace(/[\\/:*?"<>|]/g, '_')
-  const path = await window.cw.saveSubtitleFile(base, def.ext, def.label.split(' (')[0], content)
-  if (path) toast(`Saved ${cues.length} subtitles to ${path.split(/[\\/]/).pop()}`)
+  const path = await window.cw.saveSubtitleFile(base, def.ext, subtitleFormatName(def.id), content)
+  if (path) toast(t('toasts.subtitlesSaved', { count: cues.length, name: path.split(/[\\/]/).pop() }))
 }
 
 export function zoomTimeline(factor: number): void {
@@ -597,11 +599,11 @@ async function buildAssets(project: Project): Promise<BuiltAssets> {
 export async function runExportAction(settings: ExportSettings): Promise<ExportResult | null> {
   const s = get()
   if (projectDuration(s.project) <= 0) {
-    toast('The timeline is empty', 'error')
+    toast(t('toasts.timelineEmpty'), 'error')
     return null
   }
   const container = CONTAINER_MAP[settings.container]
-  const outPath = await window.cw.pickExportPath(projectName(s), container.ext, container.label)
+  const outPath = await window.cw.pickExportPath(projectName(s), container.ext, containerName(container.id))
   if (!outPath) return null
   player.pause()
   patchSettings({ exportSettings: settings })

@@ -5,7 +5,8 @@ import {
   importSubtitleFilesAction, newProjectAction, openProjectAction, pasteAction, redo, saveProjectAction, selectAllAction,
   splitAction, undo, unlinkAction
 } from '../state/actions'
-import { bindingFor } from '../state/shortcuts'
+import { useT } from '../i18n'
+import { bindingFor, shortcutLabel as a } from '../state/shortcuts'
 import { guardUnsaved } from '../state/actions'
 import { projectName, set, useStore } from '../state/store'
 import { useDismiss } from './ui'
@@ -20,7 +21,8 @@ interface Item {
   testId?: string
 }
 
-function Menu({ label, items, open, onOpen, onClose, onHover }: {
+function Menu({ id, label, items, open, onOpen, onClose, onHover }: {
+  id: string
   label: string
   items: Item[]
   open: boolean
@@ -31,7 +33,7 @@ function Menu({ label, items, open, onOpen, onClose, onHover }: {
   return (
     <div className="menu">
       <button type="button" className={`menu-title${open ? ' open' : ''}`} onClick={() => (open ? onClose() : onOpen())} onMouseEnter={onHover}
-        data-testid={`menu-${label.toLowerCase()}`}>
+        data-testid={`menu-${id}`}>
         {label}
       </button>
       {open && (
@@ -69,29 +71,31 @@ export function MenuBar() {
   useStore((s) => s.settings.shortcuts)
   useSyncExternalStore(subscribePanels, () => PANELS.map((p) => (isPanelOpen(p.id) ? '1' : '0')).join(''))
   const k = bindingFor
+  const t = useT()
+  const lang = useStore((s) => s.lang)
 
   const file: Item[] = [
-    { label: 'New project', shortcut: k('file.new'), run: newProjectAction },
-    { label: 'Open project…', shortcut: k('file.open'), run: () => openProjectAction() },
+    { label: a('file.new'), shortcut: k('file.new'), run: newProjectAction },
+    { label: a('file.open'), shortcut: k('file.open'), run: () => openProjectAction() },
     ...(recent.length
       ? [{ separator: true } as Item, ...recent.slice(0, 6).map((r): Item => ({ label: r.split(/[\\/]/).pop(), run: () => openProjectAction(r) }))]
       : []),
     { separator: true },
-    { label: 'Save', shortcut: k('file.save'), run: () => void saveProjectAction(), testId: 'menu-save' },
-    { label: 'Save as…', shortcut: k('file.saveAs'), run: () => void saveProjectAction(true) },
+    { label: a('file.save'), shortcut: k('file.save'), run: () => void saveProjectAction(), testId: 'menu-save' },
+    { label: a('file.saveAs'), shortcut: k('file.saveAs'), run: () => void saveProjectAction(true) },
     { separator: true },
-    { label: 'Import media…', shortcut: k('file.import'), run: () => void importMediaAction() },
+    { label: a('file.import'), shortcut: k('file.import'), run: () => void importMediaAction() },
     {
-      label: 'Import subtitles…',
+      label: t('menu.importSubtitles'),
       run: () => {
         showPanel('subtitles')
         void importSubtitleFilesAction()
       }
     },
     { separator: true },
-    { label: 'Export…', shortcut: k('file.export'), run: () => set({ modal: 'export' }), testId: 'menu-export' },
+    { label: a('file.export'), shortcut: k('file.export'), run: () => set({ modal: 'export' }), testId: 'menu-export' },
     {
-      label: 'Export subtitles…',
+      label: t('menu.exportSubtitles'),
       disabled: !hasSubtitles,
       run: () => {
         showPanel('subtitles')
@@ -99,51 +103,53 @@ export function MenuBar() {
       }
     },
     { separator: true },
-    { label: 'Exit', run: () => guardUnsaved(() => window.cw.confirmClose()) }
+    { label: t('menu.exit'), run: () => guardUnsaved(() => window.cw.confirmClose()) }
   ]
   const edit: Item[] = [
-    { label: 'Undo', shortcut: k('edit.undo'), run: undo, disabled: !canUndo },
-    { label: 'Redo', shortcut: k('edit.redo'), run: redo, disabled: !canRedo },
+    { label: a('edit.undo'), shortcut: k('edit.undo'), run: undo, disabled: !canUndo },
+    { label: a('edit.redo'), shortcut: k('edit.redo'), run: redo, disabled: !canRedo },
     { separator: true },
-    { label: 'Cut', shortcut: k('edit.cut'), run: cutAction, disabled: !hasSelection },
-    { label: 'Copy', shortcut: k('edit.copy'), run: () => void copyAction(), disabled: !hasSelection },
-    { label: 'Paste at playhead', shortcut: k('edit.paste'), run: pasteAction, disabled: !hasClipboard },
-    { label: 'Duplicate', shortcut: k('edit.duplicate'), run: duplicateAction, disabled: !hasSelection },
-    { label: 'Delete', shortcut: k('edit.delete'), run: deleteSelectionAction, disabled: !hasSelection },
+    { label: a('edit.cut'), shortcut: k('edit.cut'), run: cutAction, disabled: !hasSelection },
+    { label: a('edit.copy'), shortcut: k('edit.copy'), run: () => void copyAction(), disabled: !hasSelection },
+    { label: a('edit.paste'), shortcut: k('edit.paste'), run: pasteAction, disabled: !hasClipboard },
+    { label: a('edit.duplicate'), shortcut: k('edit.duplicate'), run: duplicateAction, disabled: !hasSelection },
+    { label: a('edit.delete'), shortcut: k('edit.delete'), run: deleteSelectionAction, disabled: !hasSelection },
     { separator: true },
-    { label: 'Split at playhead', shortcut: k('timeline.split'), run: splitAction },
-    { label: 'Unlink audio from video', shortcut: k('timeline.unlink'), run: unlinkAction, disabled: !hasSelection },
-    { label: 'Add text', shortcut: k('timeline.addText'), run: () => addTextAction() },
+    { label: a('timeline.split'), shortcut: k('timeline.split'), run: splitAction },
+    { label: a('timeline.unlink'), shortcut: k('timeline.unlink'), run: unlinkAction, disabled: !hasSelection },
+    { label: a('timeline.addText'), shortcut: k('timeline.addText'), run: () => addTextAction() },
     {
-      label: 'Add subtitle at playhead',
+      label: a('subtitles.add'),
       shortcut: k('subtitles.add'),
       run: () => {
         showPanel('subtitles')
         addCueAction()
       }
     },
-    { label: 'Select all clips', shortcut: k('edit.selectAll'), run: selectAllAction },
+    { label: a('edit.selectAll'), shortcut: k('edit.selectAll'), run: selectAllAction },
     { separator: true },
-    { label: 'Keyboard shortcuts…', run: () => set({ modal: 'shortcuts' }), testId: 'menu-shortcuts' }
+    { label: t('menu.shortcuts'), run: () => set({ modal: 'shortcuts' }), testId: 'menu-shortcuts' },
+    // Always names "Language" in English too, so someone who picked a language they can't read can get back.
+    { label: lang.startsWith('en') ? `${t('menu.language')}…` : `${t('menu.language')} (Language)…`, run: () => set({ modal: 'language' }), testId: 'menu-language' }
   ]
   const windowMenu: Item[] = [
-    ...PANELS.map((p): Item => ({ label: p.title, checked: isPanelOpen(p.id), run: () => togglePanel(p.id) })),
+    ...PANELS.map((p): Item => ({ label: t(`panels.${p.id}`), checked: isPanelOpen(p.id), run: () => togglePanel(p.id) })),
     { separator: true },
-    { label: 'Reset layout', run: resetLayout },
-    { label: 'Developer tools', shortcut: 'F12', run: () => window.cw.toggleDevTools() }
+    { label: t('menu.resetLayout'), run: resetLayout },
+    { label: t('menu.devTools'), shortcut: 'F12', run: () => window.cw.toggleDevTools() }
   ]
-  const help: Item[] = [{ label: 'About ClipWorld', run: () => set({ modal: 'about' }) }]
-  const menus: [string, Item[]][] = [['File', file], ['Edit', edit], ['Window', windowMenu], ['Help', help]]
+  const help: Item[] = [{ label: t('menu.about'), run: () => set({ modal: 'about' }) }]
+  const menus: [string, Item[]][] = [['file', file], ['edit', edit], ['window', windowMenu], ['help', help]]
 
   return (
     <header className="menubar" ref={ref}>
       <span className="brand">ClipWorld</span>
-      {menus.map(([label, items]) => (
-        <Menu key={label} label={label} items={items} open={open === label} onOpen={() => setOpen(label)} onClose={() => setOpen(null)}
-          onHover={() => open !== null && setOpen(label)} />
+      {menus.map(([id, items]) => (
+        <Menu key={id} id={id} label={t(`menu.${id}`)} items={items} open={open === id} onOpen={() => setOpen(id)} onClose={() => setOpen(null)}
+          onHover={() => open !== null && setOpen(id)} />
       ))}
       <span className="menubar-title" data-testid="project-title">{name}{dirty ? ' •' : ''}</span>
-      <span className={`menubar-status${ffmpeg ? '' : ' bad'}`}>{ffmpeg ? `ffmpeg ${ffmpeg.split('-')[0]}` : 'ffmpeg not found'}</span>
+      <span className={`menubar-status${ffmpeg ? '' : ' bad'}`}>{ffmpeg ? `ffmpeg ${ffmpeg.split('-')[0]}` : t('app.ffmpegNotFound')}</span>
     </header>
   )
 }

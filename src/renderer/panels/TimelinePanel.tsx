@@ -8,6 +8,7 @@ import {
 import { Btn, Icon } from '../components/ui'
 import { player } from '../engine/player'
 import { addTextAction, addToTimeline, deleteSelectionAction, redo, splitAction, undo, zoomTimeline } from '../state/actions'
+import { t, useT } from '../i18n'
 import { bindingFor } from '../state/shortcuts'
 import { edit, get, set, useStore } from '../state/store'
 import { MEDIA_MIME } from './MediaPanel'
@@ -183,11 +184,12 @@ interface ClipProps {
 }
 
 const ClipView = memo(function ClipView({ clip, media, pps, height, selected, missing, onDown }: ClipProps) {
+  useT()
   const timed = isTimed(clip, media)
   const subName = useStore((s) => (clip.type === 'subtitles' ? s.project.subtitles.find((t) => t.id === clip.subtitleTrackId)?.name : undefined))
   const label =
-    clip.type === 'text' ? (clip.text?.content.split('\n')[0] ?? 'Text')
-      : clip.type === 'subtitles' ? `Subtitles · ${subName ?? clip.name}`
+    clip.type === 'text' ? (clip.text?.content.split('\n')[0] ?? t('timeline.text'))
+      : clip.type === 'subtitles' ? t('timeline.subtitlesClip', { name: subName ?? clip.name })
         : clip.name || media?.name || ''
   const fx = clip.effects.filter((e) => e.enabled).length
   const speedPct = Math.round(clip.speed * 100)
@@ -209,9 +211,9 @@ const ClipView = memo(function ClipView({ clip, media, pps, height, selected, mi
         {clip.type === 'audio' && Math.abs(clip.volume - 1) > 0.005 && <span className="clip-badge">{Math.round(clip.volume * 100)}%</span>}
         {fx > 0 && <span className="clip-badge fx">fx {fx}</span>}
       </div>
-      <div className="clip-edge start" data-testid="clip-edge-start" title="Drag to change speed · Alt+drag to trim"
+      <div className="clip-edge start" data-testid="clip-edge-start" title={t('timeline.edgeHint')}
         onPointerDown={(e) => { if (e.button === 0) { e.stopPropagation(); onDown(e, clip, 'start') } }} />
-      <div className="clip-edge end" data-testid="clip-edge-end" title="Drag to change speed · Alt+drag to trim"
+      <div className="clip-edge end" data-testid="clip-edge-end" title={t('timeline.edgeHint')}
         onPointerDown={(e) => { if (e.button === 0) { e.stopPropagation(); onDown(e, clip, 'end') } }} />
     </div>
   )
@@ -267,6 +269,7 @@ function Ruler({ pps, onDown }: { pps: number; onDown: (e: React.PointerEvent) =
 // ---------------------------------------------------------------- panel
 
 export function TimelinePanel() {
+  useT()
   const tracks = useStore((s) => s.project.tracks)
   const clips = useStore((s) => s.project.clips)
   const media = useStore((s) => s.project.media)
@@ -460,27 +463,27 @@ export function TimelinePanel() {
   return (
     <div className="panel timeline-panel" data-panel="timeline">
       <div className="panel-toolbar">
-        <Btn icon="scissors" title={`Split at playhead (${bindingFor('timeline.split')})`} onClick={splitAction} testId="split">Split</Btn>
+        <Btn icon="scissors" title={t('timeline.withKeys', { action: t('actions.timeline.split'), keys: bindingFor('timeline.split') })} onClick={splitAction} testId="split">{t('timeline.split')}</Btn>
         <span className="toolbar-sep" />
-        <Btn icon="undo" title={`Undo (${bindingFor('edit.undo')})`} onClick={undo} disabled={!canUndo} testId="undo" />
-        <Btn icon="redo" title={`Redo (${bindingFor('edit.redo')})`} onClick={redo} disabled={!canRedo} testId="redo" />
-        <Btn icon="trash" title={`Delete selected (${bindingFor('edit.delete')})`} onClick={deleteSelectionAction} disabled={!selection.length} />
+        <Btn icon="undo" title={t('timeline.withKeys', { action: t('actions.edit.undo'), keys: bindingFor('edit.undo') })} onClick={undo} disabled={!canUndo} testId="undo" />
+        <Btn icon="redo" title={t('timeline.withKeys', { action: t('actions.edit.redo'), keys: bindingFor('edit.redo') })} onClick={redo} disabled={!canRedo} testId="redo" />
+        <Btn icon="trash" title={t('timeline.withKeys', { action: t('timeline.deleteSelected'), keys: bindingFor('edit.delete') })} onClick={deleteSelectionAction} disabled={!selection.length} />
         <span className="toolbar-sep" />
-        <Btn icon="magnet" title={`Snapping (${bindingFor('timeline.snap')})`} active={snapping} onClick={() => set({ snapping: !snapping })} />
-        <Btn icon="text" title={`Add text at playhead (${bindingFor('timeline.addText')})`} onClick={() => addTextAction()} />
-        <span className="toolbar-hint">Drag a clip's edge to change its speed · Alt+drag to trim</span>
+        <Btn icon="magnet" title={t('timeline.withKeys', { action: t('timeline.snapping'), keys: bindingFor('timeline.snap') })} active={snapping} onClick={() => set({ snapping: !snapping })} />
+        <Btn icon="text" title={t('timeline.withKeys', { action: t('timeline.addTextHere'), keys: bindingFor('timeline.addText') })} onClick={() => addTextAction()} />
+        <span className="toolbar-hint">{t('timeline.hint')}</span>
         <span className="toolbar-spacer" />
-        <Btn small icon="plus" title="Add video track" onClick={() => edit((p) => { addTrack(p, 'video') })}>Video</Btn>
-        <Btn small icon="plus" title="Add audio track" onClick={() => edit((p) => { addTrack(p, 'audio') })}>Audio</Btn>
+        <Btn small icon="plus" title={t('timeline.addVideoTrack')} onClick={() => edit((p) => { addTrack(p, 'video') })}>{t('timeline.video')}</Btn>
+        <Btn small icon="plus" title={t('timeline.addAudioTrack')} onClick={() => edit((p) => { addTrack(p, 'audio') })}>{t('timeline.audio')}</Btn>
         <span className="toolbar-sep" />
-        <Btn icon="minus" title="Zoom out" onClick={() => zoomTimeline(1 / 1.4)} />
+        <Btn icon="minus" title={t('actions.timeline.zoomOut')} onClick={() => zoomTimeline(1 / 1.4)} />
         <input
           type="range" className="slider zoom-slider" min={Math.log(2)} max={Math.log(800)} step={0.01} value={Math.log(pps)}
           style={{ '--fill': `${((Math.log(pps) - Math.log(2)) / (Math.log(800) - Math.log(2))) * 100}%` } as React.CSSProperties}
-          onChange={(e) => set({ pps: Math.exp(Number(e.target.value)) })} title="Timeline zoom (Ctrl+wheel)"
+          onChange={(e) => set({ pps: Math.exp(Number(e.target.value)) })} title={t('timeline.zoom')}
         />
-        <Btn icon="plus" title="Zoom in" onClick={() => zoomTimeline(1.4)} />
-        <Btn icon="fit" title="Fit timeline to window" onClick={fit} />
+        <Btn icon="plus" title={t('actions.timeline.zoomIn')} onClick={() => zoomTimeline(1.4)} />
+        <Btn icon="fit" title={t('timeline.fit')} onClick={fit} />
       </div>
       <div
         className="tl-scroll"
@@ -547,10 +550,10 @@ function TrackRow({ track, height, empty, children, onLaneDown }: {
         <Icon name={track.kind === 'video' ? 'film' : 'music'} size={13} />
         <span className="tl-track-name">{track.name}</span>
         {empty && count > 1 && (
-          <Btn small icon="close" title="Remove empty track" onClick={() => edit((p) => { removeTrack(p, track.id) })} />
+          <Btn small icon="close" title={t('timeline.removeTrack')} onClick={() => edit((p) => { removeTrack(p, track.id) })} />
         )}
         <Btn small icon={track.kind === 'video' ? (off ? 'eyeOff' : 'eye') : off ? 'mute' : 'volume'}
-          title={track.kind === 'video' ? (off ? 'Show track' : 'Hide track') : off ? 'Unmute track' : 'Mute track'}
+          title={track.kind === 'video' ? (off ? t('timeline.showTrack') : t('timeline.hideTrack')) : off ? t('timeline.unmuteTrack') : t('timeline.muteTrack')}
           active={off} onClick={toggle} />
       </div>
       <div className="tl-lane" data-track-id={track.id} data-track-kind={track.kind} data-testid="lane" onPointerDown={onLaneDown}>

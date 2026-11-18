@@ -46,11 +46,15 @@ Six dockable panels. Drag tabs to rearrange, split, tab together or float them. 
 | **Subtitles** | Create subtitle tracks (several per project, each with a name, language and style: font, size, colours, outline, background box, position, line width). Add a subtitle at the playhead with **Shift+T**, set its start/end to the playhead with **[** / **]**, edit times and text in the list. Import SRT, VTT, ASS/SSA, SBV, TTML, SAMI, MicroDVD and LRC files, or a subtitle track inside a video. Export any track to SRT, WebVTT, ASS, SSA, SBV, TTML, SAMI, MicroDVD, LRC or a text transcript. **Add to timeline** puts a track into the video as a clip that can be moved, split, stretched, transformed and given effects; tracks not on the timeline are not exported with the video. |
 | **Preview** | Always fits the video frame. Transport controls and a 0–100% preview volume that never affects the export. |
 | **Timeline** | Split at the playhead (**Split** button or Ctrl+K), copy/cut/paste/duplicate, snapping, Ctrl+wheel zoom. **Dragging a clip's edge changes its speed** so the clip fills the new length, audio included. Alt+drag an edge to trim instead. |
-| **Tools** | Text (any installed font, size, bold/italic, fill, outline colour and width), zoom on video (start/end, focal point, easing), transform (position, scale, rotation, opacity, start/end with easing), clip speed, and stackable filters and effects. |
+| **Tools** | Text (any installed font, size, bold/italic, fill, outline colour and width), zoom on video (start/end, focal point, easing), transform (position, scale, rotation, opacity, start/end with easing), clip speed, masks (hide a colour, hide or show areas with an image, or hide what matches a clean background or the video underneath — for clone shots), and stackable filters and effects. |
 | **Metadata** | Export resolution and frame rate, applied live. Source-file details. |
 | **Audio** | The audio tracks of the selected video, each with its own 0–500% volume, mute and level meter. |
 
 **Filters & effects.** Video: brightness, contrast, saturation, hue, black & white, sepia, invert, colour tint, gradient, blur, sharpen, pixelate, vignette, film grain, drop shadow, chroma key, flip, fade in/out. Audio: pitch shift, distortion, bitcrusher, echo, reverb, low-pass, high-pass, bass, treble, tremolo, fade in/out. Stack as many as you like, reorder them and toggle each one.
+
+## Languages
+
+English and Japanese, chosen in **Edit ▸ Language…** (the system language by default). The switch is immediate and covers the menus, every window, native file dialogs and error messages. Text lives in `src/locales/<language>.json`, and anything a language doesn't have yet falls back to English. [TRANSLATING.md](TRANSLATING.md) explains how to add a language.
 
 ## Files and export
 
@@ -73,5 +77,6 @@ Each effect is defined once in `src/shared/effects.ts`. Colour filters use the C
 
 ```bash
 npm test          # timeline ops, easing, and real-ffmpeg exports checked with ffprobe
-npm run test:e2e  # launches the app and drives import → split → stretch → volume → text/effects → save → export
+npm run test:e2e  # launches the app and drives import → split → stretch → volume → text/effects → save → export,
+                  # plus subtitles, masks, Convert to MP4, and a sweep for untranslated text in every language
 ```

@@ -11,6 +11,7 @@ import { type Filmstrip, type MediaCache, PEAKS_PER_SECOND, type ProxyChunks, ch
 import type { MediaItem } from '@shared/model'
 import { ffmpeg, ffmpegProgress } from './ffmpeg'
 import { probeMedia } from './probe'
+import { t } from '@shared/i18n'
 import { SCHEME, allowFile, allowRoot, mediaUrl } from './protocol'
 
 type Emit = (mediaId: string, patch: Partial<MediaCache>) => void
@@ -647,10 +648,10 @@ function adoptCache(from: MediaItem, to: MediaItem): void {
 
 export async function convertToMp4(mediaId: string, encoders: string[]): Promise<ConvertOutcome> {
   const m = items.get(mediaId)
-  if (!m) return { ok: false, cancelled: false, error: 'This media is not loaded' }
-  if (m.kind !== 'video') return { ok: false, cancelled: false, error: 'Only video files can be converted' }
-  if (isMp4(m.path)) return { ok: false, cancelled: false, error: 'This file is already an MP4' }
-  if (converting.has(mediaId)) return { ok: false, cancelled: false, error: 'Already converting' }
+  if (!m) return { ok: false, cancelled: false, error: t('errors.mediaNotLoaded') }
+  if (m.kind !== 'video') return { ok: false, cancelled: false, error: t('errors.onlyVideoConverts') }
+  if (isMp4(m.path)) return { ok: false, cancelled: false, error: t('errors.alreadyMp4') }
+  if (converting.has(mediaId)) return { ok: false, cancelled: false, error: t('errors.alreadyConverting') }
 
   const out = uniqueMp4Path(m.path)
   const tmp = `${out}.converting`
@@ -715,7 +716,7 @@ export async function convertToMp4(mediaId: string, encoders: string[]): Promise
     remove(tmp)
     const cancelled = signal.aborted
     update(mediaId, { convertProgress: undefined })
-    return { ok: false, cancelled, error: cancelled ? 'Cancelled' : (err as Error).message }
+    return { ok: false, cancelled, error: cancelled ? t('errors.cancelled') : (err as Error).message }
   } finally {
     converting.delete(mediaId)
   }

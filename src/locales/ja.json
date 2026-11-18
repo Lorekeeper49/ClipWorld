@@ -1,0 +1,809 @@
+{
+  "app": {
+    "untitled": "無題",
+    "starting": "ClipWorld を起動しています…",
+    "ffmpegNotFound": "ffmpeg が見つかりません",
+    "noFfmpeg": "ffmpeg が見つからないため、読み込みと書き出しは使用できません。プロジェクトのフォルダーで {{command}} を実行してから、再起動してください。",
+    "restored": "前回のセッションで保存されていなかった作業を復元しました"
+  },
+  "common": {
+    "cancel": "キャンセル",
+    "close": "閉じる",
+    "done": "完了",
+    "save": "保存",
+    "doubleClickReset": "ダブルクリックでリセット",
+    "fps": "{{fps}} fps",
+    "seconds": "{{s}} 秒",
+    "audioTracks_other": "オーディオトラック {{count}} 個"
+  },
+  "menu": {
+    "file": "ファイル",
+    "edit": "編集",
+    "window": "ウィンドウ",
+    "help": "ヘルプ",
+    "importSubtitles": "字幕を読み込む…",
+    "exportSubtitles": "字幕を書き出す…",
+    "exit": "終了",
+    "shortcuts": "キーボードショートカット…",
+    "language": "言語",
+    "resetLayout": "レイアウトをリセット",
+    "devTools": "開発者ツール",
+    "about": "ClipWorld について"
+  },
+  "panels": {
+    "media": "メディア",
+    "subtitles": "字幕",
+    "preview": "プレビュー",
+    "tools": "ツール",
+    "metadata": "メタデータ",
+    "audio": "オーディオ",
+    "timeline": "タイムライン"
+  },
+  "dock": {
+    "panelOpened": "{{title}} を開きました",
+    "panelClosed": "{{title}} を閉じました",
+    "groupMaximized": "{{title}} を最大化しました",
+    "groupRestored": "{{title}} を元のサイズに戻しました",
+    "groupFloated": "{{title}} をフローティングにしました",
+    "groupDocked": "{{title}} をドッキングしました",
+    "groupPoppedOut": "{{title}} を新しいウィンドウで開きました",
+    "closeTab": "{{title}} を閉じる",
+    "movePickTarget": "{{source}} を移動中。移動先は {{target}}（{{current}} / {{total}}）。Enter で位置を選択、Escape でキャンセル。",
+    "movePickTab": "{{target}} にタブとして追加。矢印キーで変更、Enter で確定、Escape で戻る。",
+    "movePickSplit": "{{target}} の{{position}}に分割。矢印キーで変更、Enter で確定、Escape で戻る。",
+    "movedTab": "{{source}} を {{target}} にドッキングしました。",
+    "movedSplit": "{{source}} を {{target}} の{{position}}に分割しました。",
+    "moveCancelled": "移動をキャンセルしました。",
+    "moveNotAllowed": "その移動はできません。",
+    "positions": {
+      "left": "左",
+      "right": "右",
+      "top": "上",
+      "bottom": "下"
+    }
+  },
+  "actions": {
+    "file": {
+      "new": "新規プロジェクト",
+      "open": "プロジェクトを開く…",
+      "save": "保存",
+      "saveAs": "名前を付けて保存…",
+      "import": "メディアを読み込む…",
+      "export": "書き出し…"
+    },
+    "edit": {
+      "undo": "元に戻す",
+      "redo": "やり直し",
+      "cut": "切り取り",
+      "copy": "コピー",
+      "paste": "再生ヘッドの位置に貼り付け",
+      "duplicate": "複製",
+      "delete": "削除",
+      "selectAll": "すべてのクリップを選択",
+      "deselect": "選択を解除"
+    },
+    "timeline": {
+      "split": "再生ヘッドの位置で分割",
+      "unlink": "映像と音声のリンクを解除",
+      "addText": "テキストを追加",
+      "snap": "スナップの切り替え",
+      "zoomIn": "ズームイン",
+      "zoomOut": "ズームアウト"
+    },
+    "subtitles": {
+      "add": "再生ヘッドの位置に字幕を追加",
+      "setStart": "字幕の開始を再生ヘッドに合わせる",
+      "setEnd": "字幕の終了を再生ヘッドに合わせる"
+    },
+    "play": {
+      "toggle": "再生 / 一時停止",
+      "prevFrame": "前のフレーム",
+      "nextFrame": "次のフレーム",
+      "back1s": "1 秒戻る",
+      "fwd1s": "1 秒進む",
+      "start": "先頭へ移動",
+      "end": "末尾へ移動"
+    }
+  },
+  "close": {
+    "title": "保存されていない変更",
+    "message": "「{{name}}」には保存されていない変更があります。",
+    "dontSave": "保存しない"
+  },
+  "about": {
+    "title": "ClipWorld について",
+    "tagline": "ffmpeg を使った動画編集ソフトです。",
+    "ffmpeg": "読み込み、音声の抽出、プロキシ、サムネイル、書き出しは ffmpeg {{version}} が行います。",
+    "projects": "プロジェクトは .vcws ファイルとして保存されます。"
+  },
+  "language": {
+    "title": "言語",
+    "system": "システムの既定",
+    "translated": "{{percent}} 翻訳済み",
+    "pseudo": "疑似言語（テスト用）",
+    "pseudoHint": "まだ翻訳できないテキストや、はみ出すテキストを表示します",
+    "missingFallback": "まだ翻訳されていない部分は英語で表示されます。"
+  },
+  "dialogs": {
+    "importMedia": "メディアを読み込む",
+    "mediaFiles": "メディア",
+    "allFiles": "すべてのファイル",
+    "locate": "{{name}} の場所を指定",
+    "importSubtitles": "字幕を読み込む",
+    "subtitleFiles": "字幕",
+    "exportSubtitles": "字幕を書き出す",
+    "openProject": "プロジェクトを開く",
+    "saveProject": "プロジェクトを保存",
+    "projectFiles": "ClipWorld プロジェクト",
+    "exportVideo": "動画を書き出す"
+  },
+  "errors": {
+    "exportRunning": "書き出しはすでに実行中です",
+    "ffmpegMissing": "ffmpeg が見つかりません。「npm run fetch-ffmpeg」を実行するか、設定で場所を指定してください。",
+    "cancelled": "キャンセルされました",
+    "ffmpegFailed": "ffmpeg が失敗しました（終了コード {{code}}）",
+    "couldNotRead": "{{name}} を読み込めませんでした",
+    "noContent": "{{name}} には映像、音声、画像が含まれていません",
+    "subtitlesUnreadable": "字幕を読み込めませんでした",
+    "noSubtitlesIn": "{{name}} に字幕が見つかりません",
+    "subtitleTrackEmpty": "その字幕トラックは空です",
+    "mediaNotLoaded": "このメディアは読み込まれていません",
+    "onlyVideoConverts": "変換できるのは動画ファイルだけです",
+    "alreadyMp4": "このファイルはすでに MP4 です",
+    "alreadyConverting": "すでに変換中です"
+  },
+  "media": {
+    "import": "読み込む",
+    "items_other": "{{count}} 個",
+    "emptyTitle": "動画、音声、画像を読み込みましょう",
+    "emptyHint": "ここにファイルをドロップするか、「読み込む」を使ってください。動画のオーディオトラックは自動的に抽出されます。",
+    "mp4Tip": "最もなめらかに再生するには MP4 ファイルをおすすめします。",
+    "audioN": "オーディオ {{n}}",
+    "status": {
+      "missing": "ファイルが見つかりません",
+      "converting": "MP4 に変換中 {{percent}}%",
+      "buildingPreview": "プレビューを作成中 {{percent}}%",
+      "previewUnavailable": "プレビューできません（書き出しは可能です）",
+      "extractingAudio": "音声を抽出中 {{percent}}%",
+      "optimizing": "高速シーク用に最適化中 {{percent}}%",
+      "optimized": "高速シーク用に最適化済み"
+    },
+    "dragHint": "タイムラインにドラッグするか、ダブルクリックで再生ヘッドの位置に追加します",
+    "optimizingHint": "作業中の位置から、シークしやすいプレビュー用コピーをバックグラウンドで作成しています。その間、再生と書き出しには元のファイルを使います。",
+    "used": "{{count}} 回使用",
+    "convert": "MP4 に変換",
+    "convertHint": "元のファイルの隣に MP4 のコピーを保存し、このプロジェクトで使います。プレビューでは MP4 が最もなめらかに再生されます。\n可能な場合は再エンコードせずにストリームをコピーします。{{name}} 自体は変更されません。",
+    "fastSeekOn": "高速シーク用に最適化",
+    "fastSeekHint": "この動画のシークが遅い、またはカクつきますか？作業中の位置から 720p のプレビュー用コピーをバックグラウンドで作成し、タイムライン上をすばやく移動できるようにします。動画 1 時間あたり約 0.5 GB を使用します。書き出しには常に元のファイルを使います。",
+    "fastSeekStop": "最適化を停止",
+    "fastSeekStopHint": "高速シーク用コピーの作成を停止します。完成した部分は残るので、再びオンにすると続きから再開します。",
+    "fastSeekOff": "高速シークをオフにする",
+    "fastSeekOffHint": "高速シーク用コピーの使用をやめます。コピーはディスクに残るので、再びオンにするとすぐに使えます。",
+    "locate": "ファイルの場所を指定…",
+    "add": "再生ヘッドの位置でタイムラインに追加",
+    "delete": "プロジェクトから削除（タイムライン上のクリップも削除されます）",
+    "trackHint": "タイムラインにドラッグすると、このオーディオトラックだけを使えます",
+    "mono": "モノラル",
+    "stereo": "ステレオ",
+    "channels": "{{count}} ch"
+  },
+  "preview": {
+    "play": "再生",
+    "pause": "一時停止",
+    "volumeHint": "プレビューの音量（書き出しには影響しません）",
+    "mute": "プレビューをミュート"
+  },
+  "audio": {
+    "empty": "タイムラインで動画を選択すると、そのオーディオトラックを確認・ミックスできます。",
+    "none": "選択したクリップにはオーディオトラックがありません。",
+    "original": "100% が元の音量です",
+    "defaultName": "オーディオ",
+    "mute": "ミュート",
+    "unmute": "ミュート解除",
+    "volumeHint": "0%〜500%（ダブルクリックで 100% に戻します）",
+    "level": "出力レベル"
+  },
+  "metadata": {
+    "exportFrame": "書き出しフレーム",
+    "resolution": "解像度",
+    "size": "サイズ",
+    "frameRate": "フレームレート",
+    "customRate": "任意のレート",
+    "custom": "カスタム",
+    "presets": {
+      "vertical": "縦型 1080p",
+      "portrait": "縦長 4:5",
+      "square": "正方形"
+    },
+    "match": "「{{name}}」に合わせる",
+    "applyHint": "変更はプレビューと書き出しにすぐ反映されます。タイムラインの長さ: {{length}}。",
+    "source": "ソースファイル",
+    "name": "名前",
+    "folder": "フォルダー",
+    "type": "種類",
+    "kinds": {
+      "video": "動画",
+      "audio": "音声",
+      "image": "画像",
+      "animated": "アニメーション画像"
+    },
+    "duration": "長さ",
+    "videoCodec": "映像コーデック",
+    "audio": "音声",
+    "fileSize": "サイズ",
+    "clip": "選択中のクリップ",
+    "startsAt": "開始位置",
+    "length": "長さ",
+    "sourceIn": "ソースのイン点",
+    "speed": "速度"
+  },
+  "shortcuts": {
+    "title": "キーボードショートカット",
+    "hint": "ショートカットをクリックしてから、新しいキーの組み合わせを押してください。Escape でキャンセルします。",
+    "conflict": "{{keys}} は「{{action}}」に割り当てられていたため、そちらのショートカットはなしになりました。",
+    "resetAll": "すべて既定に戻す",
+    "resetTo": "{{keys}} に戻す",
+    "press": "キーを押してください…",
+    "none": "なし",
+    "groups": {
+      "File": "ファイル",
+      "Edit": "編集",
+      "Playback": "再生",
+      "Timeline": "タイムライン",
+      "Subtitles": "字幕"
+    }
+  },
+  "fonts": {
+    "search_other": "インストール済みの {{count}} 個のフォントを検索",
+    "none": "一致するフォントがありません"
+  },
+  "export": {
+    "title": "書き出し",
+    "format": "形式",
+    "videoCodec": "映像コーデック",
+    "encoder": "エンコーダー",
+    "quality": "画質",
+    "qualityHint": "{{name}}（画質を上げるとファイルが大きくなります）",
+    "qualities": {
+      "draft": "下書き",
+      "good": "標準",
+      "high": "高",
+      "veryHigh": "とても高い",
+      "maximum": "最高"
+    },
+    "audioCodec": "音声コーデック",
+    "audioBitrate": "音声ビットレート",
+    "audioTracks": "オーディオトラック",
+    "mix": "1 つのトラックにミックス",
+    "separate": "{{count}} 個のトラックを別々に保持",
+    "length": "長さ {{time}}",
+    "metadataHint": "解像度とフレームレートはメタデータウィンドウで設定します。",
+    "starting": "開始しています…",
+    "eta": "残り約 {{time}}",
+    "cancel": "書き出しをキャンセル",
+    "finished": "書き出しが完了しました",
+    "cancelled": "書き出しはキャンセルされました",
+    "failed": "書き出しに失敗しました",
+    "showInFolder": "フォルダーに表示",
+    "again": "もう一度書き出す"
+  },
+  "subtitles": {
+    "defaultTrackName": "字幕",
+    "defaultTrackNameN": "字幕 {{n}}",
+    "languageUnspecified": "その他 / 指定なし",
+    "emptyTitle": "字幕を作成",
+    "emptyHint": "ここに入力するか、字幕ファイルを読み込んでください。各トラックは字幕ファイルとして書き出せるほか、タイムラインに追加すると動画に入れられます。",
+    "newTrack": "新しい字幕トラック",
+    "deleteTrack": "この字幕トラックを削除（タイムライン上のクリップも削除されます）",
+    "trackName": "トラック名",
+    "toTimeline": "タイムラインに追加",
+    "toTimelineHint": "このトラックをクリップとしてタイムラインに配置します。字幕が書き出す動画に入り、移動、伸縮、トランスフォーム、エフェクトの追加ができるようになります。",
+    "onTimeline": "タイムライン上",
+    "onTimelineClips": "タイムライン上（クリップ {{count}} 個）",
+    "onTimelineHint": "このトラックは動画に入っています。移動したりエフェクトを追加したりするには、タイムライン上のクリップを選択してください。",
+    "import": "読み込む",
+    "importFile": "字幕ファイル…（{{formats}}）",
+    "searching": "動画の中の字幕トラックを探しています…",
+    "noStreams": "プロジェクトの動画には字幕トラックが含まれていません。",
+    "pictureBased": "画像ベースの字幕（DVD / Blu-ray）はテキストに変換できません",
+    "streamName": "{{name}} の字幕",
+    "trackN": "トラック {{n}}",
+    "exportFile": "ファイルに書き出す",
+    "timing": "タイミング",
+    "timingTimeline": "動画に合わせる（タイムライン上のクリップの位置）",
+    "timingOriginal": "元の字幕の時間",
+    "save": "保存…",
+    "guide": "プレビューに表示",
+    "style": "スタイル",
+    "textColor": "文字",
+    "box": "背景ボックス",
+    "boxColor": "ボックスの色",
+    "boxOpacity": "ボックスの不透明度",
+    "position": "位置",
+    "positions": {
+      "bottom": "下",
+      "middle": "中央",
+      "top": "上"
+    },
+    "margin": "端からの余白",
+    "lineWidth": "行の幅",
+    "count_other": "字幕 {{count}} 件",
+    "add": "追加",
+    "addHint": "再生ヘッドの位置に字幕を追加（{{keys}}）",
+    "setStart": "開始 ⇤",
+    "setStartHint": "選択した字幕の開始を再生ヘッドに合わせる（{{keys}}）",
+    "setEnd": "⇥ 終了",
+    "setEndHint": "選択した字幕の終了を再生ヘッドに合わせる（{{keys}}）",
+    "emptyList": "字幕はまだありません。誰かが話し始める位置に再生ヘッドを移動し、{{keys}} または {{add}} を押してください。",
+    "overlap": "前の字幕と重なっています",
+    "jump": "クリックでこの位置へ移動",
+    "placeholder": "字幕を入力…",
+    "deleteCue": "字幕を削除"
+  },
+  "timeline": {
+    "withKeys": "{{action}}（{{keys}}）",
+    "split": "分割",
+    "deleteSelected": "選択したものを削除",
+    "snapping": "スナップ",
+    "addTextHere": "再生ヘッドの位置にテキストを追加",
+    "hint": "クリップの端をドラッグすると速度が変わります · Alt+ドラッグでトリミング",
+    "edgeHint": "ドラッグで速度を変更 · Alt+ドラッグでトリミング",
+    "video": "映像",
+    "audio": "音声",
+    "addVideoTrack": "映像トラックを追加",
+    "addAudioTrack": "オーディオトラックを追加",
+    "zoom": "タイムラインのズーム（Ctrl+ホイール）",
+    "fit": "タイムラインをウィンドウに合わせる",
+    "removeTrack": "空のトラックを削除",
+    "showTrack": "トラックを表示",
+    "hideTrack": "トラックを非表示",
+    "muteTrack": "トラックをミュート",
+    "unmuteTrack": "トラックのミュートを解除",
+    "text": "テキスト",
+    "subtitlesClip": "字幕 · {{name}}"
+  },
+  "toasts": {
+    "saved": "プロジェクトを保存しました",
+    "openFailed": "プロジェクトを開けませんでした: {{error}}",
+    "saveFailed": "保存できませんでした: {{error}}",
+    "noFfmpeg": "ffmpeg が見つからないため、メディアを読み込めません。",
+    "alreadyImported": "すでに読み込まれています",
+    "removed": "{{name}} を削除しました",
+    "removedWithClips_other": "{{name}} と、タイムライン上のクリップ {{count}} 個を削除しました",
+    "relinkFailed": "再リンクできませんでした: {{error}}",
+    "convertFailed": "{{name}} を変換できませんでした: {{error}}",
+    "converted": "{{name}} に変換しました。元のファイルは変更されていません。",
+    "convertedCopy": "再エンコードせずに {{name}} に変換しました。元のファイルは変更されていません。",
+    "nothingToSplit": "再生ヘッドの位置に分割できるものがありません",
+    "trackDeleted": "字幕トラック「{{name}}」を削除しました",
+    "selectSubtitle": "先に字幕を選択してください",
+    "trackEmpty": "先にこのトラックに字幕を追加してください",
+    "subtitlesImported_other": "「{{name}}」に字幕を {{count}} 件読み込みました",
+    "importFailed": "{{name}} を読み込めませんでした: {{error}}",
+    "streamImportFailed": "{{name}} から字幕を読み込めませんでした: {{error}}",
+    "nothingToExport": "書き出せるテキスト付きの字幕がありません",
+    "subtitlesSaved_other": "字幕 {{count}} 件を {{name}} に保存しました",
+    "timelineEmpty": "タイムラインが空です"
+  },
+  "tools": {
+    "empty": "タイムラインでクリップを選択すると、ズーム、トランスフォーム、フィルターやエフェクトの追加ができます。",
+    "start": "開始",
+    "end": "終了",
+    "ease": "イージング",
+    "text": {
+      "title": "テキスト",
+      "empty": "再生ヘッドの位置にテキストクリップを追加するか、タイムライン上のテキストを選択して編集してください。",
+      "default": "テキストを入力",
+      "font": "フォント",
+      "size": "サイズ",
+      "style": "スタイル",
+      "bold": "太字",
+      "italic": "斜体",
+      "align": {
+        "left": "左",
+        "center": "中央",
+        "right": "右"
+      },
+      "alignTitle": {
+        "left": "左揃え",
+        "center": "中央揃え",
+        "right": "右揃え"
+      },
+      "fill": "塗り",
+      "outline": "縁取り",
+      "outlineWidth": "縁取りの幅"
+    },
+    "speed": {
+      "title": "速度",
+      "keepPitch": "速度を変えても音の高さを保つ",
+      "hint": "タイムライン上でクリップの端をドラッグすると、新しい長さに合わせて速度が変わります。"
+    },
+    "transform": {
+      "title": "トランスフォーム",
+      "reset": "トランスフォームをリセット",
+      "animate": "開始から終了までアニメーション",
+      "fields": {
+        "x": "位置 X",
+        "y": "位置 Y",
+        "scale": "スケール",
+        "rotation": "回転",
+        "opacity": "不透明度"
+      }
+    },
+    "zoom": {
+      "title": "動画のズーム",
+      "reset": "ズームをリセット",
+      "enable": "クリップの長さに合わせてズームする",
+      "start": "開始時のズーム",
+      "end": "終了時のズーム",
+      "focusX": "中心 X",
+      "focusY": "中心 Y"
+    },
+    "mask": {
+      "title": "マスク",
+      "color": "色",
+      "colorHint": "1 つの色を透明にします",
+      "image": "画像",
+      "imageHint": "画像を使ってクリップの一部を表示・非表示にします",
+      "difference": "差分",
+      "differenceHint": "下の映像やきれいな背景と一致する部分を隠します（分身ショット用）",
+      "empty": "このクリップの一部を隠して、下にあるものを見せます。マスクはフィルターやエフェクトより先に適用されます。",
+      "hints": {
+        "colorMask": "1 つの色を透明にします。似た色合いも含めるには「許容範囲」を上げてください。",
+        "imageMask": "画像の白い部分ではクリップが表示され、黒い部分では隠れます（グレーはその中間）。画像はクリップ全体に引き伸ばされます。",
+        "differenceMask": "基準と一致する部分を隠します。分身ショットを作るには、同じ位置に固定したカメラで撮った 2 つのテイクを重ね、上のテイクをきれいな背景（誰も映っていないフレーム）と比較します。"
+      }
+    },
+    "picker": {
+      "import": "ファイルを読み込む…",
+      "image": {
+        "choose": "画像を選択…",
+        "missing": "（見つかりません — 画像を選択してください）",
+        "unusable": "そのファイルはここでは使えません。静止画を選んでください"
+      },
+      "imageOrVideo": {
+        "choose": "画像または動画を選択…",
+        "missing": "（見つかりません — 画像または動画を選択してください）",
+        "unusable": "そのファイルはここでは使えません。静止画か動画を選んでください"
+      }
+    },
+    "effects": {
+      "title": "フィルターとエフェクト",
+      "addVideo": "+ フィルターまたはエフェクトを追加…",
+      "addAudio": "+ オーディオエフェクトを追加…",
+      "empty": "エフェクトはまだありません。いくつでも追加でき、上から順に適用されます。",
+      "videoTarget": "映像",
+      "textTarget": "テキスト",
+      "audioTarget": "音声 · {{name}}",
+      "track": "トラック",
+      "enable": "有効にする",
+      "moveUp": "上へ移動",
+      "moveDown": "下へ移動",
+      "remove": "削除"
+    }
+  },
+  "effects": {
+    "groups": {
+      "Color": "カラー",
+      "Stylize": "スタイライズ",
+      "Mask": "マスク",
+      "Transition": "トランジション",
+      "Audio": "オーディオ"
+    },
+    "brightness": {
+      "name": "明るさ",
+      "params": {
+        "amount": "量"
+      }
+    },
+    "contrast": {
+      "name": "コントラスト",
+      "params": {
+        "amount": "量"
+      }
+    },
+    "saturation": {
+      "name": "彩度",
+      "params": {
+        "amount": "量"
+      }
+    },
+    "hue": {
+      "name": "色相の回転",
+      "params": {
+        "degrees": "角度"
+      }
+    },
+    "grayscale": {
+      "name": "白黒",
+      "params": {
+        "amount": "量"
+      }
+    },
+    "sepia": {
+      "name": "セピア",
+      "params": {
+        "amount": "量"
+      }
+    },
+    "invert": {
+      "name": "色の反転",
+      "params": {
+        "amount": "量"
+      }
+    },
+    "tint": {
+      "name": "色かぶり",
+      "params": {
+        "color": "色",
+        "amount": "量"
+      }
+    },
+    "gradient": {
+      "name": "グラデーション",
+      "params": {
+        "color1": "開始色",
+        "color2": "終了色",
+        "angle": "角度",
+        "opacity": "不透明度"
+      }
+    },
+    "blur": {
+      "name": "ぼかし",
+      "params": {
+        "radius": "半径"
+      }
+    },
+    "sharpen": {
+      "name": "シャープ",
+      "params": {
+        "amount": "量"
+      }
+    },
+    "pixelate": {
+      "name": "モザイク",
+      "params": {
+        "size": "ブロックサイズ"
+      }
+    },
+    "vignette": {
+      "name": "ビネット",
+      "params": {
+        "amount": "量",
+        "size": "サイズ"
+      }
+    },
+    "noise": {
+      "name": "フィルムグレイン",
+      "params": {
+        "amount": "量"
+      }
+    },
+    "dropShadow": {
+      "name": "ドロップシャドウ",
+      "params": {
+        "color": "色",
+        "opacity": "不透明度",
+        "blur": "柔らかさ",
+        "distance": "距離",
+        "angle": "角度"
+      }
+    },
+    "chromaKey": {
+      "name": "クロマキー",
+      "params": {
+        "color": "キーの色",
+        "similarity": "類似度",
+        "smoothness": "なめらかさ"
+      }
+    },
+    "flip": {
+      "name": "反転",
+      "params": {
+        "horizontal": "左右",
+        "vertical": "上下"
+      }
+    },
+    "colorMask": {
+      "name": "カラーマスク",
+      "params": {
+        "color": "色",
+        "tolerance": "許容範囲",
+        "softness": "柔らかさ",
+        "feather": "境界のぼかし",
+        "invert": "反転（この色だけを残す）"
+      }
+    },
+    "imageMask": {
+      "name": "画像マスク",
+      "params": {
+        "image": "画像",
+        "mode": "使用するもの",
+        "feather": "境界のぼかし",
+        "invert": "反転"
+      },
+      "options": {
+        "mode": {
+          "luma": "明るさ（白は表示、黒は非表示）",
+          "alpha": "透明度（不透明な部分を表示）"
+        }
+      }
+    },
+    "differenceMask": {
+      "name": "差分マスク（分身）",
+      "params": {
+        "reference": "比較対象",
+        "plate": "背景",
+        "plateTime": "使うフレーム",
+        "tolerance": "許容範囲",
+        "softness": "柔らかさ",
+        "feather": "境界のぼかし",
+        "invert": "反転（一致する部分だけを残す）"
+      },
+      "options": {
+        "reference": {
+          "below": "クリップの下にあるもの",
+          "plate": "きれいな背景"
+        }
+      }
+    },
+    "fadeIn": {
+      "name": "フェードイン",
+      "params": {
+        "duration": "長さ"
+      }
+    },
+    "fadeOut": {
+      "name": "フェードアウト",
+      "params": {
+        "duration": "長さ"
+      }
+    },
+    "pitch": {
+      "name": "ピッチシフト",
+      "params": {
+        "semitones": "半音"
+      }
+    },
+    "distortion": {
+      "name": "ディストーション",
+      "params": {
+        "drive": "ドライブ",
+        "level": "出力"
+      }
+    },
+    "bitcrush": {
+      "name": "ビットクラッシャー",
+      "params": {
+        "bits": "ビット深度",
+        "downsample": "ダウンサンプル"
+      }
+    },
+    "echo": {
+      "name": "エコー",
+      "params": {
+        "delay": "ディレイ",
+        "feedback": "フィードバック"
+      }
+    },
+    "reverb": {
+      "name": "リバーブ",
+      "params": {
+        "size": "残響の長さ",
+        "mix": "ミックス"
+      }
+    },
+    "lowpass": {
+      "name": "ローパス（こもらせる）",
+      "params": {
+        "frequency": "カットオフ"
+      }
+    },
+    "highpass": {
+      "name": "ハイパス（細くする）",
+      "params": {
+        "frequency": "カットオフ"
+      }
+    },
+    "bass": {
+      "name": "低音",
+      "params": {
+        "gain": "ゲイン"
+      }
+    },
+    "treble": {
+      "name": "高音",
+      "params": {
+        "gain": "ゲイン"
+      }
+    },
+    "tremolo": {
+      "name": "トレモロ",
+      "params": {
+        "rate": "速さ",
+        "depth": "深さ"
+      }
+    },
+    "audioFadeIn": {
+      "name": "フェードイン",
+      "params": {
+        "duration": "長さ"
+      }
+    },
+    "audioFadeOut": {
+      "name": "フェードアウト",
+      "params": {
+        "duration": "長さ"
+      }
+    }
+  },
+  "easing": {
+    "linear": "リニア",
+    "easeIn": "イーズイン",
+    "easeOut": "イーズアウト",
+    "easeInOut": "イーズインアウト",
+    "easeInCubic": "イーズイン（強）",
+    "easeOutCubic": "イーズアウト（強）",
+    "easeInOutCubic": "イーズインアウト（強）"
+  },
+  "formats": {
+    "containers": {
+      "mp4": "MP4",
+      "mkv": "Matroska (MKV)",
+      "mov": "QuickTime (MOV)",
+      "webm": "WebM",
+      "avi": "AVI",
+      "gif": "アニメーション GIF",
+      "mp3": "MP3（音声のみ）",
+      "wav": "WAV（音声のみ）",
+      "flac": "FLAC（音声のみ）",
+      "ogg": "Ogg（音声のみ）",
+      "m4a": "M4A（音声のみ）"
+    },
+    "video": {
+      "h264": "H.264（最も互換性が高い）",
+      "hevc": "H.265 / HEVC",
+      "vp9": "VP9",
+      "av1": "AV1",
+      "prores": "Apple ProRes",
+      "mpeg4": "MPEG-4 Part 2",
+      "gif": "アニメーション GIF"
+    },
+    "encoders": {
+      "libx264": "ソフトウェア（x264）",
+      "h264_nvenc": "NVIDIA NVENC",
+      "h264_qsv": "Intel Quick Sync",
+      "h264_amf": "AMD AMF",
+      "libx265": "ソフトウェア（x265）",
+      "hevc_nvenc": "NVIDIA NVENC",
+      "hevc_qsv": "Intel Quick Sync",
+      "libvpx-vp9": "ソフトウェア（libvpx）",
+      "av1_nvenc": "NVIDIA NVENC",
+      "libsvtav1": "ソフトウェア（SVT-AV1）",
+      "libaom-av1": "ソフトウェア（libaom、低速）",
+      "prores_ks": "ソフトウェア",
+      "mpeg4": "ソフトウェア",
+      "gif": "ソフトウェア"
+    },
+    "audio": {
+      "aac": "AAC",
+      "mp3": "MP3",
+      "opus": "Opus",
+      "vorbis": "Vorbis",
+      "flac": "FLAC（ロスレス）",
+      "pcm": "PCM 16 ビット（非圧縮）"
+    }
+  },
+  "subtitleFormats": {
+    "srt": "SubRip (.srt) — 最も互換性が高い",
+    "vtt": "WebVTT (.vtt) — Web プレーヤー向け",
+    "ass": "Advanced SubStation Alpha (.ass) — スタイルを保持",
+    "ssa": "SubStation Alpha (.ssa)",
+    "sbv": "YouTube SubViewer (.sbv)",
+    "ttml": "TTML / DFXP (.ttml)",
+    "smi": "SAMI (.smi)",
+    "sub": "MicroDVD (.sub) — フレーム単位",
+    "lrc": "LRC 歌詞（.lrc）",
+    "txt": "テキストの書き起こし（.txt）"
+  }
+}

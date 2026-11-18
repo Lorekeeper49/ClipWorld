@@ -4,6 +4,7 @@ import { accessSync, chmodSync, constants as constantsFs, existsSync } from 'nod
 import { constants, setPriority } from 'node:os'
 import { join } from 'node:path'
 import type { Caps } from '@shared/filtergraph'
+import { t } from '@shared/i18n'
 
 export interface FfmpegPaths {
   ffmpeg: string
@@ -18,7 +19,7 @@ export function setFfmpegPaths(p: FfmpegPaths | null): void {
 }
 
 export function getFfmpegPaths(): FfmpegPaths {
-  if (!paths) throw new Error('ffmpeg was not found. Run "npm run fetch-ffmpeg" or set its location in settings.')
+  if (!paths) throw new Error(t('errors.ffmpegMissing'))
   return paths
 }
 
@@ -128,8 +129,8 @@ export function tail(stderr: string, lines = 6): string {
 
 export async function ffmpeg(args: string[], opts: RunOptions = {}): Promise<RunResult> {
   const r = await run(getFfmpegPaths().ffmpeg, ['-hide_banner', '-nostdin', ...args], opts)
-  if (opts.signal?.aborted) throw new FfmpegError('Cancelled', '')
-  if (r.code !== 0) throw new FfmpegError(`ffmpeg failed (exit ${r.code})\n${tail(r.stderr)}`, r.stderr)
+  if (opts.signal?.aborted) throw new FfmpegError(t('errors.cancelled'), '')
+  if (r.code !== 0) throw new FfmpegError(`${t('errors.ffmpegFailed', { code: r.code })}\n${tail(r.stderr)}`, r.stderr)
   return r
 }
 
@@ -137,7 +138,7 @@ export async function ffprobeJson(file: string): Promise<any> {
   const r = await run(getFfmpegPaths().ffprobe, [
     '-v', 'error', '-print_format', 'json', '-show_format', '-show_streams', file
   ])
-  if (r.code !== 0) throw new FfmpegError(`Could not read ${file}\n${tail(r.stderr)}`, r.stderr)
+  if (r.code !== 0) throw new FfmpegError(`${t('errors.couldNotRead', { name: file })}\n${tail(r.stderr)}`, r.stderr)
   return JSON.parse(r.stdout)
 }
 

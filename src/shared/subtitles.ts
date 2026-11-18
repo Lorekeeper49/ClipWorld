@@ -95,21 +95,20 @@ export function parseTimecode(text: string): number | null {
 
 export interface SubtitleFormat {
   id: string
-  label: string
   ext: string
 }
 
 export const SUBTITLE_FORMATS: SubtitleFormat[] = [
-  { id: 'srt', label: 'SubRip (.srt) — most compatible', ext: 'srt' },
-  { id: 'vtt', label: 'WebVTT (.vtt) — web players', ext: 'vtt' },
-  { id: 'ass', label: 'Advanced SubStation Alpha (.ass) — keeps styling', ext: 'ass' },
-  { id: 'ssa', label: 'SubStation Alpha (.ssa)', ext: 'ssa' },
-  { id: 'sbv', label: 'YouTube SubViewer (.sbv)', ext: 'sbv' },
-  { id: 'ttml', label: 'TTML / DFXP (.ttml)', ext: 'ttml' },
-  { id: 'smi', label: 'SAMI (.smi)', ext: 'smi' },
-  { id: 'sub', label: 'MicroDVD (.sub) — frame based', ext: 'sub' },
-  { id: 'lrc', label: 'LRC lyrics (.lrc)', ext: 'lrc' },
-  { id: 'txt', label: 'Plain-text transcript (.txt)', ext: 'txt' }
+  { id: 'srt', ext: 'srt' },
+  { id: 'vtt', ext: 'vtt' },
+  { id: 'ass', ext: 'ass' },
+  { id: 'ssa', ext: 'ssa' },
+  { id: 'sbv', ext: 'sbv' },
+  { id: 'ttml', ext: 'ttml' },
+  { id: 'smi', ext: 'smi' },
+  { id: 'sub', ext: 'sub' },
+  { id: 'lrc', ext: 'lrc' },
+  { id: 'txt', ext: 'txt' }
 ]
 
 /** Extensions the app can import (others are converted by ffmpeg where it can read them). */
@@ -311,13 +310,11 @@ const ISO_TO_BCP: Record<string, string> = {
 }
 export const isoToBcp47 = (iso: string): string => ISO_TO_BCP[iso] ?? (iso.length === 2 ? iso : 'und')
 
-export const LANGUAGES: { code: string; label: string }[] = [
-  ['eng', 'English'], ['spa', 'Spanish'], ['fra', 'French'], ['deu', 'German'], ['ita', 'Italian'], ['por', 'Portuguese'],
-  ['rus', 'Russian'], ['jpn', 'Japanese'], ['kor', 'Korean'], ['zho', 'Chinese'], ['ara', 'Arabic'], ['hin', 'Hindi'],
-  ['nld', 'Dutch'], ['swe', 'Swedish'], ['nor', 'Norwegian'], ['dan', 'Danish'], ['fin', 'Finnish'], ['pol', 'Polish'],
-  ['tur', 'Turkish'], ['ukr', 'Ukrainian'], ['ces', 'Czech'], ['ell', 'Greek'], ['heb', 'Hebrew'], ['hun', 'Hungarian'],
-  ['ind', 'Indonesian'], ['tha', 'Thai'], ['vie', 'Vietnamese'], ['ron', 'Romanian'], ['und', 'Other / unspecified']
-].map(([code, label]) => ({ code, label }))
+/** Subtitle languages offered in the Subtitles window (ISO 639-2). Their names come from the system, in the app's language. */
+export const LANGUAGES: string[] = [
+  'eng', 'spa', 'fra', 'deu', 'ita', 'por', 'rus', 'jpn', 'kor', 'zho', 'ara', 'hin', 'nld', 'swe', 'nor', 'dan', 'fin', 'pol',
+  'tur', 'ukr', 'ces', 'ell', 'heb', 'hun', 'ind', 'tha', 'vie', 'ron', 'und'
+]
 
 // ---------------------------------------------------------------- readers
 

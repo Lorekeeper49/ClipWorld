@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react'
 import { Btn, Modal } from '../components/ui'
-import { SHORTCUTS, acceleratorFromEvent, bindingFor, resetBindings, setBinding } from '../state/shortcuts'
+import { useT } from '../i18n'
+import { SHORTCUTS, acceleratorFromEvent, bindingFor, resetBindings, setBinding, shortcutLabel } from '../state/shortcuts'
 import { set, useStore } from '../state/store'
 
 export function ShortcutsDialog() {
+  const t = useT()
   useStore((s) => s.settings.shortcuts) // re-render when bindings change
   const [capturing, setCapturing] = useState<string | null>(null)
   const [conflict, setConflict] = useState<string | null>(null)
@@ -23,7 +25,7 @@ export function ShortcutsDialog() {
       if (other) {
         // The key moves to the new action; the old one is left unassigned.
         setBinding(other.id, '')
-        setConflict(`${acc} was assigned to “${other.label}”, which now has no shortcut.`)
+        setConflict(t('shortcuts.conflict', { keys: acc, action: shortcutLabel(other.id) }))
       } else {
         setConflict(null)
       }
@@ -37,32 +39,32 @@ export function ShortcutsDialog() {
   const groups = [...new Set(SHORTCUTS.map((s) => s.group))]
   return (
     <Modal
-      title="Keyboard shortcuts"
+      title={t('shortcuts.title')}
       width={560}
       onClose={() => !capturing && set({ modal: null })}
       footer={
         <>
-          <Btn onClick={() => { resetBindings(); setConflict(null) }}>Reset all to defaults</Btn>
-          <Btn primary onClick={() => set({ modal: null })}>Done</Btn>
+          <Btn onClick={() => { resetBindings(); setConflict(null) }}>{t('shortcuts.resetAll')}</Btn>
+          <Btn primary onClick={() => set({ modal: null })}>{t('common.done')}</Btn>
         </>
       }
     >
-      <p className="dim">Click a shortcut, then press the new key combination. Escape cancels.</p>
+      <p className="dim">{t('shortcuts.hint')}</p>
       {conflict && <p className="notice">{conflict}</p>}
       <div className="shortcut-list">
         {groups.map((g) => (
           <div key={g}>
-            <h3>{g}</h3>
+            <h3>{t(`shortcuts.groups.${g}`)}</h3>
             {SHORTCUTS.filter((s) => s.group === g).map((s) => {
               const binding = bindingFor(s.id)
               const changed = binding !== s.default
               return (
                 <div className="shortcut-row" key={s.id} data-testid="shortcut-row" data-shortcut-id={s.id}>
-                  <span>{s.label}</span>
+                  <span>{shortcutLabel(s.id)}</span>
                   <button type="button" className={`kbd${capturing === s.id ? ' capturing' : ''}`} onClick={() => setCapturing(s.id)}>
-                    {capturing === s.id ? 'Press keys…' : binding || 'None'}
+                    {capturing === s.id ? t('shortcuts.press') : binding || t('shortcuts.none')}
                   </button>
-                  <Btn small icon="reset" title={`Reset to ${s.default}`} disabled={!changed} onClick={() => setBinding(s.id, null)} />
+                  <Btn small icon="reset" title={t('shortcuts.resetTo', { keys: s.default })} disabled={!changed} onClick={() => setBinding(s.id, null)} />
                 </div>
               )
             })}

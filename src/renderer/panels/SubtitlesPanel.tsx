@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import type { SubtitleStreamListing } from '@shared/ipc'
 import type { SubtitleCue, SubtitleStyle, SubtitleTrack } from '@shared/model'
 import { LANGUAGES, SUBTITLE_FORMATS, cueAt, formatTimecode, parseTimecode } from '@shared/subtitles'
+import { subtitleFormatName, subtitleLanguageName } from '@shared/labels'
 import { FontPicker } from '../components/FontPicker'
 import { Btn, Color, Field, Icon, Section, Select, Slider, Toggle, useDismiss } from '../components/ui'
 import { player, usePlayerTime } from '../engine/player'
@@ -12,6 +13,7 @@ import {
   exportSubtitlesAction, importSubtitleFilesAction, importSubtitleStreamAction, newSubtitleTrackAction, setCueEdgeAction,
   timelineTimeOf, trackTimeAt, updateCueAction
 } from '../state/actions'
+import { t, tx, useT } from '../i18n'
 import { bindingFor } from '../state/shortcuts'
 import { get, set, useStore } from '../state/store'
 
@@ -56,23 +58,23 @@ function TrackBar({ track }: { track: SubtitleTrack | undefined }) {
     <div className="panel-toolbar sub-toolbar">
       <select className="select" value={track?.id ?? ''} data-testid="subtitle-track"
         onChange={(e) => set({ activeSubtitleTrack: e.target.value, activeCueId: null })}>
-        {tracks.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+        {tracks.map((tr) => <option key={tr.id} value={tr.id}>{tr.name}</option>)}
       </select>
-      <Btn small icon="plus" title="New subtitle track" testId="subtitle-new-track" onClick={() => newSubtitleTrackAction()} />
+      <Btn small icon="plus" title={t('subtitles.newTrack')} testId="subtitle-new-track" onClick={() => newSubtitleTrackAction()} />
       {track && (
-        <Btn small icon="trash" title="Delete this subtitle track (and its clips on the timeline)"
+        <Btn small icon="trash" title={t('subtitles.deleteTrack')}
           onClick={() => deleteSubtitleTrackAction(track.id)} />
       )}
       <span className="toolbar-spacer" />
       {track && (clipCount === 0 ? (
         <Btn small primary icon="film" testId="subtitle-to-timeline" disabled={!track.cues.length}
-          title="Put this track on the timeline as a clip. That puts the subtitles into the exported video, and lets you move, stretch, transform and add effects to them."
+          title={t('subtitles.toTimelineHint')}
           onClick={() => addSubtitlesToTimelineAction(track.id)}>
-          Add to timeline
+          {t('subtitles.toTimeline')}
         </Btn>
       ) : (
-        <span className="sub-on-timeline" title="This track is in the video. Select its clip on the timeline to move it or add effects.">
-          <Icon name="film" size={13} /> On timeline{clipCount > 1 ? ` (${clipCount} clips)` : ''}
+        <span className="sub-on-timeline" title={t('subtitles.onTimelineHint')}>
+          <Icon name="film" size={13} /> {clipCount > 1 ? t('subtitles.onTimelineClips', { count: clipCount }) : t('subtitles.onTimeline')}
         </span>
       ))}
     </div>
@@ -99,25 +101,25 @@ function ImportMenu() {
   }, [open, media])
   return (
     <div className="popover-anchor" ref={ref}>
-      <Btn small icon="upload" onClick={() => setOpen(!open)} testId="subtitle-import">Import</Btn>
+      <Btn small icon="upload" onClick={() => setOpen(!open)} testId="subtitle-import">{t('subtitles.import')}</Btn>
       {open && (
         <div className="menu-pop sub-pop">
           <button type="button" className="menu-item" onClick={() => { setOpen(false); void importSubtitleFilesAction() }}>
             <span className="menu-check" />
-            <span className="menu-label">Subtitle file… (SRT, VTT, ASS, SBV, TTML, SAMI, SUB, LRC)</span>
+            <span className="menu-label">{t('subtitles.importFile', { formats: 'SRT, VTT, ASS, SBV, TTML, SAMI, SUB, LRC' })}</span>
           </button>
           <div className="menu-sep" />
-          {streams === null && <div className="sub-pop-note dim">Looking for subtitle tracks in your videos…</div>}
-          {streams?.length === 0 && <div className="sub-pop-note dim">None of the project's videos contain subtitle tracks.</div>}
+          {streams === null && <div className="sub-pop-note dim">{t('subtitles.searching')}</div>}
+          {streams?.length === 0 && <div className="sub-pop-note dim">{t('subtitles.noStreams')}</div>}
           {streams?.map((v) => v.list.map((s) => (
             <button type="button" key={`${v.mediaId}:${s.index}`} className="menu-item" disabled={!s.text}
-              title={s.text ? undefined : 'Picture-based subtitles (DVD/Blu-ray) cannot be turned into text'}
+              title={s.text ? undefined : t('subtitles.pictureBased')}
               onClick={() => {
                 setOpen(false)
-                void importSubtitleStreamAction(v.mediaId, s.index, s.title || `${v.name} subtitles`, s.language)
+                void importSubtitleStreamAction(v.mediaId, s.index, s.title || t('subtitles.streamName', { name: v.name }), s.language)
               }}>
               <span className="menu-check" />
-              <span className="menu-label">{v.name} — {s.title || `Track ${s.index + 1}`} ({s.language}, {s.codec})</span>
+              <span className="menu-label">{v.name} — {s.title || t('subtitles.trackN', { n: s.index + 1 })} ({s.language}, {s.codec})</span>
             </button>
           )))}
         </div>
@@ -132,24 +134,24 @@ function ExportBox({ track, onClose }: { track: SubtitleTrack; onClose: () => vo
   const [timing, setTiming] = useState<'timeline' | 'original'>('timeline')
   return (
     <div className="sub-export" data-testid="subtitle-export-box">
-      <Field label="Format">
+      <Field label={t('export.format')}>
         <Select value={format} onChange={setFormat} testId="subtitle-format"
-          options={SUBTITLE_FORMATS.map((f) => ({ value: f.id, label: f.label }))} />
+          options={SUBTITLE_FORMATS.map((f) => ({ value: f.id, label: subtitleFormatName(f.id) }))} />
       </Field>
       {onTimeline && (
-        <Field label="Timing">
+        <Field label={t('subtitles.timing')}>
           <Select<'timeline' | 'original'> value={timing} onChange={setTiming}
             options={[
-              { value: 'timeline', label: 'Match the video (where the clip sits on the timeline)' },
-              { value: 'original', label: 'Original subtitle times' }
+              { value: 'timeline', label: t('subtitles.timingTimeline') },
+              { value: 'original', label: t('subtitles.timingOriginal') }
             ]} />
         </Field>
       )}
       <div className="sub-export-actions">
-        <Btn small onClick={onClose}>Cancel</Btn>
+        <Btn small onClick={onClose}>{t('common.cancel')}</Btn>
         <Btn small primary icon="export" testId="subtitle-export-save"
           onClick={() => void exportSubtitlesAction(track.id, format, onTimeline ? timing : 'original').then(onClose)}>
-          Save…
+          {t('subtitles.save')}
         </Btn>
       </div>
     </div>
@@ -160,37 +162,37 @@ function ExportBox({ track, onClose }: { track: SubtitleTrack; onClose: () => vo
 
 function StyleSection({ track }: { track: SubtitleTrack }) {
   const st = track.style
-  const up = <K extends keyof SubtitleStyle>(key: K, v: SubtitleStyle[K]) => editSubtitleTrack(track.id, `style.${key}`, (t) => { t.style[key] = v })
+  const up = <K extends keyof SubtitleStyle>(key: K, v: SubtitleStyle[K]) => editSubtitleTrack(track.id, `style.${key}`, (tr) => { tr.style[key] = v })
   return (
-    <Section title="Style" icon="text" defaultOpen={false}>
-      <Field label="Font"><FontPicker value={st.fontFamily} onChange={(f) => up('fontFamily', f)} /></Field>
-      <Slider label="Size" value={st.fontSize} min={12} max={200} step={1} unit="px" onChange={(v) => up('fontSize', v)} />
-      <Field label="Style">
-        <Btn small active={st.bold} onClick={() => up('bold', !st.bold)} title="Bold"><b>B</b></Btn>
-        <Btn small active={st.italic} onClick={() => up('italic', !st.italic)} title="Italic"><i>I</i></Btn>
+    <Section title={t('subtitles.style')} icon="text" defaultOpen={false}>
+      <Field label={t('tools.text.font')}><FontPicker value={st.fontFamily} onChange={(f) => up('fontFamily', f)} /></Field>
+      <Slider label={t('tools.text.size')} value={st.fontSize} min={12} max={200} step={1} unit="px" onChange={(v) => up('fontSize', v)} />
+      <Field label={t('tools.text.style')}>
+        <Btn small active={st.bold} onClick={() => up('bold', !st.bold)} title={t('tools.text.bold')}><b>B</b></Btn>
+        <Btn small active={st.italic} onClick={() => up('italic', !st.italic)} title={t('tools.text.italic')}><i>I</i></Btn>
         <span className="toolbar-sep" />
         {(['left', 'center', 'right'] as const).map((al) => (
-          <Btn small key={al} active={st.align === al} onClick={() => up('align', al)}>{al[0].toUpperCase() + al.slice(1)}</Btn>
+          <Btn small key={al} active={st.align === al} onClick={() => up('align', al)} title={t(`tools.text.alignTitle.${al}`)}>{t(`tools.text.align.${al}`)}</Btn>
         ))}
       </Field>
-      <Color label="Text" value={st.fill} onChange={(v) => up('fill', v)} />
-      <Color label="Outline" value={st.outline} onChange={(v) => up('outline', v)} />
-      <Slider label="Outline width" value={st.outlineWidth} min={0} max={20} step={0.5} unit="px" onChange={(v) => up('outlineWidth', v)} />
-      <Toggle label="Background box" value={st.box} onChange={(v) => up('box', v)} />
+      <Color label={t('subtitles.textColor')} value={st.fill} onChange={(v) => up('fill', v)} />
+      <Color label={t('tools.text.outline')} value={st.outline} onChange={(v) => up('outline', v)} />
+      <Slider label={t('tools.text.outlineWidth')} value={st.outlineWidth} min={0} max={20} step={0.5} unit="px" onChange={(v) => up('outlineWidth', v)} />
+      <Toggle label={t('subtitles.box')} value={st.box} onChange={(v) => up('box', v)} />
       {st.box && (
         <>
-          <Color label="Box colour" value={st.boxColor} onChange={(v) => up('boxColor', v)} />
-          <Slider label="Box opacity" value={st.boxOpacity} min={0} max={1} step={0.01} display={100} unit="%" onChange={(v) => up('boxOpacity', v)} />
+          <Color label={t('subtitles.boxColor')} value={st.boxColor} onChange={(v) => up('boxColor', v)} />
+          <Slider label={t('subtitles.boxOpacity')} value={st.boxOpacity} min={0} max={1} step={0.01} display={100} unit="%" onChange={(v) => up('boxOpacity', v)} />
         </>
       )}
-      <Field label="Position">
+      <Field label={t('subtitles.position')}>
         <Select<SubtitleStyle['position']> value={st.position} onChange={(v) => up('position', v)}
-          options={[{ value: 'bottom', label: 'Bottom' }, { value: 'middle', label: 'Middle' }, { value: 'top', label: 'Top' }]} />
+          options={(['bottom', 'middle', 'top'] as const).map((value) => ({ value, label: t(`subtitles.positions.${value}`) }))} />
       </Field>
       {st.position !== 'middle' && (
-        <Slider label="Edge margin" value={st.margin} min={0} max={0.4} step={0.005} display={100} unit="%" onChange={(v) => up('margin', v)} />
+        <Slider label={t('subtitles.margin')} value={st.margin} min={0} max={0.4} step={0.005} display={100} unit="%" onChange={(v) => up('margin', v)} />
       )}
-      <Slider label="Line width" value={st.maxWidth} min={0.2} max={1} step={0.01} display={100} unit="%" onChange={(v) => up('maxWidth', v)} />
+      <Slider label={t('subtitles.lineWidth')} value={st.maxWidth} min={0.2} max={1} step={0.01} display={100} unit="%" onChange={(v) => up('maxWidth', v)} />
     </Section>
   )
 }
@@ -211,8 +213,8 @@ interface RowProps {
 function CueRow({ track, cue, index, top, current, selected, overlap, onTimeline }: RowProps) {
   const project = get().project
   // Times are shown where the subtitle appears in the video when the track is on the timeline.
-  const shown = (t: number) => (onTimeline ? timelineTimeOf(project, track, t) : t)
-  const toTrack = (t: number) => (onTimeline ? trackTimeAt(project, track, t) : t)
+  const shown = (time: number) => (onTimeline ? timelineTimeOf(project, track, time) : time)
+  const toTrack = (time: number) => (onTimeline ? trackTimeAt(project, track, time) : time)
   const textRef = useRef<HTMLTextAreaElement>(null)
   const focusCue = useStore((s) => s.focusCue)
   useEffect(() => {
@@ -240,20 +242,20 @@ function CueRow({ track, cue, index, top, current, selected, overlap, onTimeline
         select()
       }}
     >
-      <span className="cue-index" title={overlap ? 'Overlaps the previous subtitle' : 'Click to jump here'}>
+      <span className="cue-index" title={overlap ? t('subtitles.overlap') : t('subtitles.jump')}>
         {overlap ? <Icon name="warn" size={12} /> : index + 1}
       </span>
       <div className="cue-times">
-        <TimeInput value={shown(cue.start)} testId="cue-start" title="Start"
+        <TimeInput value={shown(cue.start)} testId="cue-start" title={t('tools.start')}
           onCommit={(v) => updateCueAction(track.id, cue.id, { start: toTrack(v) })} />
-        <TimeInput value={shown(cue.end)} testId="cue-end" title="End"
+        <TimeInput value={shown(cue.end)} testId="cue-end" title={t('tools.end')}
           onCommit={(v) => updateCueAction(track.id, cue.id, { end: toTrack(v) })} />
       </div>
       <textarea
         ref={textRef}
         className="cue-text"
         value={cue.text}
-        placeholder="Type the subtitle…"
+        placeholder={t('subtitles.placeholder')}
         spellCheck
         data-testid="cue-text"
         onFocus={() => set({ activeCueId: cue.id })}
@@ -267,7 +269,7 @@ function CueRow({ track, cue, index, top, current, selected, overlap, onTimeline
           if (e.key === 'Escape') (e.target as HTMLTextAreaElement).blur()
         }}
       />
-      <Btn small icon="trash" title="Delete subtitle" onClick={() => deleteCueAction(track.id, cue.id)} />
+      <Btn small icon="trash" title={t('subtitles.deleteCue')} onClick={() => deleteCueAction(track.id, cue.id)} />
     </div>
   )
 }
@@ -323,7 +325,7 @@ function CueList({ track }: { track: SubtitleTrack }) {
     <div className="cue-scroll" ref={scrollRef} onScroll={(e) => setScroll((e.target as HTMLDivElement).scrollTop)} data-testid="cue-list">
       {cues.length === 0 ? (
         <div className="empty small">
-          <p className="dim">No subtitles yet. Move the playhead to where someone speaks and press <b>{bindingFor('subtitles.add')}</b> or <b>Add</b>.</p>
+          <p className="dim">{tx('subtitles.emptyList', { keys: <b>{bindingFor('subtitles.add')}</b>, add: <b>{t('subtitles.add')}</b> })}</p>
         </div>
       ) : (
         <div style={{ height: cues.length * ROW_H, position: 'relative' }}>
@@ -340,11 +342,12 @@ function CueList({ track }: { track: SubtitleTrack }) {
 // ---------------------------------------------------------------- panel
 
 export function SubtitlesPanel() {
+  useT()
   const tracks = useStore((s) => s.project.subtitles)
   const activeId = useStore((s) => s.activeSubtitleTrack)
   const guide = useStore((s) => s.subtitleGuide)
   const exportRequest = useStore((s) => s.subtitleExportRequest)
-  const track = tracks.find((t) => t.id === activeId) ?? tracks[0]
+  const track = tracks.find((tr) => tr.id === activeId) ?? tracks[0]
   const onTimeline = useStore((s) => !!track && s.project.clips.some((c) => c.subtitleTrackId === track.id))
   const [exporting, setExporting] = useState(false)
   useStore((s) => s.settings.shortcuts)
@@ -361,10 +364,10 @@ export function SubtitlesPanel() {
       <div className="panel subtitles-panel" data-panel="subtitles">
         <div className="empty">
           <Icon name="text" size={28} />
-          <p>Create subtitles</p>
-          <p className="dim">Type them in here, or import a subtitle file. Each track can be exported as a subtitle file, and added to the timeline to put it in the video.</p>
+          <p>{t('subtitles.emptyTitle')}</p>
+          <p className="dim">{t('subtitles.emptyHint')}</p>
           <div className="empty-actions">
-            <Btn primary icon="plus" onClick={() => newSubtitleTrackAction()} testId="subtitle-create">New subtitle track</Btn>
+            <Btn primary icon="plus" onClick={() => newSubtitleTrackAction()} testId="subtitle-create">{t('subtitles.newTrack')}</Btn>
             <ImportMenu />
           </div>
         </div>
@@ -378,28 +381,28 @@ export function SubtitlesPanel() {
       <div className="sub-scroll-top">
         <div className="sub-row">
           <input className="sub-name" value={track.name} spellCheck={false} data-testid="subtitle-name"
-            onChange={(e) => editSubtitleTrack(track.id, 'name', (t) => { t.name = e.target.value })} title="Track name" />
-          <Select value={track.language} onChange={(v) => editSubtitleTrack(track.id, 'language', (t) => { t.language = v })}
-            options={LANGUAGES.map((l) => ({ value: l.code, label: l.label }))} />
+            onChange={(e) => editSubtitleTrack(track.id, 'name', (tr) => { tr.name = e.target.value })} title={t('subtitles.trackName')} />
+          <Select value={track.language} testId="subtitle-language" onChange={(v) => editSubtitleTrack(track.id, 'language', (tr) => { tr.language = v })}
+            options={[...LANGUAGES, ...(LANGUAGES.includes(track.language) ? [] : [track.language])].map((code) => ({ value: code, label: subtitleLanguageName(code) }))} />
         </div>
         <div className="sub-row">
           <ImportMenu />
           <Btn small icon="export" onClick={() => setExporting(!exporting)} active={exporting} disabled={!track.cues.length} testId="subtitle-export">
-            Export file
+            {t('subtitles.exportFile')}
           </Btn>
           {!onTimeline && (
-            <Toggle label="Show in preview" value={guide} onChange={(v) => set({ subtitleGuide: v })} />
+            <Toggle label={t('subtitles.guide')} value={guide} onChange={(v) => set({ subtitleGuide: v })} />
           )}
         </div>
         {exporting && <ExportBox track={track} onClose={() => setExporting(false)} />}
         <StyleSection track={track} />
       </div>
       <div className="cue-toolbar">
-        <span className="cue-count">{track.cues.length} subtitle{track.cues.length === 1 ? '' : 's'}</span>
+        <span className="cue-count">{t('subtitles.count', { count: track.cues.length })}</span>
         <span className="toolbar-spacer" />
-        <Btn small icon="plus" primary onClick={() => void addCueAction()} title={`Add a subtitle at the playhead (${bindingFor('subtitles.add')})`} testId="cue-add">Add</Btn>
-        <Btn small onClick={() => setCueEdgeAction('start')} title={`Set the selected subtitle's start to the playhead (${bindingFor('subtitles.setStart')})`}>Start ⇤</Btn>
-        <Btn small onClick={() => setCueEdgeAction('end')} title={`Set the selected subtitle's end to the playhead (${bindingFor('subtitles.setEnd')})`}>⇥ End</Btn>
+        <Btn small icon="plus" primary onClick={() => void addCueAction()} title={t('subtitles.addHint', { keys: bindingFor('subtitles.add') })} testId="cue-add">{t('subtitles.add')}</Btn>
+        <Btn small onClick={() => setCueEdgeAction('start')} title={t('subtitles.setStartHint', { keys: bindingFor('subtitles.setStart') })}>{t('subtitles.setStart')}</Btn>
+        <Btn small onClick={() => setCueEdgeAction('end')} title={t('subtitles.setEndHint', { keys: bindingFor('subtitles.setEnd') })}>{t('subtitles.setEnd')}</Btn>
       </div>
       <CueList track={track} />
     </div>

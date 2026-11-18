@@ -3,6 +3,7 @@ import { statSync } from 'node:fs'
 import { basename, extname } from 'node:path'
 import { type AudioStreamInfo, type MediaItem, type MediaKind, uid } from '@shared/model'
 import { ffprobeJson, getFfmpegPaths, run } from './ffmpeg'
+import { t } from '@shared/i18n'
 
 const IMAGE_FORMATS = /(^|,)(image2|png_pipe|jpeg_pipe|jpegxl_pipe|bmp_pipe|tiff_pipe|webp_pipe|gif|apng|ico|svg_pipe|psd_pipe|tga_pipe|dds_pipe|exr_pipe|qoi_pipe|avif|heif|jpegls_pipe|pam_pipe|ppm_pipe|pgm_pipe|sgi_pipe)(,|$)/
 const IMAGE_EXTS = new Set(['.png', '.jpg', '.jpeg', '.jfif', '.bmp', '.tif', '.tiff', '.webp', '.gif', '.apng', '.tga', '.ico', '.avif', '.heic', '.heif', '.jxl', '.psd', '.exr', '.dds', '.qoi'])
@@ -49,7 +50,7 @@ export async function probeMedia(path: string): Promise<MediaItem> {
 
   const video = streams.find((s) => s.codec_type === 'video' && !s.disposition?.attached_pic)
   const audio = streams.filter((s) => s.codec_type === 'audio')
-  if (!video && !audio.length) throw new Error(`${basename(path)} has no video, audio or image content`)
+  if (!video && !audio.length) throw new Error(t('errors.noContent', { name: basename(path) }))
 
   let duration = Number(format.duration)
   if (!Number.isFinite(duration) || duration <= 0) {
@@ -86,7 +87,7 @@ export async function probeMedia(path: string): Promise<MediaItem> {
     if (!title && tags.handler_name && !/^(SoundHandler|Sound Media Handler|Core Media Audio)$/i.test(tags.handler_name)) {
       title = tags.handler_name
     }
-    if (!title) title = `Audio ${i + 1}`
+    if (!title) title = t('media.audioN', { n: i + 1 })
     return {
       index: i,
       codec: s.codec_name ?? 'unknown',

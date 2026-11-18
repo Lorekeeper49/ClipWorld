@@ -4,27 +4,23 @@ import { lerp } from './easing'
 export interface EncoderDef {
   /** ffmpeg encoder name. */
   id: string
-  label: string
   hardware?: boolean
 }
 
 export interface VideoCodecDef {
   id: string
-  label: string
   /** In order of preference; the first available one is the default. */
   encoders: EncoderDef[]
 }
 
 export interface AudioCodecDef {
   id: string
-  label: string
   encoder: string
   lossless?: boolean
 }
 
 export interface ContainerDef {
   id: string
-  label: string
   ext: string
   video: string[]
   audio: string[]
@@ -32,57 +28,57 @@ export interface ContainerDef {
 
 export const VIDEO_CODECS: Record<string, VideoCodecDef> = {
   h264: {
-    id: 'h264', label: 'H.264 (most compatible)',
+    id: 'h264',
     encoders: [
-      { id: 'libx264', label: 'Software (x264)' },
-      { id: 'h264_nvenc', label: 'NVIDIA NVENC', hardware: true },
-      { id: 'h264_qsv', label: 'Intel Quick Sync', hardware: true },
-      { id: 'h264_amf', label: 'AMD AMF', hardware: true }
+      { id: 'libx264' },
+      { id: 'h264_nvenc', hardware: true },
+      { id: 'h264_qsv', hardware: true },
+      { id: 'h264_amf', hardware: true }
     ]
   },
   hevc: {
-    id: 'hevc', label: 'H.265 / HEVC',
+    id: 'hevc',
     encoders: [
-      { id: 'libx265', label: 'Software (x265)' },
-      { id: 'hevc_nvenc', label: 'NVIDIA NVENC', hardware: true },
-      { id: 'hevc_qsv', label: 'Intel Quick Sync', hardware: true }
+      { id: 'libx265' },
+      { id: 'hevc_nvenc', hardware: true },
+      { id: 'hevc_qsv', hardware: true }
     ]
   },
-  vp9: { id: 'vp9', label: 'VP9', encoders: [{ id: 'libvpx-vp9', label: 'Software (libvpx)' }] },
+  vp9: { id: 'vp9', encoders: [{ id: 'libvpx-vp9' }] },
   av1: {
-    id: 'av1', label: 'AV1',
+    id: 'av1',
     encoders: [
-      { id: 'av1_nvenc', label: 'NVIDIA NVENC', hardware: true },
-      { id: 'libsvtav1', label: 'Software (SVT-AV1)' },
-      { id: 'libaom-av1', label: 'Software (libaom, slow)' }
+      { id: 'av1_nvenc', hardware: true },
+      { id: 'libsvtav1' },
+      { id: 'libaom-av1' }
     ]
   },
-  prores: { id: 'prores', label: 'Apple ProRes', encoders: [{ id: 'prores_ks', label: 'Software' }] },
-  mpeg4: { id: 'mpeg4', label: 'MPEG-4 Part 2', encoders: [{ id: 'mpeg4', label: 'Software' }] },
-  gif: { id: 'gif', label: 'Animated GIF', encoders: [{ id: 'gif', label: 'Software' }] }
+  prores: { id: 'prores', encoders: [{ id: 'prores_ks' }] },
+  mpeg4: { id: 'mpeg4', encoders: [{ id: 'mpeg4' }] },
+  gif: { id: 'gif', encoders: [{ id: 'gif' }] }
 }
 
 export const AUDIO_CODECS: Record<string, AudioCodecDef> = {
-  aac: { id: 'aac', label: 'AAC', encoder: 'aac' },
-  mp3: { id: 'mp3', label: 'MP3', encoder: 'libmp3lame' },
-  opus: { id: 'opus', label: 'Opus', encoder: 'libopus' },
-  vorbis: { id: 'vorbis', label: 'Vorbis', encoder: 'libvorbis' },
-  flac: { id: 'flac', label: 'FLAC (lossless)', encoder: 'flac', lossless: true },
-  pcm: { id: 'pcm', label: 'PCM 16-bit (uncompressed)', encoder: 'pcm_s16le', lossless: true }
+  aac: { id: 'aac', encoder: 'aac' },
+  mp3: { id: 'mp3', encoder: 'libmp3lame' },
+  opus: { id: 'opus', encoder: 'libopus' },
+  vorbis: { id: 'vorbis', encoder: 'libvorbis' },
+  flac: { id: 'flac', encoder: 'flac', lossless: true },
+  pcm: { id: 'pcm', encoder: 'pcm_s16le', lossless: true }
 }
 
 export const CONTAINERS: ContainerDef[] = [
-  { id: 'mp4', label: 'MP4', ext: 'mp4', video: ['h264', 'hevc', 'av1'], audio: ['aac', 'mp3'] },
-  { id: 'mkv', label: 'Matroska (MKV)', ext: 'mkv', video: ['h264', 'hevc', 'vp9', 'av1'], audio: ['aac', 'opus', 'flac', 'mp3', 'pcm'] },
-  { id: 'mov', label: 'QuickTime (MOV)', ext: 'mov', video: ['h264', 'hevc', 'prores'], audio: ['aac', 'pcm'] },
-  { id: 'webm', label: 'WebM', ext: 'webm', video: ['vp9', 'av1'], audio: ['opus', 'vorbis'] },
-  { id: 'avi', label: 'AVI', ext: 'avi', video: ['h264', 'mpeg4'], audio: ['mp3', 'pcm'] },
-  { id: 'gif', label: 'Animated GIF', ext: 'gif', video: ['gif'], audio: [] },
-  { id: 'mp3', label: 'MP3 (audio only)', ext: 'mp3', video: [], audio: ['mp3'] },
-  { id: 'wav', label: 'WAV (audio only)', ext: 'wav', video: [], audio: ['pcm'] },
-  { id: 'flac', label: 'FLAC (audio only)', ext: 'flac', video: [], audio: ['flac'] },
-  { id: 'ogg', label: 'Ogg (audio only)', ext: 'ogg', video: [], audio: ['vorbis', 'opus'] },
-  { id: 'm4a', label: 'M4A (audio only)', ext: 'm4a', video: [], audio: ['aac'] }
+  { id: 'mp4', ext: 'mp4', video: ['h264', 'hevc', 'av1'], audio: ['aac', 'mp3'] },
+  { id: 'mkv', ext: 'mkv', video: ['h264', 'hevc', 'vp9', 'av1'], audio: ['aac', 'opus', 'flac', 'mp3', 'pcm'] },
+  { id: 'mov', ext: 'mov', video: ['h264', 'hevc', 'prores'], audio: ['aac', 'pcm'] },
+  { id: 'webm', ext: 'webm', video: ['vp9', 'av1'], audio: ['opus', 'vorbis'] },
+  { id: 'avi', ext: 'avi', video: ['h264', 'mpeg4'], audio: ['mp3', 'pcm'] },
+  { id: 'gif', ext: 'gif', video: ['gif'], audio: [] },
+  { id: 'mp3', ext: 'mp3', video: [], audio: ['mp3'] },
+  { id: 'wav', ext: 'wav', video: [], audio: ['pcm'] },
+  { id: 'flac', ext: 'flac', video: [], audio: ['flac'] },
+  { id: 'ogg', ext: 'ogg', video: [], audio: ['vorbis', 'opus'] },
+  { id: 'm4a', ext: 'm4a', video: [], audio: ['aac'] }
 ]
 
 export const CONTAINER_MAP: Record<string, ContainerDef> = Object.fromEntries(CONTAINERS.map((c) => [c.id, c]))

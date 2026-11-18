@@ -2,7 +2,9 @@ import { useEffect, useState } from 'react'
 import { MenuBar } from './components/MenuBar'
 import { Btn, Modal } from './components/ui'
 import { ExportDialog } from './dialogs/ExportDialog'
+import { LanguageDialog } from './dialogs/LanguageDialog'
 import { ShortcutsDialog } from './dialogs/ShortcutsDialog'
+import { applyLanguage, tx, useT } from './i18n'
 import { player } from './engine/player'
 import { Dock } from './layout/dock'
 import { guardUnsaved, initMediaCacheListener, openProjectPath, saveProjectAction } from './state/actions'
@@ -10,6 +12,7 @@ import { installShortcuts } from './state/shortcuts'
 import { get, loadProject, projectName, set, useStore } from './state/store'
 
 function CloseDialog() {
+  const t = useT()
   const pending = useStore((s) => s.pendingAfterClose)
   const name = useStore(projectName)
   const finish = (proceed: boolean) => {
@@ -18,29 +21,30 @@ function CloseDialog() {
   }
   return (
     <Modal
-      title="Unsaved changes"
+      title={t('close.title')}
       width={420}
       onClose={() => finish(false)}
       footer={
         <>
-          <Btn onClick={() => finish(false)}>Cancel</Btn>
-          <Btn danger onClick={() => { set({ dirty: false }); finish(true) }} testId="discard">Don't save</Btn>
-          <Btn primary onClick={async () => { if (await saveProjectAction()) finish(true) }}>Save</Btn>
+          <Btn onClick={() => finish(false)}>{t('common.cancel')}</Btn>
+          <Btn danger onClick={() => { set({ dirty: false }); finish(true) }} testId="discard">{t('close.dontSave')}</Btn>
+          <Btn primary onClick={async () => { if (await saveProjectAction()) finish(true) }}>{t('common.save')}</Btn>
         </>
       }
     >
-      <p>“{name}” has changes that have not been saved.</p>
+      <p>{t('close.message', { name })}</p>
     </Modal>
   )
 }
 
 function AboutDialog() {
+  const t = useT()
   const ffmpeg = useStore((s) => s.ffmpegVersion)
   return (
-    <Modal title="About ClipWorld" width={420} onClose={() => set({ modal: null })} footer={<Btn primary onClick={() => set({ modal: null })}>Close</Btn>}>
-      <p>A video editor built on ffmpeg.</p>
-      <p className="dim">ffmpeg {ffmpeg ?? 'not found'} does the importing, audio extraction, proxies, thumbnails and exporting.</p>
-      <p className="dim">Projects are saved as .vcws files.</p>
+    <Modal title={t('about.title')} width={420} onClose={() => set({ modal: null })} footer={<Btn primary onClick={() => set({ modal: null })}>{t('common.close')}</Btn>}>
+      <p>{t('about.tagline')}</p>
+      <p className="dim">{ffmpeg ? t('about.ffmpeg', { version: ffmpeg }) : t('app.ffmpegNotFound')}</p>
+      <p className="dim">{t('about.projects')}</p>
     </Modal>
   )
 }
@@ -58,6 +62,7 @@ export function App() {
   const [ready, setReady] = useState(false)
   const modal = useStore((s) => s.modal)
   const ffmpeg = useStore((s) => s.ffmpegVersion)
+  const t = useT()
 
   useEffect(() => {
     let disposed = false
@@ -65,6 +70,7 @@ export function App() {
     void window.cw.getInfo().then((info) => {
       if (disposed) return
       set({ settings: info.settings, caps: info.caps, ffmpegVersion: info.ffmpegVersion })
+      applyLanguage(info.settings.language, info.systemLanguages)
       // Installed fonts, so new text and subtitles default to one this computer actually has.
       void window.cw.listFonts().then((fonts) => {
         if (fonts.length && !disposed) set({ fonts })
@@ -79,7 +85,7 @@ export function App() {
         player.pause()
         loadProject(info.recovery.project, info.recovery.path, true)
         if (info.recovery.project.media.length) void window.cw.prepareMedia(info.recovery.project.media)
-        set((s) => ({ toasts: [...s.toasts, { id: -1, kind: 'info', text: 'Restored unsaved work from your last session' }] }))
+        set((s) => ({ toasts: [...s.toasts, { id: -1, kind: 'info', text: t('app.restored') }] }))
         setTimeout(() => set((s) => ({ toasts: s.toasts.filter((t) => t.id !== -1) })), 6000)
       }
     })
@@ -115,13 +121,13 @@ export function App() {
     }
   }, [ready])
 
-  if (!ready) return <div className="boot">Starting ClipWorld…</div>
+  if (!ready) return <div className="boot">{t('app.starting')}</div>
   return (
     <div className="app">
       <MenuBar />
       {!ffmpeg && (
         <div className="banner bad">
-          ffmpeg was not found, so importing and exporting are unavailable. Run <code>npm run fetch-ffmpeg</code> in the project folder, then restart.
+          {tx('app.noFfmpeg', { command: <code>npm run fetch-ffmpeg</code> })}
         </div>
       )}
       <main className="workspace"><Dock /></main>
@@ -129,6 +135,7 @@ export function App() {
       {modal === 'shortcuts' && <ShortcutsDialog />}
       {modal === 'close' && <CloseDialog />}
       {modal === 'about' && <AboutDialog />}
+      {modal === 'language' && <LanguageDialog />}
       <Toasts />
     </div>
   )

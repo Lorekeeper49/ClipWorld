@@ -193,6 +193,8 @@ await page.evaluate(async (f) => {
     for (const type of ['colorMask', 'imageMask', 'differenceMask', 'blur', 'dropShadow']) c.effects.push({ id: type, type, enabled: true, params: {} })
     c.transform.animate = true
     c.zoom.enabled = true
+    // A partial loop into an outro, so the Properties window shows every loop setting and its warning.
+    c.loop = { start: 1, end: 2, count: 1.5, intro: true, outro: true, crossfade: 0.4 }
   })
   set({ selection: [video.id] })
   // A saved preset, so the Presets section shows one.

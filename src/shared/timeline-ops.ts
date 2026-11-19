@@ -7,6 +7,10 @@ import {
   clipEnd, clone, defaultText, isTimed, makeClip, makeTrack, uid
 } from './model'
 
+import {
+  type ClipLoop, MAX_LOOP_COUNT, MIN_LOOP_COUNT, clampLoop, countForDuration, loopFromClip, loopSpan, loopable, sourceBounds, virtualToSource
+} from './loop'
+
 const EPS = 1e-6
 
 export const mediaById = (p: Project, id?: string): MediaItem | undefined => p.media.find((m) => m.id === id)
@@ -266,11 +270,11 @@ export function trimClip(p: Project, clipId: string, edge: 'start' | 'end', time
     if (edge === 'end') {
       lo = Math.max(lo, MIN_CLIP_DURATION - m.duration)
       hi = Math.min(hi, nextStart - clipEnd(m))
-      if (timed && media) hi = Math.min(hi, (media.duration - m.srcIn) / m.speed - m.duration)
+      if (timed && media) hi = Math.min(hi, (sourceBounds(m, media.duration).last - m.srcIn) / m.speed - m.duration)
     } else {
       hi = Math.min(hi, m.duration - MIN_CLIP_DURATION)
       lo = Math.max(lo, prevEnd - m.start, -m.start)
-      if (timed) lo = Math.max(lo, -m.srcIn / m.speed)
+      if (timed) lo = Math.max(lo, -(m.srcIn - (media ? sourceBounds(m, media.duration).first : 0)) / m.speed)
     }
   }
   if (hi < lo) return false
@@ -280,10 +284,91 @@ export function trimClip(p: Project, clipId: string, edge: 'start' | 'end', time
     if (edge === 'end') {
       m.duration += delta
     } else {
-      if (isTimed(m, mediaById(p, m.mediaId))) m.srcIn = Math.max(0, m.srcIn + delta * m.speed)
+      if (isTimed(m, mediaById(p, m.mediaId))) m.srcIn = Math.max(m.loop?.intro === false ? m.loop.start : 0, m.srcIn + delta * m.speed)
       m.start = Math.max(0, m.start + delta)
       m.duration -= delta
     }
+  }
+  return true
+}
+
+/**
+ * Loop-drag (Ctrl+drag an edge): makes the clip longer or shorter by playing it more or fewer times,
+ * at the same speed. A clip that doesn't loop yet starts looping what it shows now. Linked clips loop
+ * together. Returns false (and changes nothing) if the clip can't loop or there is no room.
+ */
+export function loopClip(p: Project, clipId: string, edge: 'start' | 'end', time: number): boolean {
+  const g = clipById(p, clipId)
+  if (!g) return false
+  const members = groupOf(p, g)
+  const ignore = new Set(members.map((m) => m.id))
+  const plans: { m: Clip; dur: number; loop: ClipLoop }[] = []
+  for (const m of members) {
+    const media = mediaById(p, m.mediaId)
+    if (!loopable(m, media)) return false
+    plans.push({ m, dur: media!.duration, loop: m.loop ?? loopFromClip(m, media!.duration) })
+  }
+  let delta = edge === 'end' ? time - clipEnd(g) : g.start - time
+  let lo = -Infinity
+  let hi = Infinity
+  for (const { m, dur, loop } of plans) {
+    // Longest and shortest the loop count allows (and never shorter than the minimum clip).
+    const length = (count: number) => (loopSpan({ ...loop, count }, dur).last - m.srcIn) / m.speed
+    lo = Math.max(lo, Math.max(MIN_CLIP_DURATION, length(MIN_LOOP_COUNT)) - m.duration)
+    hi = Math.min(hi, length(MAX_LOOP_COUNT) - m.duration)
+    const { prevEnd, nextStart } = neighbours(p, m, ignore)
+    if (edge === 'end') hi = Math.min(hi, nextStart - clipEnd(m))
+    else hi = Math.min(hi, m.start - prevEnd)
+  }
+  if (hi < lo) return false
+  delta = Math.min(hi, Math.max(lo, delta))
+  for (const { m, dur, loop } of plans) {
+    const duration = m.duration + delta
+    m.loop = clampLoop({ ...loop, count: countForDuration(m, loop, dur, duration) }, dur)
+    if (edge === 'start') m.start = Math.max(0, m.start - delta)
+    m.duration = duration
+  }
+  return true
+}
+
+/**
+ * Changes a clip's loop (and its linked clips'), or removes it with `null`. The clip's length follows:
+ * it ends where the loop (and outro) ends. Turning the intro on or off moves where the clip starts in
+ * the file. Returns false (and changes nothing) when the new length would overlap the next clip.
+ */
+export function setClipLoop(p: Project, clipId: string, patch: Partial<ClipLoop> | null): boolean {
+  const g = clipById(p, clipId)
+  if (!g) return false
+  const members = groupOf(p, g)
+  const ignore = new Set(members.map((m) => m.id))
+  const next: { m: Clip; loop?: ClipLoop; srcIn: number; duration: number }[] = []
+  for (const m of members) {
+    const media = mediaById(p, m.mediaId)
+    if (!loopable(m, media)) return false
+    const dur = media!.duration
+    if (!patch) {
+      if (!m.loop) continue
+      const srcIn = virtualToSource(m.loop, m.srcIn, dur)
+      next.push({ m, srcIn, duration: Math.max(MIN_CLIP_DURATION, Math.min(m.duration, (dur - srcIn) / m.speed)) })
+      continue
+    }
+    const old = m.loop ?? loopFromClip(m, dur)
+    const loop = clampLoop({ ...old, ...patch }, dur)
+    const oldFirst = loopSpan(old, dur).first
+    const { first, last } = loopSpan(loop, dur)
+    // A clip that starts at the beginning of its loop keeps doing so (intro on: the file start).
+    let srcIn = !m.loop || Math.abs(m.srcIn - oldFirst) < 1e-6 ? first : m.srcIn
+    if (srcIn < first || srcIn > last - MIN_CLIP_DURATION * m.speed) srcIn = first
+    const duration = (last - srcIn) / m.speed
+    if (duration < MIN_CLIP_DURATION) return false
+    next.push({ m, loop, srcIn, duration })
+  }
+  for (const n of next) if (!isRangeFree(p, n.m.trackId, n.m.start, n.m.start + n.duration, ignore)) return false
+  for (const n of next) {
+    n.m.srcIn = n.srcIn
+    n.m.duration = n.duration
+    if (n.loop) n.m.loop = n.loop
+    else delete n.m.loop
   }
   return true
 }

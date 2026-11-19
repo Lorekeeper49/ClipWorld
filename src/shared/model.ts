@@ -22,6 +22,8 @@ export interface AudioStreamInfo {
   language?: string
 }
 
+import type { ClipLoop } from './loop'
+
 export interface MediaItem {
   id: string
   kind: MediaKind
@@ -182,6 +184,8 @@ export interface Clip {
   /** Subtitle clips: the subtitle track shown. srcIn/speed map clip time to the track's time. */
   subtitleTrackId?: string
   effects: EffectInstance[]
+  /** Video and audio clips: plays part of the file repeatedly. srcIn is then on the loop's virtual axis (see loop.ts). */
+  loop?: ClipLoop
 }
 
 export type TrackKind = 'video' | 'audio'

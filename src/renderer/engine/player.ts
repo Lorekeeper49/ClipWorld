@@ -15,6 +15,7 @@ import { AudioEngine, type EffectChain } from './audio'
 import { type LayerEnv, Scratch, applyMask, differenceMaskCanvas, renderLayer } from './layers'
 import { measureText, rasterSubtitle, rasterText } from './raster'
 import { clipTrackTime, cueAt } from '@shared/subtitles'
+import { crossfadeGains, segmentAt } from '@shared/loop'
 
 type Mode = 'play' | 'hold' | 'paused'
 type Role = 'active' | 'preload'
@@ -48,27 +49,44 @@ interface VideoSource {
  */
 function resolveVideo(s: State, c: Clip, m: MediaItem | undefined, t: number, current?: string): VideoSource | null {
   if (!m) return null
+  if (!c.loop) return resolveAt(s, c, m, t, sourceTime(c, m, t), c.id, clipEnd(c), current)
+  // Each pass of a loop is its own source, so the next one can be loaded before the jump back.
+  const at = segmentAt(c, m.duration, t)
+  return resolveAt(s, c, m, t, at.src, `${c.id}~${at.index}`, Math.min(clipEnd(c), at.until), current)
+}
+
+/** During a crossfade: the source fading in, and how far it has faded in (0..1). */
+function resolveMix(s: State, c: Clip, m: MediaItem | undefined, t: number): { src: VideoSource; weight: number } | null {
+  if (!m || !c.loop) return null
+  const at = segmentAt(c, m.duration, t)
+  if (at.mixSrc === undefined) return null
+  const src = resolveAt(s, c, m, t, at.mixSrc, `${c.id}~${at.index}m`, Math.min(clipEnd(c), at.until))
+  return src ? { src, weight: at.mixWeight ?? 0 } : null
+}
+
+/** The original file or a preview chunk at source time `src`; `until` is when this stretch ends on the timeline. */
+function resolveAt(
+  s: State, c: Clip, m: MediaItem, t: number, src: number, prefix: string, until: number, current?: string
+): VideoSource | null {
   const cache = s.mediaCache[m.id]
   if (!cache || cache.missing) return null
-  const src = sourceTime(c, t)
-  const end = clipEnd(c)
   if (m.kind === 'image') {
     return cache.proxyUrl && cache.proxyState === 'ready'
-      ? { key: `${c.id}#a`, url: cache.proxyUrl, time: src, mediaId: m.id, until: end }
+      ? { key: `${prefix}#a`, url: cache.proxyUrl, time: src, mediaId: m.id, until }
       : null
   }
   const ch = cache.chunks
   const original: VideoSource | null =
     cache.sourceUrl && s.playable[m.id] !== 'bad' && !ch?.required
-      ? { key: `${c.id}#o`, url: cache.sourceUrl, time: src, mediaId: m.id, until: end }
+      ? { key: `${prefix}#o`, url: cache.sourceUrl, time: src, mediaId: m.id, until }
       : null
   if (original && current === original.key) return original
   if (ch) {
     const k = Math.min(ch.count - 1, Math.max(0, Math.floor(src / ch.seconds + 1e-9)))
     if (ch.done.includes(k)) {
       const chunkEnd = (k + 1) * ch.seconds
-      const until = k < ch.count - 1 && c.speed > 0 ? Math.min(end, c.start + (chunkEnd - c.srcIn) / c.speed) : end
-      return { key: `${c.id}#${k}`, url: ch.prefix + chunkName(k), time: src - k * ch.seconds, mediaId: m.id, until }
+      const end = k < ch.count - 1 && c.speed > 0 ? Math.min(until, t + (chunkEnd - src) / c.speed) : until
+      return { key: `${prefix}#${k}`, url: ch.prefix + chunkName(k), time: src - k * ch.seconds, mediaId: m.id, until: end }
     }
   }
   return original
@@ -89,11 +107,15 @@ const PRELOAD_WINDOW = 1.0
 const EPS = 1e-3
 
 const isVideoLike = (c: Clip, m?: MediaItem): boolean => c.type === 'video' || (c.type === 'image' && !!m?.animated)
-const sourceTime = (c: Clip, t: number): number => c.srcIn + clamp(t - c.start, 0, c.duration) * c.speed
+/** Where in the file clip `c` is at timeline time t (the main source, for a crossfade). */
+const sourceTime = (c: Clip, m: MediaItem | undefined, t: number): number =>
+  c.loop && m ? segmentAt(c, m.duration, t).src : c.srcIn + clamp(t - c.start, 0, c.duration) * c.speed
 
 /** True when `next` continues exactly where `prev` leaves off in the same source (e.g. after a split). */
 function continues(prev: Clip, next: Clip): boolean {
   return (
+    !prev.loop &&
+    !next.loop &&
     prev.mediaId === next.mediaId &&
     prev.audioStream === next.audioStream &&
     Math.abs(prev.speed - next.speed) < 1e-6 &&
@@ -112,6 +134,9 @@ class Player {
   private videos: VideoSlot[] = []
   /** Source chosen for each visible clip on the last tick. */
   private activeKeys = new Map<string, VideoSource>()
+  /** Crossfading clips: the source fading in and its weight. */
+  private mixKeys = new Map<string, { key: string; weight: number }>()
+  private mixCanvases = new Map<string, HTMLCanvasElement>()
   private focusSent = new Map<string, number>()
   private lastShown = new Map<string, HTMLVideoElement>()
   private focusAt = 0
@@ -200,13 +225,15 @@ class Player {
 
   /** Current output level (peak, 1 = full scale) of a playing audio clip. */
   level(clipId: string): number {
-    const slot = this.audios.find((s) => s.clipId === clipId)
-    if (!slot || !this.playing) return 0
-    slot.analyser.getFloatTimeDomainData(slot.buf)
+    if (!this.playing) return 0
     let peak = 0
-    for (let i = 0; i < slot.buf.length; i++) {
-      const v = Math.abs(slot.buf[i])
-      if (v > peak) peak = v
+    for (const slot of this.audios) {
+      if (slot.clipId !== clipId && !slot.clipId?.startsWith(clipId + '~')) continue
+      slot.analyser.getFloatTimeDomainData(slot.buf)
+      for (let i = 0; i < slot.buf.length; i++) {
+        const v = Math.abs(slot.buf[i])
+        if (v > peak) peak = v
+      }
     }
     return peak
   }
@@ -231,6 +258,11 @@ class Player {
       const slot = src ? this.videos.find((v) => v.clipId === src.key) : undefined
       if (!want || !src || src.key !== want.key || !slot || slot.el.readyState < 2 || slot.el.seeking) return false
       if (Math.abs(slot.el.currentTime - want.time) > 0.05) return false
+      const mix = resolveMix(s, c, m, this.time)
+      if (mix) {
+        const other = this.videos.find((v) => v.clipId === mix.src.key)
+        if (!other || other.el.readyState < 2 || other.el.seeking || Math.abs(other.el.currentTime - mix.src.time) > 0.05) return false
+      }
     }
     return true
   }
@@ -315,7 +347,7 @@ class Player {
       const m = p.media.find((x) => x.id === c.mediaId)
       const ch = m ? s.mediaCache[m.id]?.chunks : undefined
       if (!m || !ch || ch.done.length >= ch.count) continue
-      const src = sourceTime(c, this.time)
+      const src = sourceTime(c, m, this.time)
       const prev = this.focusSent.get(m.id)
       if (prev === undefined || Math.abs(prev - src) > 5) {
         this.focusSent.set(m.id, src)
@@ -350,6 +382,7 @@ class Player {
   private syncVideos(s: State, p: Project, visual: Clip[], upcoming: Clip[], mode: Mode): boolean {
     const wanted = new Map<string, { clip: Clip; src: VideoSource; role: Role }>()
     this.activeKeys.clear()
+    this.mixKeys.clear()
     for (const id of this.lastShown.keys()) if (!visual.some((c) => c.id === id)) this.lastShown.delete(id)
     for (const c of visual) {
       const m = p.media.find((x) => x.id === c.mediaId)
@@ -362,10 +395,17 @@ class Player {
       if (!src) continue
       wanted.set(src.key, { clip: c, src, role: 'active' })
       this.activeKeys.set(c.id, src)
-      // Crossing into the next preview chunk: have it loaded and positioned before the boundary.
+      const mix = resolveMix(s, c, m, this.time)
+      if (mix) {
+        wanted.set(mix.src.key, { clip: c, src: mix.src, role: 'active' })
+        this.mixKeys.set(c.id, { key: mix.src.key, weight: mix.weight })
+      }
+      // Crossing into the next preview chunk or loop pass: have it loaded and positioned before the boundary.
       if (this.playing && src.until < clipEnd(c) - EPS && src.until - this.time < PRELOAD_WINDOW) {
         const next = resolveVideo(s, c, m, src.until + 1e-4)
         if (next && !wanted.has(next.key)) wanted.set(next.key, { clip: c, src: next, role: 'preload' })
+        const nextMix = resolveMix(s, c, m, src.until + 1e-4)
+        if (nextMix && !wanted.has(nextMix.src.key)) wanted.set(nextMix.src.key, { clip: c, src: nextMix.src, role: 'preload' })
       }
     }
     for (const c of upcoming) {
@@ -444,19 +484,40 @@ class Player {
   }
 
   private syncAudios(s: ReturnType<typeof get>, p: Project, audio: Clip[], upcoming: Clip[], mode: Mode): void {
-    const wanted = new Map<string, { clip: Clip; url: string; target: number; role: Role }>()
+    const wanted = new Map<string, { clip: Clip; url: string; target: number; role: Role; gain: number }>()
     const urlFor = (c: Clip): string | null => {
       const cache = c.mediaId ? s.mediaCache[c.mediaId] : undefined
       return cache && !cache.missing ? (cache.audioUrls[c.audioStream] ?? null) : null
     }
+    const mediaOf = (c: Clip) => p.media.find((x) => x.id === c.mediaId)
     for (const c of audio) {
       const url = urlFor(c)
-      if (url) wanted.set(c.id, { clip: c, url, target: sourceTime(c, this.time), role: 'active' })
+      if (!url) continue
+      const m = mediaOf(c)
+      if (!c.loop || !m) {
+        wanted.set(c.id, { clip: c, url, target: sourceTime(c, m, this.time), role: 'active', gain: 1 })
+        continue
+      }
+      // A looped clip plays each pass on its own element (the next one waits, positioned, in the wings);
+      // a crossfade plays two at once with equal-power gains.
+      const at = segmentAt(c, m.duration, this.time)
+      const [ga, gb] = at.mixSrc === undefined ? [1, 0] : crossfadeGains(at.mixWeight ?? 0)
+      wanted.set(`${c.id}~${at.index}`, { clip: c, url, target: at.src, role: 'active', gain: ga })
+      if (at.mixSrc !== undefined) wanted.set(`${c.id}~${at.index}m`, { clip: c, url, target: at.mixSrc, role: 'active', gain: gb })
+      if (this.playing && at.until < clipEnd(c) - EPS && at.until - this.time < PRELOAD_WINDOW) {
+        const nx = segmentAt(c, m.duration, at.until + 1e-4)
+        const key = `${c.id}~${nx.index}`
+        if (!wanted.has(key)) wanted.set(key, { clip: c, url, target: nx.src, role: 'preload', gain: 1 })
+        if (nx.mixSrc !== undefined && !wanted.has(key + 'm')) wanted.set(key + 'm', { clip: c, url, target: nx.mixSrc, role: 'preload', gain: 1 })
+      }
     }
     for (const c of upcoming) {
       if (c.type !== 'audio' || audio.some((a) => continues(a, c))) continue
       const url = urlFor(c)
-      if (url) wanted.set(c.id, { clip: c, url, target: c.srcIn, role: 'preload' })
+      if (url) {
+        const m = mediaOf(c)
+        wanted.set(c.loop ? `${c.id}~0` : c.id, { clip: c, url, target: sourceTime(c, m, c.start), role: 'preload', gain: 1 })
+      }
     }
     for (const slot of this.audios) if (slot.clipId && !wanted.has(slot.clipId)) slot.clipId = null
     if (!wanted.size && !this.audios.length) return
@@ -493,7 +554,7 @@ class Player {
       const local = this.time - w.clip.start
       const g =
         w.role === 'active' && !w.clip.muted
-          ? w.clip.volume * fadeFactor(w.clip.effects, local, w.clip.duration, true)
+          ? w.clip.volume * w.gain * fadeFactor(w.clip.effects, local, w.clip.duration, true)
           : 0
       slot.gain.gain.setTargetAtTime(g, now, 0.012)
       this.syncElement(slot.el, w.target, w.clip, mode, w.role)
@@ -604,6 +665,9 @@ class Player {
           if (slot && !slot.failed && slot.el.readyState >= 2) {
             source = slot.el
             this.lastShown.set(c.id, slot.el)
+            const mix = this.mixKeys.get(c.id)
+            const other = mix ? this.videos.find((v) => v.clipId === mix.key) : undefined
+            if (mix && other && !other.failed && other.el.readyState >= 2) source = this.blend(c.id, slot.el, other.el, mix.weight)
           } else {
             // Switching files (e.g. to a preview chunk): keep showing the previous picture until the
             // new one has a frame, rather than flashing black.
@@ -663,6 +727,30 @@ class Player {
         ctx.restore()
       }
     }
+  }
+
+  /** A crossfade frame: `a` with `b` laid over it at `weight` (the export's blend does the same). */
+  private blend(clipId: string, a: HTMLVideoElement, b: HTMLVideoElement, weight: number): HTMLCanvasElement {
+    let canvas = this.mixCanvases.get(clipId)
+    if (!canvas) {
+      canvas = document.createElement('canvas')
+      this.mixCanvases.set(clipId, canvas)
+      if (this.mixCanvases.size > 8) this.mixCanvases.delete(this.mixCanvases.keys().next().value!)
+    }
+    const w = a.videoWidth || 2
+    const h = a.videoHeight || 2
+    if (canvas.width !== w || canvas.height !== h) {
+      canvas.width = w
+      canvas.height = h
+    }
+    const ctx = canvas.getContext('2d')!
+    ctx.globalAlpha = 1
+    ctx.clearRect(0, 0, w, h)
+    ctx.drawImage(a, 0, 0, w, h)
+    ctx.globalAlpha = clamp(weight, 0, 1)
+    ctx.drawImage(b, 0, 0, w, h)
+    ctx.globalAlpha = 1
+    return canvas
   }
 
   /** Scratch canvases at preview-frame size (difference masks). */

@@ -66,6 +66,8 @@ export interface AppSettings {
   lastExportDir?: string
   /** The Subtitles window was added to a layout saved before it existed (done once, so closing it sticks). */
   subtitlesPanelAdded?: boolean
+  /** Windows added to layouts saved before they existed (each only once, so closing them sticks). */
+  addedPanels?: string[]
   /** Interface language code ("ja"), or "system" / unset to follow the operating system. */
   language?: string
   /** Import a preset's missing media without asking. */

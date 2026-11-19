@@ -5,6 +5,7 @@ import { AudioPanel } from '../panels/AudioPanel'
 import { MediaPanel } from '../panels/MediaPanel'
 import { MetadataPanel } from '../panels/MetadataPanel'
 import { PreviewPanel } from '../panels/PreviewPanel'
+import { PropertiesPanel } from '../panels/PropertiesPanel'
 import { TimelinePanel } from '../panels/TimelinePanel'
 import { SubtitlesPanel } from '../panels/SubtitlesPanel'
 import { ToolsPanel } from '../panels/ToolsPanel'
@@ -15,7 +16,8 @@ const title = (id: string) => t(`panels.${id}`)
 
 /** Titles are message keys: panels.<id>. */
 export const PANELS = [
-  { id: 'media' }, { id: 'subtitles' }, { id: 'preview' }, { id: 'tools' }, { id: 'metadata' }, { id: 'audio' }, { id: 'timeline' }
+  { id: 'media' }, { id: 'subtitles' }, { id: 'preview' }, { id: 'tools' }, { id: 'properties' }, { id: 'metadata' }, { id: 'audio' },
+  { id: 'timeline' }
 ] as const
 
 export type PanelId = (typeof PANELS)[number]['id']
@@ -25,6 +27,7 @@ const components = {
   subtitles: SubtitlesPanel,
   preview: PreviewPanel,
   tools: ToolsPanel,
+  properties: PropertiesPanel,
   metadata: MetadataPanel,
   audio: AudioPanel,
   timeline: TimelinePanel
@@ -39,6 +42,7 @@ function defaultLayout(a: DockviewApi): void {
   a.addPanel({ id: 'media', component: 'media', title: title('media'), position: { referencePanel: 'preview', direction: 'left' }, initialWidth: 340 })
   a.addPanel({ id: 'subtitles', component: 'subtitles', title: title('subtitles'), position: { referencePanel: 'media', direction: 'within' }, inactive: true })
   a.addPanel({ id: 'tools', component: 'tools', title: title('tools'), position: { referencePanel: 'preview', direction: 'right' }, initialWidth: 360 })
+  a.addPanel({ id: 'properties', component: 'properties', title: title('properties'), position: { referencePanel: 'tools', direction: 'within' }, inactive: true })
   a.addPanel({ id: 'metadata', component: 'metadata', title: title('metadata'), position: { referencePanel: 'tools', direction: 'within' }, inactive: true })
   a.addPanel({ id: 'audio', component: 'audio', title: title('audio'), position: { referencePanel: 'tools', direction: 'below' }, initialHeight: 230 })
   a.addPanel({ id: 'timeline', component: 'timeline', title: title('timeline'), position: { direction: 'below' }, initialHeight: 330 })
@@ -99,6 +103,16 @@ function onReady(e: DockviewReadyEvent): void {
     })
   }
   if (!get().settings.subtitlesPanelAdded) patchSettings({ subtitlesPanelAdded: true })
+  // Layouts saved before the Properties window existed: add it as a tab beside Tools (once, so closing it sticks).
+  const added = get().settings.addedPanels ?? []
+  if (restored && !added.includes('properties') && !api.getPanel('properties')) {
+    const tools = api.getPanel('tools')
+    api.addPanel({
+      id: 'properties', component: 'properties', title: title('properties'), inactive: true,
+      ...(tools ? { position: { referencePanel: 'tools', direction: 'within' as const } } : { floating: { width: 380, height: 520 } })
+    })
+  }
+  if (!added.includes('properties')) patchSettings({ addedPanels: [...added, 'properties'] })
   // Saved layouts remember tab titles in the language they were saved in.
   retitle()
   let timer: ReturnType<typeof setTimeout> | null = null

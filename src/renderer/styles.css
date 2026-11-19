@@ -482,3 +482,13 @@ html:lang(ja) body { font-family: "Segoe UI Variable Text", "Segoe UI", "Yu Goth
 .preset-file-path { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .modal-foot .preset-always { margin-right: auto; display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 12.5px; }
 .preset-always input { accent-color: var(--accent); width: 15px; height: 15px; margin: 0; }
+
+/* Loop badge on timeline clips */
+.clip-badge.loop { background: #3ddc97; color: #062417; font-weight: 700; }
+
+/* Properties window */
+.properties-head { display: flex; flex-direction: column; gap: 2px; padding: 10px 12px 6px; border-bottom: 1px solid var(--border); }
+.properties-name { font-weight: 650; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.properties-panel .notice { display: flex; gap: 6px; align-items: flex-start; }
+.properties-panel .notice svg { flex: none; margin-top: 2px; }
+.toggle-hint { margin: -6px 0 0 44px; }

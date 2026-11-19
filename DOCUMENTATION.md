@@ -9,6 +9,7 @@ This guide explains everything ClipWorld can do, in plain words. You don't need 
   - [Preview](#preview)
   - [Timeline](#timeline)
   - [Tools](#tools)
+  - [Properties](#properties)
   - [Audio](#audio)
   - [Metadata](#metadata)
   - [Subtitles](#subtitles)
@@ -54,7 +55,7 @@ Made a mistake? **Ctrl+Z** undoes it and **Ctrl+Y** brings it back.
 
 ## The windows
 
-ClipWorld is made of several windows inside one: Media, Subtitles, Preview, Tools, Metadata, Audio and Timeline.
+ClipWorld is made of several windows inside one: Media, Subtitles, Preview, Tools, Properties, Metadata, Audio and Timeline.
 
 - **Move a window:** drag its tab to another spot. You can put it next to another window, stack it as a tab with others, or float it on its own.
 - **Close a window:** click the **×** on its tab. Bring it back from the **Window** menu.
@@ -129,6 +130,7 @@ The timeline is where you build your video.
 **Changing a clip's length**
 - **Drag a clip's edge to change its speed.** Making a clip shorter speeds it up, and making it longer slows it down, so the whole clip still plays in the new length. The sound follows along.
 - **Hold Alt while dragging an edge to trim instead.** This cuts off the beginning or end without changing the speed.
+- **Hold Ctrl while dragging an edge to loop the clip.** The clip plays again and again (at the same speed) to fill the new length. A green **↻** badge shows how many times it loops, and dashed lines mark where each loop starts again. This works on videos and sound; see [Properties](#properties) for the loop settings.
 
 **Cutting and copying**
 - **Split** (**Ctrl+K** or the **Split** button) cuts clips in two at the playhead.
@@ -196,6 +198,33 @@ Easing controls how an animation speeds up and slows down:
 - **Ease out:** starts quickly, then slows down to a gentle stop.
 - **Ease in-out:** slow at both ends, faster in the middle. This usually looks the most natural.
 - **(strong)** versions do the same thing, more noticeably.
+
+### Properties
+
+The Properties window (a tab next to Tools) shows the settings of the selected clip.
+
+**Speed & pitch** (videos and audio)
+- **Speed:** plays the clip faster or slower, the same as dragging its edge.
+- **Pitch:** makes the sound higher or lower without changing its speed, in semitones (+12 is one octave higher, −12 one octave lower). Double-click the slider to go back to 0.
+- **Keep audio pitch when speed changes:** the same switch as in the Tools window.
+
+**Loop** (videos and audio)
+
+Looping plays part of a file over and over. It's useful for music that needs to last longer, or a short clip that should repeat. Turn on **Loop this clip**, or hold **Ctrl** and drag the clip's edge on the timeline. A video and its sound always loop together.
+
+- **Loop count:** how many times the loop plays. It can be a fraction: **2.5** plays it two and a half times.
+- **Loop start** and **Loop end:** which part of the file repeats, in seconds from the start of the file. To make music loop seamlessly, put these on the beat, for example at the start of a bar and the start of a later bar.
+- **Include intro:** plays the file from its very beginning up to the loop first, so the music starts naturally instead of jumping straight into the loop.
+- **Include outro:** after the last loop, keeps playing past the loop end to the end of the file, so the music finishes naturally.
+- The clip's length on the timeline follows these settings. If the next clip on the track is in the way, ClipWorld tells you there isn't room. Move or shorten that clip first.
+
+**Partial loops and the crossfade**
+- When the loop count isn't a whole number **and** the outro is on, the last loop stops part way through and has to jump to the outro.
+- ClipWorld smooths that jump with a **crossfade**: the loop fades out while the outro fades in. The **Crossfade** setting is how long that takes, in seconds.
+- Even so, jumping mid-phrase **may not sound right** with music, which is why a warning appears. For a seamless ending, use a whole number of loops.
+- A whole number of loops never needs a crossfade, because the last loop ends exactly where the outro begins.
+
+To stop looping, turn off **Loop this clip**: the clip plays straight through again.
 
 ### Audio
 

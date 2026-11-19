@@ -2,8 +2,9 @@ import { memo, useCallback, useEffect, useLayoutEffect, useRef } from 'react'
 import { PEAKS_PER_SECOND } from '@shared/ipc'
 import { type Clip, type MediaItem, type Track, clipEnd, isTimed, projectDuration } from '@shared/model'
 import { clipCues } from '@shared/subtitles'
+import { clipSegments, loopable, virtualToSource } from '@shared/loop'
 import {
-  type MoveOrigin, addTrack, moveClips, removeTrack, snapPoints, snapTime, stretchClip, trimClip, withLinked
+  type MoveOrigin, addTrack, loopClip, mediaById, moveClips, removeTrack, snapPoints, snapTime, stretchClip, trimClip, withLinked
 } from '@shared/timeline-ops'
 import { Btn, Icon } from '../components/ui'
 import { player } from '../engine/player'
@@ -15,6 +16,9 @@ import { MEDIA_MIME } from './MediaPanel'
 import { HEADER_W, LANE_H, RULER_H, tickLabel, tickStep, useImage, usePeaks, view } from './timeline/view'
 
 const SNAP_PX = 8
+
+/** A loop count for display: whole numbers as they are, otherwise up to two decimals. */
+const formatCount = (n: number) => String(Number(n.toFixed(2)))
 
 // ---------------------------------------------------------------- pointer drag helper
 
@@ -130,6 +134,9 @@ function ClipCanvas({ clip, media, pps, height }: { clip: Clip; media: MediaItem
       canvas.height = Math.max(1, Math.round(height * dpr))
       const ctx = canvas.getContext('2d')!
       ctx.clearRect(0, 0, canvas.width, canvas.height)
+      // Where in the file each point of the clip plays (loops repeat part of it).
+      const mediaDur = media?.duration ?? Infinity
+      const srcAt = (px: number) => virtualToSource(clip.loop, clip.srcIn + (px / pps) * clip.speed, mediaDur)
 
       if (clip.type === 'audio' && peaks) {
         const mid = canvas.height / 2
@@ -137,8 +144,8 @@ function ClipCanvas({ clip, media, pps, height }: { clip: Clip; media: MediaItem
         ctx.fillStyle = 'rgba(255,255,255,0.78)'
         const hot: number[] = []
         for (let x = 0; x < canvas.width; x++) {
-          const t0 = clip.srcIn + ((visL + x / dpr) / pps) * clip.speed
-          const t1 = clip.srcIn + ((visL + (x + 1) / dpr) / pps) * clip.speed
+          const t0 = srcAt(visL + x / dpr)
+          const t1 = t0 + (1 / dpr / pps) * clip.speed
           const i0 = Math.max(0, Math.floor(t0 * PEAKS_PER_SECOND))
           const i1 = Math.min(peaks.length - 1, Math.max(i0, Math.floor(t1 * PEAKS_PER_SECOND)))
           let peak = 0
@@ -155,7 +162,7 @@ function ClipCanvas({ clip, media, pps, height }: { clip: Clip; media: MediaItem
       } else if (clip.type === 'video' && strip && film && media && media.duration > 0) {
         const tw = (height * film.tileW) / film.tileH
         for (let i = Math.floor(visL / tw); i * tw < visR; i++) {
-          const srcT = clip.srcIn + (((i + 0.5) * tw) / pps) * clip.speed
+          const srcT = srcAt((i + 0.5) * tw)
           const frame = Math.min(film.count - 1, Math.max(0, Math.floor((srcT / media.duration) * film.count)))
           ctx.drawImage(strip, frame * film.tileW, 0, film.tileW, film.tileH, (i * tw - visL) * dpr, 0, tw * dpr, canvas.height)
         }
@@ -165,10 +172,30 @@ function ClipCanvas({ clip, media, pps, height }: { clip: Clip; media: MediaItem
           ctx.drawImage(strip, (i * tw - visL) * dpr, 0, tw * dpr, canvas.height)
         }
       }
+      // Loops: a dashed line where each pass starts again, and a shaded band over a crossfade.
+      if (clip.loop && media) {
+        const segs = clipSegments(clip, media.duration)
+        const xOf = (v: number) => (((v - clip.srcIn) / clip.speed) * pps - visL) * dpr
+        ctx.save()
+        ctx.strokeStyle = 'rgba(255,255,255,0.7)'
+        ctx.lineWidth = Math.max(1, dpr)
+        ctx.setLineDash([3 * dpr, 3 * dpr])
+        for (const s of segs.slice(1)) {
+          const x = Math.round(xOf(s.v0)) + 0.5
+          if (x < 0 || x > canvas.width) continue
+          ctx.beginPath()
+          ctx.moveTo(x, 0)
+          ctx.lineTo(x, canvas.height)
+          ctx.stroke()
+        }
+        ctx.fillStyle = 'rgba(255,255,255,0.18)'
+        for (const s of segs) if (s.mix) ctx.fillRect(xOf(s.v0), 0, xOf(s.v1) - xOf(s.v0), canvas.height)
+        ctx.restore()
+      }
     }
     draw()
     return view.subscribe(draw)
-  }, [clip.start, clip.duration, clip.srcIn, clip.speed, clip.volume, clip.muted, clip.type, pps, height, peaks, strip, film, media])
+  }, [clip.start, clip.duration, clip.srcIn, clip.speed, clip.volume, clip.muted, clip.type, clip.loop, pps, height, peaks, strip, film, media])
 
   return <canvas ref={ref} className="clip-canvas" />
 }
@@ -208,6 +235,7 @@ const ClipView = memo(function ClipView({ clip, media, pps, height, selected, mi
         {clip.linkId && <Icon name="link" size={11} />}
         <span className="clip-name">{label}</span>
         {timed && speedPct !== 100 && <span className="clip-badge speed" data-testid="clip-speed">{speedPct}%</span>}
+        {clip.loop && <span className="clip-badge loop" data-testid="clip-loop" title={t('timeline.loopBadge', { times: formatCount(clip.loop.count) })}>↻ {formatCount(clip.loop.count)}×</span>}
         {clip.type === 'audio' && Math.abs(clip.volume - 1) > 0.005 && <span className="clip-badge">{Math.round(clip.volume * 100)}%</span>}
         {fx > 0 && <span className="clip-badge fx">fx {fx}</span>}
       </div>
@@ -379,14 +407,21 @@ export function TimelinePanel() {
     const key = `drag${++dragSeq}`
 
     if (zone !== 'body') {
-      // Edge drag: rate-stretch by default, classic trim with Alt.
+      // Edge drag: rate-stretch by default, classic trim with Alt, loop with Ctrl (video and audio only).
       const group = new Set(withLinked(s.project, [clip.id]))
       if (!s.selection.includes(clip.id)) set({ selection: [...group] })
       const trim = e.altKey
+      const loop =
+        !trim && (e.ctrlKey || e.metaKey) &&
+        [...group].every((id) => {
+          const c = s.project.clips.find((x) => x.id === id)
+          return !!c && loopable(c, mediaById(s.project, c.mediaId))
+        })
       drag(e, (ev) => {
         const t = snap(timeAt(ev.clientX), group)
         edit((p) => {
           if (trim) trimClip(p, clip.id, zone, t)
+          else if (loop) loopClip(p, clip.id, zone, t)
           else stretchClip(p, clip.id, zone, t)
         }, { key, sticky: true })
       })

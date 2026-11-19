@@ -10,6 +10,7 @@ import {
 import {
   type Clip, type EffectInstance, type MediaItem, type Project, type ProjectSettings, REF_HEIGHT, fitSize, isTimed, projectDuration
 } from './model'
+import { clipSegments } from './loop'
 
 export interface TextAsset {
   path: string
@@ -105,6 +106,59 @@ class Graph {
   }
 }
 
+/**
+ * A looped clip's source as one stream on its virtual timeline (starting at 0, before speed): each pass is
+ * its own exactly-trimmed input, a crossfade blends two, and the pieces are joined. Piece lengths are cut
+ * on one frame (or sample) grid for the whole clip, so many passes never drift from the audio.
+ */
+function loopedSource(g: Graph, c: Clip, media: MediaItem, kind: 'v' | 'a'): string {
+  const segs = clipSegments(c, media.duration)
+  const rate = kind === 'v' ? (media.fps > 0 ? media.fps : 30) : SAMPLE_RATE
+  const grid = (v: number) => Math.round((v - c.srcIn) * rate)
+  // Many passes mean many decoders: keep each one's threads few.
+  const threads = kind === 'v' && segs.length > 4 ? ['-threads', '2'] : []
+  const piece = (src: number, len: number, count: number): string => {
+    const i = g.addInput([...threads, '-ss', num(src), '-t', num(len + 1), kind === 'v' ? '-an' : '-vn', '-i', media.path])
+    const out = g.label()
+    g.chains.push(
+      kind === 'v'
+        ? `[${i}:v]setpts=PTS-STARTPTS,fps=${num(rate)},trim=end_frame=${count},setpts=PTS-STARTPTS,setsar=1${out}`
+        : `[${i}:a:${c.audioStream}]asetpts=PTS-STARTPTS,aresample=${SAMPLE_RATE},aformat=sample_fmts=fltp:channel_layouts=stereo,` +
+          `atrim=end_sample=${count},asetpts=PTS-STARTPTS${out}`
+    )
+    return out
+  }
+  const parts: string[] = []
+  for (const sg of segs) {
+    const count = grid(sg.v1) - grid(sg.v0)
+    if (count <= 0) continue
+    const len = sg.v1 - sg.v0
+    const a = piece(sg.src, len, count)
+    if (!sg.mix) {
+      parts.push(a)
+      continue
+    }
+    // Crossfade: the weight of the incoming source rises from p0 to p1 over the piece.
+    const b = piece(sg.mix.src, len, count)
+    const out = g.label()
+    const w = (t: string) => `(${num(sg.mix!.p0, 6)}+${num(sg.mix!.p1 - sg.mix!.p0, 6)}*${t}/${num(len, 6)})`
+    if (kind === 'v') {
+      g.chains.push(`${a}${b}blend=all_expr='A*(1-${w('T')})+B*${w('T')}'${out}`)
+    } else {
+      const fa = g.label()
+      const fb = g.label()
+      g.chains.push(`${a}volume='cos(${w('t')}*PI/2)':eval=frame${fa}`)
+      g.chains.push(`${b}volume='sin(${w('t')}*PI/2)':eval=frame${fb}`)
+      g.chains.push(`${fa}${fb}amix=inputs=2:normalize=0:duration=first:dropout_transition=0${out}`)
+    }
+    parts.push(out)
+  }
+  if (parts.length === 1) return parts[0]
+  const out = g.label()
+  g.chains.push(`${parts.join('')}concat=n=${parts.length}:v=${kind === 'v' ? 1 : 0}:a=${kind === 'a' ? 1 : 0}${out}`)
+  return out
+}
+
 /** A linear run of filters that can be flushed into the graph to obtain a label. */
 class Chain {
   private pending: string[] = []
@@ -177,8 +231,10 @@ function buildVisualLayer(g: Graph, c: Clip, p: Project, assets: ExportAssets): 
     const i = g.addInput(['-loop', '1', '-framerate', num(fps), '-t', num(D), '-i', media!.path])
     chain = new Chain(g, `[${i}:v]`).add(`scale=${W0}:${H0}:flags=bicubic`, 'format=rgba', 'setsar=1')
   } else {
-    const i = g.addInput(['-ss', num(c.srcIn), '-t', num(D * c.speed), '-an', '-i', media!.path])
-    chain = new Chain(g, `[${i}:v]`).add(
+    const source = c.loop
+      ? loopedSource(g, c, media!, 'v')
+      : `[${g.addInput(['-ss', num(c.srcIn), '-t', num(D * c.speed), '-an', '-i', media!.path])}:v]`
+    chain = new Chain(g, source).add(
       Math.abs(c.speed - 1) > 1e-9 ? `setpts=(PTS-STARTPTS)/${num(c.speed)}` : 'setpts=PTS-STARTPTS',
       `fps=${num(fps)}`,
       `scale=${W0}:${H0}:flags=bicubic${colorMatrixFor(media!)}`,
@@ -400,11 +456,12 @@ function buildAudioClip(g: Graph, c: Clip, p: Project, assets: ExportAssets, cap
   if (!media || c.muted || c.volume <= 0) return null
   if (!media.audioStreams.some((a) => a.index === c.audioStream)) return null
   const D = c.duration
-  const i = g.addInput(['-ss', num(c.srcIn), '-t', num(D * c.speed), '-vn', '-i', media.path])
-  let chain = new Chain(g, `[${i}:a:${c.audioStream}]`).add(
-    `aresample=${SAMPLE_RATE}`,
-    'aformat=sample_fmts=fltp:channel_layouts=stereo'
-  )
+  let chain = c.loop
+    ? new Chain(g, loopedSource(g, c, media, 'a'))
+    : new Chain(g, `[${g.addInput(['-ss', num(c.srcIn), '-t', num(D * c.speed), '-vn', '-i', media.path])}:a:${c.audioStream}]`).add(
+      `aresample=${SAMPLE_RATE}`,
+      'aformat=sample_fmts=fltp:channel_layouts=stereo'
+    )
   if (Math.abs(c.speed - 1) > 1e-9) {
     if (c.preservePitch) chain.add(...atempoChain(c.speed))
     else chain.add(`asetrate=${num(SAMPLE_RATE * c.speed, 2)}`, `aresample=${SAMPLE_RATE}`)

@@ -36,6 +36,7 @@
     "subtitles": "Subtitles",
     "preview": "Preview",
     "tools": "Tools",
+    "properties": "Properties",
     "metadata": "Metadata",
     "audio": "Audio",
     "timeline": "Timeline"
@@ -350,8 +351,8 @@
     "deleteSelected": "Delete selected",
     "snapping": "Snapping",
     "addTextHere": "Add text at playhead",
-    "hint": "Drag a clip's edge to change its speed · Alt+drag to trim",
-    "edgeHint": "Drag to change speed · Alt+drag to trim",
+    "hint": "Drag a clip's edge to change its speed · Alt+drag to trim · Ctrl+drag to loop",
+    "edgeHint": "Drag to change speed · Alt+drag to trim · Ctrl+drag to loop",
     "video": "Video",
     "audio": "Audio",
     "addVideoTrack": "Add video track",
@@ -364,7 +365,8 @@
     "muteTrack": "Mute track",
     "unmuteTrack": "Unmute track",
     "text": "Text",
-    "subtitlesClip": "Subtitles · {{name}}"
+    "subtitlesClip": "Subtitles · {{name}}",
+    "loopBadge": "Loops {{times}} times"
   },
   "toasts": {
     "saved": "Project saved",
@@ -488,6 +490,37 @@
       "moveDown": "Move down",
       "remove": "Remove"
     }
+  },
+  "properties": {
+    "empty": "Select a clip on the timeline to see and change its properties.",
+    "nothing": "This kind of clip has no speed or loop settings. Use the Tools window to style it.",
+    "where": "Starts at {{start}} · {{length}} long",
+    "kinds": {
+      "video": "Video",
+      "audio": "Audio",
+      "image": "Picture",
+      "text": "Text",
+      "subtitles": "Subtitles"
+    },
+    "speedPitch": "Speed & pitch",
+    "speed": "Speed",
+    "pitch": "Pitch",
+    "pitchHint": "Pitch is in semitones: +12 is an octave higher. It is the Pitch shift effect on the clip's sound.",
+    "loop": "Loop",
+    "loopOn": "Loop this clip",
+    "loopHint": "Plays part of the file over and over. You can also hold Ctrl and drag a clip's edge on the timeline to loop it.",
+    "count": "Loop count",
+    "loopStart": "Loop start",
+    "loopEnd": "Loop end",
+    "loopInfo": "The loop is {{length}} s long, and the file is {{file}} long. Loop points are times in the file.",
+    "intro": "Include intro",
+    "introHint": "Start from the beginning of the file and play up to the loop.",
+    "outro": "Include outro",
+    "outroHint": "After the last loop, carry on past the loop end to the end of the file.",
+    "crossfade": "Crossfade",
+    "crossfadeShortened": "Shortened to {{seconds}} s to fit.",
+    "partialWarning": "The loop count isn't a whole number, so the last loop stops part way and crossfades into the outro. That may not sound right, because the sound changes mid-phrase. For a seamless join, use a whole number of loops.",
+    "noRoom": "There isn't room on the track for that. Move or shorten the next clip first."
   },
   "presets": {
     "title": "Presets",

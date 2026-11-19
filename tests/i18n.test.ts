@@ -63,7 +63,8 @@ describe('English messages', () => {
     }
     for (const a of Object.values(AUDIO_CODECS)) keys.push(`formats.audio.${a.id}`)
     for (const f of SUBTITLE_FORMATS) keys.push(`subtitleFormats.${f.id}`)
-    for (const p of ['media', 'subtitles', 'preview', 'tools', 'metadata', 'audio', 'timeline']) keys.push(`panels.${p}`)
+    for (const p of ['media', 'subtitles', 'preview', 'tools', 'properties', 'metadata', 'audio', 'timeline']) keys.push(`panels.${p}`)
+    for (const k of ['video', 'audio', 'image', 'text', 'subtitles']) keys.push(`properties.kinds.${k}`)
     for (const m of ['file', 'edit', 'window', 'help']) keys.push(`menu.${m}`)
     for (const k of ['video', 'audio', 'image', 'animated']) keys.push(`metadata.kinds.${k}`)
     for (const k of ['vertical', 'portrait', 'square']) keys.push(`metadata.presets.${k}`)

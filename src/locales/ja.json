@@ -24,6 +24,7 @@
     "importSubtitles": "字幕を読み込む…",
     "exportSubtitles": "字幕を書き出す…",
     "exit": "終了",
+    "settings": "設定…",
     "shortcuts": "キーボードショートカット…",
     "language": "言語",
     "resetLayout": "レイアウトをリセット",
@@ -81,7 +82,8 @@
       "duplicate": "複製",
       "delete": "削除",
       "selectAll": "すべてのクリップを選択",
-      "deselect": "選択を解除"
+      "deselect": "選択を解除",
+      "settings": "設定"
     },
     "timeline": {
       "split": "再生ヘッドの位置で分割",
@@ -124,6 +126,26 @@
     "pseudo": "疑似言語（テスト用）",
     "pseudoHint": "まだ翻訳できないテキストや、はみ出すテキストを表示します",
     "missingFallback": "まだ翻訳されていない部分は英語で表示されます。"
+  },
+  "settings": {
+    "title": "設定",
+    "pages": {
+      "general": "一般",
+      "timeline": "タイムライン",
+      "shortcuts": "キーボードショートカット"
+    },
+    "language": "言語",
+    "preview": "プレビュー",
+    "previewVolume": "プレビューの音量",
+    "previewVolumeHint": "プレビューを再生するときの音量です。書き出す動画には影響しません。",
+    "autoImportHint": "オンにすると、プリセットを使うときに必要なファイルを確認なしで読み込みます。",
+    "layout": "ウィンドウのレイアウト",
+    "layoutHint": "すべてのウィンドウを最初の位置に戻します。",
+    "layoutDone": "レイアウトをリセットしました。",
+    "clipColors": "クリップの色",
+    "clipColorsHint": "タイムライン上の、クリップの種類ごとの色です。好きな色を選べます。明るい色では、波形や字幕のブロックが見やすいように暗い色で表示されます。",
+    "resetColors": "すべての色を元に戻す",
+    "resetColor": "既定の色に戻す"
   },
   "dialogs": {
     "importMedia": "メディアを読み込む",

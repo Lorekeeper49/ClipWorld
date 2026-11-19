@@ -72,6 +72,8 @@ export interface AppSettings {
   language?: string
   /** Import a preset's missing media without asking. */
   autoImportPresetMedia?: boolean
+  /** Timeline colour for each kind of clip ('#rrggbb'); missing kinds use the default. */
+  clipColors?: Partial<Record<'video' | 'audio' | 'image' | 'text' | 'subtitles', string>>
 }
 
 export interface AppInfo {

@@ -29,6 +29,7 @@ export const SHORTCUTS: ShortcutDef[] = [
   { id: 'edit.delete', group: 'Edit', default: 'Delete', run: a.deleteSelectionAction },
   { id: 'edit.selectAll', group: 'Edit', default: 'Ctrl+A', run: a.selectAllAction },
   { id: 'edit.deselect', group: 'Edit', default: 'Escape', run: () => set({ selection: [] }) },
+  { id: 'edit.settings', group: 'Edit', default: 'Ctrl+,', run: () => set({ modal: 'settings' }) },
 
   { id: 'timeline.split', group: 'Timeline', default: 'Ctrl+K', run: a.splitAction },
   { id: 'timeline.unlink', group: 'Timeline', default: 'Ctrl+U', run: a.unlinkAction },

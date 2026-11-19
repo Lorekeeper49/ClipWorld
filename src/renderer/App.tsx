@@ -2,10 +2,10 @@ import { useEffect, useState } from 'react'
 import { MenuBar } from './components/MenuBar'
 import { Btn, Modal } from './components/ui'
 import { ExportDialog } from './dialogs/ExportDialog'
-import { LanguageDialog } from './dialogs/LanguageDialog'
 import { PresetImportDialog } from './dialogs/PresetImportDialog'
 import { loadPresets } from './state/presets'
-import { ShortcutsDialog } from './dialogs/ShortcutsDialog'
+import { applyClipColors } from './settings/clipColors'
+import { SettingsDialog } from './settings/SettingsDialog'
 import { applyLanguage, tx, useT } from './i18n'
 import { player } from './engine/player'
 import { Dock } from './layout/dock'
@@ -98,6 +98,10 @@ export function App() {
     }
   }, [])
 
+  // Clip colours chosen in Settings.
+  const settings = useStore((s) => s.settings)
+  useEffect(() => applyClipColors(settings), [settings.clipColors]) // eslint-disable-line react-hooks/exhaustive-deps
+
   // Window title, close guard and crash-recovery autosave follow the project state.
   useEffect(() => {
     if (!ready) return
@@ -135,10 +139,9 @@ export function App() {
       )}
       <main className="workspace"><Dock /></main>
       {modal === 'export' && <ExportDialog />}
-      {modal === 'shortcuts' && <ShortcutsDialog />}
+      {(modal === 'settings' || modal === 'shortcuts' || modal === 'language') && <SettingsDialog key={modal} />}
       {modal === 'close' && <CloseDialog />}
       {modal === 'about' && <AboutDialog />}
-      {modal === 'language' && <LanguageDialog />}
       {modal === 'presetImport' && <PresetImportDialog />}
       <Toasts />
     </div>

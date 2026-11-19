@@ -128,6 +128,7 @@ export function MenuBar() {
     },
     { label: a('edit.selectAll'), shortcut: k('edit.selectAll'), run: selectAllAction },
     { separator: true },
+    { label: t('menu.settings'), shortcut: k('edit.settings'), run: () => set({ modal: 'settings' }), testId: 'menu-settings' },
     { label: t('menu.shortcuts'), run: () => set({ modal: 'shortcuts' }), testId: 'menu-shortcuts' },
     // Always names "Language" in English too, so someone who picked a language they can't read can get back.
     { label: lang.startsWith('en') ? `${t('menu.language')}…` : `${t('menu.language')} (Language)…`, run: () => set({ modal: 'language' }), testId: 'menu-language' }

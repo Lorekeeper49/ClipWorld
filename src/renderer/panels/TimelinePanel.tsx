@@ -10,6 +10,7 @@ import { Btn, Icon } from '../components/ui'
 import { player } from '../engine/player'
 import { addTextAction, addToTimeline, deleteSelectionAction, redo, splitAction, undo, zoomTimeline } from '../state/actions'
 import { t, useT } from '../i18n'
+import { clipColor, inkOn } from '../settings/clipColors'
 import { bindingFor } from '../state/shortcuts'
 import { edit, get, set, useStore } from '../state/store'
 import { MEDIA_MIME } from './MediaPanel'
@@ -54,6 +55,7 @@ let dragSeq = 0
 function SubtitleClipCanvas({ clip, pps, height }: { clip: Clip; pps: number; height: number }) {
   const ref = useRef<HTMLCanvasElement>(null)
   const track = useStore((s) => s.project.subtitles.find((t) => t.id === clip.subtitleTrackId))
+  const color = useStore((s) => clipColor(s.settings, 'subtitles'))
   useEffect(() => {
     const canvas = ref.current
     if (!canvas || !track) return
@@ -85,16 +87,16 @@ function SubtitleClipCanvas({ clip, pps, height }: { clip: Clip; pps: number; he
         const x1 = (p.end - clip.start) * pps - visL
         if (x1 < 0 || x0 > w) continue
         const bw = Math.max(2, x1 - x0 - 1)
-        ctx.fillStyle = 'rgba(255,255,255,0.22)'
+        ctx.fillStyle = inkOn(color, 0.22)
         ctx.fillRect(x0, top, bw, h)
-        ctx.fillStyle = 'rgba(255,255,255,0.75)'
+        ctx.fillStyle = inkOn(color, 0.75)
         ctx.fillRect(x0, top, 1.5, h)
         if (bw > 24) {
           ctx.save()
           ctx.beginPath()
           ctx.rect(x0, top, bw - 3, h)
           ctx.clip()
-          ctx.fillStyle = '#fff'
+          ctx.fillStyle = inkOn(color, 1)
           ctx.fillText(p.cue.text.replace(/\s*\n\s*/g, ' / '), x0 + 5, top + h / 2)
           ctx.restore()
         }
@@ -102,13 +104,14 @@ function SubtitleClipCanvas({ clip, pps, height }: { clip: Clip; pps: number; he
     }
     draw()
     return view.subscribe(draw)
-  }, [clip, track, pps, height])
+  }, [clip, track, pps, height, color])
   return <canvas ref={ref} className="clip-canvas" />
 }
 
 function ClipCanvas({ clip, media, pps, height }: { clip: Clip; media: MediaItem | undefined; pps: number; height: number }) {
   const ref = useRef<HTMLCanvasElement>(null)
   const cache = useStore((s) => (media ? s.mediaCache[media.id] : undefined))
+  const audioColor = useStore((s) => clipColor(s.settings, 'audio'))
   const peaks = usePeaks(clip.type === 'audio' ? cache?.peakUrls[clip.audioStream] : undefined)
   const strip = useImage(clip.type === 'video' ? cache?.filmstrip?.url : clip.type === 'image' ? cache?.sourceUrl : undefined)
   const film = cache?.filmstrip
@@ -141,7 +144,7 @@ function ClipCanvas({ clip, media, pps, height }: { clip: Clip; media: MediaItem
       if (clip.type === 'audio' && peaks) {
         const mid = canvas.height / 2
         const vol = clip.muted ? 0 : clip.volume
-        ctx.fillStyle = 'rgba(255,255,255,0.78)'
+        ctx.fillStyle = inkOn(audioColor)
         const hot: number[] = []
         for (let x = 0; x < canvas.width; x++) {
           const t0 = srcAt(visL + x / dpr)
@@ -195,7 +198,7 @@ function ClipCanvas({ clip, media, pps, height }: { clip: Clip; media: MediaItem
     }
     draw()
     return view.subscribe(draw)
-  }, [clip.start, clip.duration, clip.srcIn, clip.speed, clip.volume, clip.muted, clip.type, clip.loop, pps, height, peaks, strip, film, media])
+  }, [clip.start, clip.duration, clip.srcIn, clip.speed, clip.volume, clip.muted, clip.type, clip.loop, pps, height, peaks, strip, film, media, audioColor])
 
   return <canvas ref={ref} className="clip-canvas" />
 }

@@ -158,6 +158,13 @@ async function sweep(page, label) {
     await page.screenshot({ path: join(shots, `i18n-${label}-${modal}.png`) })
     await page.evaluate(() => window.__cw.set({ modal: null, pendingAfterClose: null, presetPrompt: null }))
   }
+  // Every page of the Settings window.
+  await page.evaluate(() => window.__cw.set({ modal: 'settings' }))
+  for (const p of ['general', 'timeline', 'shortcuts']) {
+    await page.getByTestId(`settings-page-${p}`).click()
+    await scan(`settings: ${p}`)
+  }
+  await page.evaluate(() => window.__cw.set({ modal: null }))
   // Every toast and status message is a message too; trigger a few.
   await page.evaluate(async (f) => {
     const a = window.__cw.actions

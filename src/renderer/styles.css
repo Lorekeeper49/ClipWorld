@@ -16,7 +16,7 @@
   --clip-audio: #1d8f7a;
   --clip-image: #b9822e;
   --clip-text: #9a55d6;
-  --clip-subs: #b8892a;
+  --clip-subs: #8a6a1e;
   --radius: 6px;
   color-scheme: dark;
 }
@@ -396,7 +396,7 @@ input, textarea, select, button { font: inherit; color: inherit; }
 .clip-audio { background: var(--clip-audio); }
 .clip-image { background: var(--clip-image); }
 .clip-text { background: var(--clip-text); }
-.clip-subtitles { background: linear-gradient(180deg, #8a6a1e, #6c5216); }
+.clip-subtitles { background: linear-gradient(180deg, var(--clip-subs), color-mix(in srgb, var(--clip-subs) 78%, black)); }
 .clip.selected { box-shadow: inset 0 0 0 2px #fff, 0 0 0 1px rgba(0, 0, 0, 0.6); z-index: 2; }
 .clip.muted { filter: saturate(0.25) brightness(0.8); }
 .clip.missing { background: repeating-linear-gradient(45deg, #5a2029, #5a2029 8px, #401820 8px, #401820 16px); }
@@ -492,3 +492,24 @@ html:lang(ja) body { font-family: "Segoe UI Variable Text", "Segoe UI", "Yu Goth
 .properties-panel .notice { display: flex; gap: 6px; align-items: flex-start; }
 .properties-panel .notice svg { flex: none; margin-top: 2px; }
 .toggle-hint { margin: -6px 0 0 44px; }
+
+/* Settings window */
+.settings { display: grid; grid-template-columns: 180px 1fr; gap: 18px; min-height: 420px; max-height: min(64vh, 620px); }
+.settings-nav { display: flex; flex-direction: column; gap: 2px; border-right: 1px solid var(--border); padding-right: 12px; }
+.settings-nav button {
+  display: flex; align-items: center; gap: 8px; padding: 7px 10px; border: 0; border-radius: var(--radius); background: none; color: var(--dim);
+  text-align: left; cursor: pointer; font: inherit;
+}
+.settings-nav button:hover { background: var(--raised); color: var(--text); }
+.settings-nav button.active { background: var(--accent-soft); color: var(--text); }
+.settings-page { overflow-y: auto; padding-right: 6px; display: flex; flex-direction: column; gap: 8px; }
+.settings-page h3 { font-size: 13px; font-weight: 650; margin-top: 8px; }
+.settings-page h3:first-child { margin-top: 0; }
+.settings-row-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.settings-row-head h3 { margin-top: 0; }
+.settings-inline { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.clip-color-list { display: flex; flex-direction: column; gap: 6px; }
+.clip-color-row { display: flex; align-items: center; gap: 10px; }
+.clip-swatch { position: relative; width: 170px; height: 30px; border-radius: 5px; overflow: hidden; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.14); flex: none; }
+.clip-swatch.clip-video { background: var(--clip-video); }
+.clip-swatch .clip-label { pointer-events: none; }

@@ -63,7 +63,7 @@ English and Japanese, chosen in **Edit ▸ Language…** (the system language by
 
 - Projects save as `.vcws` (JSON). Media is stored by absolute path plus a path relative to the project, so a project moved together with its media still opens. Missing files can be relinked from the Media panel. Unsaved work is autosaved for crash recovery.
 - **File ▸ Export…** or **Ctrl+Shift+E**: MP4, MKV, MOV, WebM, AVI, GIF, plus audio-only MP3, WAV, FLAC, Ogg and M4A. Codecs are H.264, H.265, VP9, AV1, ProRes and MPEG-4, with NVIDIA NVENC / Intel Quick Sync when the GPU supports them. Audio can be mixed into one track or kept as separate tracks.
-- Every shortcut can be changed in **Edit ▸ Keyboard shortcuts…**.
+- **Edit ▸ Settings…** (Ctrl+,) holds every preference: language, preview volume, preset auto-import, window layout, the colour of each kind of clip on the timeline, and keyboard shortcuts (every one can be changed).
 
 ## How it works
 

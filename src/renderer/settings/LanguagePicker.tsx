@@ -1,13 +1,12 @@
 import { PSEUDO_LANGUAGE, completeness, formatNumber, languageName, languages } from '@shared/i18n'
-import { Btn, Modal } from '../components/ui'
 import { chooseLanguage, systemLanguage, useT } from '../i18n'
-import { set, useStore } from '../state/store'
+import { useStore } from '../state/store'
 
-export function LanguageDialog() {
+/** The language choice (Settings ▸ General). */
+export function LanguagePicker() {
   const t = useT()
   const preference = useStore((s) => s.settings.language ?? 'system')
   const lang = useStore((s) => s.lang)
-  const close = () => set({ modal: null })
   const system = systemLanguage()
   const pct = (code: string) => formatNumber(completeness(code), { style: 'percent', maximumFractionDigits: 0 })
 
@@ -21,7 +20,7 @@ export function LanguageDialog() {
   )
 
   return (
-    <Modal title={t('language.title')} width={460} onClose={close} footer={<Btn primary onClick={close}>{t('common.done')}</Btn>}>
+    <>
       <div className="language-list">
         <Row code="system" label={t('language.system')} detail={languageName(system)} named="detail" />
         {languages().filter((c) => c !== PSEUDO_LANGUAGE).map((code) => {
@@ -37,6 +36,6 @@ export function LanguageDialog() {
         <Row code={PSEUDO_LANGUAGE} label={t('language.pseudo')} detail={t('language.pseudoHint')} />
       </div>
       <p className="dim small">{t('language.missingFallback')}</p>
-    </Modal>
+    </>
   )
 }

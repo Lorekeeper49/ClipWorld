@@ -18,7 +18,8 @@ interface HistoryEntry {
   time: number
 }
 
-export type Modal = null | 'export' | 'shortcuts' | 'close' | 'about' | 'language' | 'presetImport'
+/** 'shortcuts' and 'language' open the Settings window at that page. */
+export type Modal = null | 'export' | 'settings' | 'shortcuts' | 'close' | 'about' | 'language' | 'presetImport'
 
 export interface Toast {
   id: number

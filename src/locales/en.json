@@ -25,6 +25,7 @@
     "importSubtitles": "Import subtitles…",
     "exportSubtitles": "Export subtitles…",
     "exit": "Exit",
+    "settings": "Settings…",
     "shortcuts": "Keyboard shortcuts…",
     "language": "Language",
     "resetLayout": "Reset layout",
@@ -82,7 +83,8 @@
       "duplicate": "Duplicate",
       "delete": "Delete",
       "selectAll": "Select all clips",
-      "deselect": "Deselect"
+      "deselect": "Deselect",
+      "settings": "Settings"
     },
     "timeline": {
       "split": "Split at playhead",
@@ -125,6 +127,26 @@
     "pseudo": "Pseudo-language (for testing)",
     "pseudoHint": "Shows text that isn't translatable yet, or that gets cut off",
     "missingFallback": "Anything a language doesn't have yet is shown in English."
+  },
+  "settings": {
+    "title": "Settings",
+    "pages": {
+      "general": "General",
+      "timeline": "Timeline",
+      "shortcuts": "Keyboard shortcuts"
+    },
+    "language": "Language",
+    "preview": "Preview",
+    "previewVolume": "Preview volume",
+    "previewVolumeHint": "How loud the preview plays. Exported videos are not affected.",
+    "autoImportHint": "When on, using a preset imports the files it needs without asking first.",
+    "layout": "Window layout",
+    "layoutHint": "Puts every window back where it started.",
+    "layoutDone": "The layout has been reset.",
+    "clipColors": "Clip colors",
+    "clipColorsHint": "The color of each kind of clip on the timeline. Pick any color: on light colors, waveforms and subtitle blocks are drawn dark so they stay easy to see.",
+    "resetColors": "Reset all colors",
+    "resetColor": "Back to the default color"
   },
   "dialogs": {
     "importMedia": "Import media",

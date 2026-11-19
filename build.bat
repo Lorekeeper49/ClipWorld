@@ -15,11 +15,11 @@ if errorlevel 1 (
   goto :fail
 )
 
-rem A running copy locks its own files and would make the build fail.
-tasklist /FI "IMAGENAME eq ClipWorld.exe" 2>nul | find /I "ClipWorld.exe" >nul
-if not errorlevel 1 (
-  echo ClipWorld is running from dist. Close it first, then run this again.
-  goto :fail
+rem Anything holding the last build's files open (a running ClipWorld, an editor, OneDrive uploading it)
+rem would make the build fail half way. Check first and say exactly which program it is.
+if exist dist\win-unpacked (
+  powershell -NoProfile -ExecutionPolicy Bypass -File scripts\check-unlocked.ps1 dist\win-unpacked
+  if errorlevel 1 goto :fail
 )
 
 if not exist node_modules (

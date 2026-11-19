@@ -68,6 +68,9 @@ if "%NOTEST%"=="0" (
   call npm test || goto :fail
 )
 
+echo === Checking nothing has the last build open ===
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\check-unlocked.ps1 dist\win-unpacked dist\linux-unpacked dist\linux-arm64-unpacked || goto :fail
+
 echo === Bundling ===
 call npx electron-vite build || goto :fail
 

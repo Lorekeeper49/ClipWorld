@@ -1,0 +1,18 @@
+{
+  // Build output and downloads: nothing to edit here, and an editor that looks inside dist can open
+  // app.asar (Electron treats it as a folder) and keep it locked, which breaks the next build.
+  "files.watcherExclude": {
+    "**/dist/**": true,
+    "**/release/**": true,
+    "**/out/**": true,
+    "**/vendor/**": true,
+    "**/tests/.tmp/**": true
+  },
+  "search.exclude": {
+    "**/dist": true,
+    "**/release": true,
+    "**/out": true,
+    "**/vendor": true,
+    "**/tests/.tmp": true
+  }
+}

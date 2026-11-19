@@ -18,7 +18,7 @@ Needs Node.js 22 or newer. ffmpeg comes from gyan.dev on Windows and from FFmpeg
 
 ### Windows
 
-`build.bat` builds `dist\win-unpacked\ClipWorld.exe` and starts it. `build.bat nolaunch` only builds, and `build.bat installer` makes the installer (bundles ffmpeg, registers `.vcws` files). The npm equivalents are `npm run package:dir` and `npm run package`.
+`build.bat` builds `dist\win-unpacked\ClipWorld.exe` and starts it. `build.bat nolaunch` only builds, and `build.bat installer` makes the installer (bundles ffmpeg, registers `.vcws` files). The npm equivalents are `npm run package:dir` and `npm run package`. Before building, it checks that no program still has the last build open (Windows can't replace an open file) and names any that do, such as a running ClipWorld, an editor or OneDrive still uploading it.
 
 ### Linux
 

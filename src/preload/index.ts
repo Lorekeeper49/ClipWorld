@@ -25,6 +25,11 @@ const api: Api = {
 
   listFonts: () => ipcRenderer.invoke('fonts:list'),
 
+  listPresets: () => ipcRenderer.invoke('presets:list'),
+  savePreset: (preset) => ipcRenderer.invoke('presets:save', preset),
+  deletePreset: (id) => ipcRenderer.invoke('presets:delete', id),
+  filesExist: (paths) => ipcRenderer.invoke('files:exist', paths),
+
   pickSubtitleFiles: () => ipcRenderer.invoke('subtitles:pick'),
   readSubtitleFile: (path, fps) => ipcRenderer.invoke('subtitles:read', path, fps),
   listSubtitleStreams: (path) => ipcRenderer.invoke('subtitles:streams', path),

@@ -2,6 +2,7 @@
 import type { Caps } from './filtergraph'
 import type { ExportSettings } from './formats'
 import type { MediaItem, Project, SubtitleCue } from './model'
+import type { Preset } from './presets'
 
 /** Waveform peak resolution of the cached peak files (one unsigned byte per window). */
 export const PEAKS_PER_SECOND = 50
@@ -67,6 +68,8 @@ export interface AppSettings {
   subtitlesPanelAdded?: boolean
   /** Interface language code ("ja"), or "system" / unset to follow the operating system. */
   language?: string
+  /** Import a preset's missing media without asking. */
+  autoImportPresetMedia?: boolean
 }
 
 export interface AppInfo {
@@ -158,6 +161,12 @@ export interface Api {
   pathForFile(file: File): string
 
   listFonts(): Promise<string[]>
+
+  listPresets(): Promise<Preset[]>
+  savePreset(preset: Preset): Promise<void>
+  deletePreset(id: string): Promise<void>
+  /** Whether each file exists. */
+  filesExist(paths: string[]): Promise<boolean[]>
 
   /** Asks for subtitle files to import. */
   pickSubtitleFiles(): Promise<string[]>

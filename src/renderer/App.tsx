@@ -3,6 +3,8 @@ import { MenuBar } from './components/MenuBar'
 import { Btn, Modal } from './components/ui'
 import { ExportDialog } from './dialogs/ExportDialog'
 import { LanguageDialog } from './dialogs/LanguageDialog'
+import { PresetImportDialog } from './dialogs/PresetImportDialog'
+import { loadPresets } from './state/presets'
 import { ShortcutsDialog } from './dialogs/ShortcutsDialog'
 import { applyLanguage, tx, useT } from './i18n'
 import { player } from './engine/player'
@@ -71,6 +73,7 @@ export function App() {
       if (disposed) return
       set({ settings: info.settings, caps: info.caps, ffmpegVersion: info.ffmpegVersion })
       applyLanguage(info.settings.language, info.systemLanguages)
+      void loadPresets()
       // Installed fonts, so new text and subtitles default to one this computer actually has.
       void window.cw.listFonts().then((fonts) => {
         if (fonts.length && !disposed) set({ fonts })
@@ -136,6 +139,7 @@ export function App() {
       {modal === 'close' && <CloseDialog />}
       {modal === 'about' && <AboutDialog />}
       {modal === 'language' && <LanguageDialog />}
+      {modal === 'presetImport' && <PresetImportDialog />}
       <Toasts />
     </div>
   )

@@ -9,6 +9,7 @@ import {
 import { groupOf, stretchClip } from '@shared/timeline-ops'
 import { Btn, Color, Field, Icon, Num, Section, Select, Slider, Toggle, useDismiss } from '../components/ui'
 import { FontPicker } from '../components/FontPicker'
+import { PresetsTool } from './PresetsTool'
 import { t, useT } from '../i18n'
 import { addTextAction, importPaths } from '../state/actions'
 import { edit, mediaOf, primaryClip, set, toast, useStore } from '../state/store'
@@ -316,6 +317,7 @@ export function ToolsPanel() {
   return (
     <div className="panel tools-panel scroll" data-panel="tools">
       <TextTool clip={clip} />
+      <PresetsTool />
       {!clip && (
         <div className="empty small">
           <Icon name="sparkle" size={22} />

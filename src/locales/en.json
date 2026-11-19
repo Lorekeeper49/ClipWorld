@@ -489,6 +489,35 @@
       "remove": "Remove"
     }
   },
+  "presets": {
+    "title": "Presets",
+    "selectHint": "Select clips on the timeline to save them as a preset.",
+    "empty": "No presets yet. Saved presets can be used in any project.",
+    "defaultName": "Preset {{n}}",
+    "save_one": "Save {{count}} clip",
+    "save_other": "Save {{count}} clips",
+    "saved": "Saved preset “{{name}}”",
+    "rename": "Click to rename",
+    "clips_one": "{{count}} clip",
+    "clips_other": "{{count}} clips",
+    "files_one": "{{count}} file",
+    "files_other": "{{count}} files",
+    "apply": "Use",
+    "applyHint": "Add this preset to the timeline at the playhead",
+    "applied": "Added preset “{{name}}”",
+    "partly_one": "Added “{{name}}” without the clips of {{count}} file that could not be imported",
+    "partly_other": "Added “{{name}}” without the clips of {{count}} files that could not be imported",
+    "delete": "Delete preset",
+    "confirmDelete": "Delete?",
+    "autoImport": "Auto import media when using presets",
+    "importTitle": "Use preset “{{name}}”",
+    "importQuestion": "The following files need to be imported to use this preset, would you like to import them now?",
+    "notFound": "File not found",
+    "missingHint_one": "{{count}} file is no longer where it was saved from. It will be added as missing media: use Locate in the Media window to find it.",
+    "missingHint_other": "{{count}} files are no longer where they were saved from. They will be added as missing media: use Locate in the Media window to find them.",
+    "yes": "Yes",
+    "no": "No"
+  },
   "effects": {
     "groups": {
       "Color": "Color",

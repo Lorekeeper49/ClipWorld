@@ -16,6 +16,7 @@ import { extractSubtitleStream, listSubtitleStreams, readSubtitleFile } from './
 import { SUBTITLE_IMPORT_EXTS } from '@shared/subtitles'
 import { allowFile, handleProtocol, registerScheme } from './protocol'
 import { addRecent, flushSettings, loadSettings, saveSettings } from './settings'
+import { deletePreset, listPresets, savePreset } from './presets'
 import { resolveLanguage, setLanguage, t } from '@shared/i18n'
 
 const isDev = !!process.env['ELECTRON_RENDERER_URL']
@@ -291,6 +292,11 @@ function registerIpc(): void {
   })
 
   ipcMain.handle('fonts:list', () => listFonts())
+
+  ipcMain.handle('presets:list', () => listPresets())
+  ipcMain.handle('presets:save', (_e, preset) => savePreset(preset))
+  ipcMain.handle('presets:delete', (_e, id: string) => deletePreset(id))
+  ipcMain.handle('files:exist', (_e, paths: string[]) => paths.map((p) => existsSync(p)))
 
   ipcMain.handle('subtitles:pick', async () => {
     const test = testDialogAnswer('open')

@@ -467,3 +467,18 @@ html:lang(ja) body { font-family: "Segoe UI Variable Text", "Segoe UI", "Yu Goth
 .language-row input { accent-color: var(--accent); margin: 0; }
 .language-name { flex: 1 0 auto; white-space: nowrap; }
 .language-row .dim { flex: 0 1 auto; text-align: right; }
+
+/* Presets (Tools window) */
+.preset-save { display: flex; gap: 6px; align-items: center; }
+.preset-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.preset-row { display: flex; align-items: center; gap: 6px; background: var(--raised); border: 1px solid var(--border); border-radius: 8px; padding: 5px 6px; }
+.preset-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.preset-name { width: 100%; min-width: 0; background: transparent; border-color: transparent; }
+.preset-name:hover { border-color: var(--border); }
+.preset-files { list-style: none; margin: 0; padding: 6px 8px; display: flex; flex-direction: column; gap: 4px; background: #12141a; border: 1px solid var(--border); border-radius: 6px; max-height: 220px; overflow-y: auto; }
+.preset-files li { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.preset-files li.bad { color: var(--danger); }
+.preset-file-name { flex: none; font-weight: 600; }
+.preset-file-path { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.modal-foot .preset-always { margin-right: auto; display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 12.5px; }
+.preset-always input { accent-color: var(--accent); width: 15px; height: 15px; margin: 0; }

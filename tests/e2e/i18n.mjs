@@ -123,6 +123,8 @@ async function untranslated(page, label) {
 async function sweep(page, label) {
   const problems = []
   const scan = async (what) => problems.push(...(await untranslated(page, `${label} · ${what}`)))
+  // Toasts shown before the language changed stay in the language they were shown in.
+  await page.evaluate(() => window.__cw.set({ toasts: [] }))
   // Each dock group shows one tab at a time: click through every tab.
   const tabs = await page.locator('.dv-tab').count()
   for (let i = 0; i < tabs; i++) {
@@ -144,12 +146,17 @@ async function sweep(page, label) {
     await scan(`${menu} menu`)
     await page.keyboard.press('Escape')
   }
-  for (const modal of ['export', 'shortcuts', 'about', 'language', 'close']) {
-    await page.evaluate((modal) => window.__cw.set({ modal, pendingAfterClose: () => {} }), modal)
+  for (const modal of ['export', 'shortcuts', 'about', 'language', 'close', 'presetImport']) {
+    await page.evaluate((modal) => {
+      const media = window.__cw.get().project.media
+      // The preset question, listing one file that exists and one that has moved.
+      const presetPrompt = { presetName: 'clip', files: media.map((item, i) => ({ item, exists: i === 0 })), answer: () => {} }
+      window.__cw.set({ modal, pendingAfterClose: () => {}, presetPrompt })
+    }, modal)
     await page.waitForSelector('.modal')
     await scan(`${modal} dialog`)
     await page.screenshot({ path: join(shots, `i18n-${label}-${modal}.png`) })
-    await page.evaluate(() => window.__cw.set({ modal: null, pendingAfterClose: null }))
+    await page.evaluate(() => window.__cw.set({ modal: null, pendingAfterClose: null, presetPrompt: null }))
   }
   // Every toast and status message is a message too; trigger a few.
   await page.evaluate(async (f) => {
@@ -188,6 +195,8 @@ await page.evaluate(async (f) => {
     c.zoom.enabled = true
   })
   set({ selection: [video.id] })
+  // A saved preset, so the Presets section shows one.
+  await window.__cw.presets.savePresetAction('clip')
 }, files)
 await page.waitForFunction(() => window.__cw.get().project.media.every((m) => window.__cw.get().mediaCache[m.id]?.posterUrl || m.kind === 'audio'), null, { timeout: 30000 }).catch(() => {})
 

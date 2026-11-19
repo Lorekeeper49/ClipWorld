@@ -7,6 +7,7 @@ import type { Caps } from '@shared/filtergraph'
 import type { AppSettings, MediaCache } from '@shared/ipc'
 import { type Clip, type MediaItem, type Project, newProject } from '@shared/model'
 import type { ClipboardData } from '@shared/timeline-ops'
+import type { Preset } from '@shared/presets'
 
 enablePatches()
 
@@ -17,7 +18,7 @@ interface HistoryEntry {
   time: number
 }
 
-export type Modal = null | 'export' | 'shortcuts' | 'close' | 'about' | 'language'
+export type Modal = null | 'export' | 'shortcuts' | 'close' | 'about' | 'language' | 'presetImport'
 
 export interface Toast {
   id: number
@@ -65,6 +66,10 @@ export interface State {
   toasts: Toast[]
   /** The interface language being shown (a resolved code such as "ja", never "system"). */
   lang: string
+  /** Saved presets (shared by every project). */
+  presets: Preset[]
+  /** The question asked before importing a preset's media. */
+  presetPrompt: { presetName: string; files: { item: MediaItem; exists: boolean }[]; answer: (yes: boolean) => void } | null
 }
 
 export const useStore = create<State>(() => ({
@@ -93,7 +98,9 @@ export const useStore = create<State>(() => ({
   modal: null,
   pendingAfterClose: null,
   toasts: [],
-  lang: 'en'
+  lang: 'en',
+  presets: [],
+  presetPrompt: null
 }))
 
 export const get = useStore.getState

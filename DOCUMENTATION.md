@@ -2,7 +2,7 @@
 
 This guide explains everything ClipWorld can do, in plain words. You don't need to read it from top to bottom: jump to whatever you need.
 
-Please note, this guide is edited at the same as the editor itself, this means there may be features listed here that don't currently exist in the latest released version.  Keep this in mind.
+> **Note:** This guide is updated while ClipWorld is being developed, not only when a new version is released. So it may describe features that aren't in the latest release yet. If something here is missing from your copy of ClipWorld, it will arrive in a future version. To see what a particular version includes, check its release notes on GitHub.
 
 - [The basics](#the-basics)
 - [Your first edit, step by step](#your-first-edit-step-by-step)

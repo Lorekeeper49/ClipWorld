@@ -1,5 +1,7 @@
 # ClipWorld
 
+**New to ClipWorld? Read the [User Guide](DOCUMENTATION.md)**: every feature explained in plain words.
+
 A desktop video editor built on ffmpeg. Electron + TypeScript + React.
 
 While I vow to keep this free forever, your support helps me create many things to help others out with whatever issues they may be dealing with, so if you'd like to donate to me, do so with the following link, it'll mean a lot: https://ko-fi.com/lorekeeper49

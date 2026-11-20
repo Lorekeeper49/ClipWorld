@@ -198,7 +198,8 @@ The Tools window changes the selected clip. Each part folds open and closed by c
   - **Scale:** makes it bigger or smaller (100% is normal).
   - **Rotation:** turns it, in degrees.
   - **Opacity:** how see-through it is (100% is solid, 0% is invisible).
-- **Animate from start to end:** gives you a **Start** and an **End** value for each setting, and the clip moves smoothly from one to the other over its length. This is how you make picture-in-picture slides, spins and fades.
+  - **Crop left / right / top / bottom:** hides that much of each edge of the clip, as a percentage of its width or height. The clip keeps its size and place; the cropped part simply shows whatever is underneath. Effects such as a drop shadow follow the cropped shape.
+- **Animate from start to end:** gives you a **Start** and an **End** value for each setting, and the clip moves smoothly from one to the other over its length. This is how you make picture-in-picture slides, spins and fades. Animating a crop makes wipes and reveals.
 - The reset button puts everything back to normal.
 
 **Mask**
@@ -211,13 +212,27 @@ The Tools window changes the selected clip. Each part folds open and closed by c
 
 #### Easing
 
-Easing controls how an animation speeds up and slows down:
+Easing controls how an animation speeds up and slows down. Click the **Ease** field (in Transform or Zoom on video) to open the easing graph.
 
+**Ready-made curves**
 - **Linear:** the same speed from start to finish.
-- **Ease in:** starts slowly, then speeds up.
-- **Ease out:** starts quickly, then slows down to a gentle stop.
-- **Ease in-out:** slow at both ends, faster in the middle. This usually looks the most natural.
-- **(strong)** versions do the same thing, more noticeably.
+- Every curve from [easings.net](https://easings.net/), in ten families, each with three kinds:
+  - **In:** starts slowly, then speeds up.
+  - **Out:** starts quickly, then slows down to a stop.
+  - **In-out:** slow at both ends, faster in the middle. This usually looks the most natural.
+- The families go from gentle to dramatic: **Sine**, **Quad**, **Cubic**, **Quart**, **Quint** and **Expo** are increasingly strong; **Circ** is sharp at one end; **Back** goes a little past the end and comes back; **Elastic** wobbles like a spring; **Bounce** bounces like a dropped ball.
+
+**The graph**
+- Time runs left to right, and the value runs from the start value (0) up to the end value (1). Above 1 means going past the end (overshoot).
+- The dot under the graph moves with the curve, over and over, so you can see what the motion feels like.
+- **Drag a point** to move it, and **drag its handles** (the round dots on lines) to shape the curve around it. Hold **Alt** to move one handle on its own and make a sharp corner.
+- **Double-click** the graph to add a point. **Right-click** a point, or select it and press **Delete**, to remove it.
+- The first and last points always stay at the start and the end.
+- Editing a ready-made curve makes your own copy, called **Custom curve**. The ready-made one is never changed.
+
+**Your presets**
+- **Save as preset…** keeps the current curve under a name you choose, in **My presets** at the top of the list. They're available in every project.
+- The trash button next to one deletes it. Clips already using that curve keep it.
 
 ### Properties
 

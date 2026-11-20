@@ -1,6 +1,6 @@
 // Turns a project into an ffmpeg invocation: input arguments, a filter_complex script and output
 // arguments. Pure — the caller writes the script to disk and spawns ffmpeg.
-import { animExpr, clamp, num, transformAt } from './easing'
+import { CROP_SIDES, animExpr, clamp, cropBox, hasCrop, num, transformAt } from './easing'
 import {
   EFFECT_MAP, SAMPLE_RATE, atempoChain, audioEffectFfmpeg, b, cssEffectFfmpeg, n, parseColor, s
 } from './effects'
@@ -378,6 +378,37 @@ function buildVisualLayer(g: Graph, c: Clip, p: Project, assets: ExportAssets): 
     )
     chain = new Chain(g, out)
     if (Math.min(z.start, z.end) < 1) alpha = true
+  }
+
+  // ---- crop: transparent edges, after zoom and before the shadow (as in the preview)
+  if (hasCrop(c.transform)) {
+    const tr = c.transform
+    const s0 = tr.start
+    const s1 = tr.animate ? tr.end : tr.start
+    // drawbox reads a width or height of 0 as "the whole frame", so an empty side sits off-frame instead.
+    const geom = (side: (typeof CROP_SIDES)[number], v: number) => cropBox(side, v, W0, H0) ?? { x: -W0 - 10, y: 0, w: 1, h: 1 }
+    const opts = (b: { x: number; y: number; w: number; h: number }) => `x=${b.x}:y=${b.y}:w=${b.w}:h=${b.h}`
+    for (const side of CROP_SIDES) {
+      if (s0[side] <= 0 && s1[side] <= 0) continue
+      if (s0[side] === s1[side]) {
+        chain.add(`drawbox=${opts(geom(side, s0[side]))}:color=black@0:replace=1:t=fill`)
+        continue
+      }
+      // Animated: send the box's new geometry on every frame where it changes.
+      const id = `drawbox@${side}${g.label('').replace(/\W/g, '')}`
+      const frames = Math.max(1, Math.ceil(D * fps))
+      const cmds: string[] = []
+      let last = ''
+      for (let f = 0; f <= frames; f++) {
+        const b = geom(side, transformAt(tr, f / fps, D)[side])
+        const key = opts(b)
+        if (key === last) continue
+        last = key
+        cmds.push(`${num(f / fps, 5)} ${id} x ${b.x}, ${id} y ${b.y}, ${id} w ${b.w}, ${id} h ${b.h}`)
+      }
+      chain.add(`sendcmd=c='${cmds.join(';')}'`, `${id}=${opts(geom(side, s0[side]))}:color=black@0:replace=1:t=fill`)
+    }
+    alpha = true
   }
 
   // ---- drop shadow

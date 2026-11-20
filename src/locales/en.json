@@ -4,7 +4,9 @@
     "starting": "Starting ClipWorld…",
     "ffmpegNotFound": "ffmpeg not found",
     "noFfmpeg": "ffmpeg was not found, so importing and exporting are unavailable. Run {{command}} in the project folder, then restart.",
-    "restored": "Restored unsaved work from your last session"
+    "restored": "Restored unsaved work from your last session",
+    "crashed": "Something went wrong in this window. The rest of ClipWorld still works, and your project is safe.",
+    "tryAgain": "Try again"
   },
   "common": {
     "cancel": "Cancel",
@@ -458,7 +460,11 @@
         "y": "Position Y",
         "scale": "Scale",
         "rotation": "Rotation",
-        "opacity": "Opacity"
+        "opacity": "Opacity",
+        "cropLeft": "Crop left",
+        "cropRight": "Crop right",
+        "cropTop": "Crop top",
+        "cropBottom": "Crop bottom"
       }
     },
     "zoom": {
@@ -830,12 +836,42 @@
   },
   "easing": {
     "linear": "Linear",
-    "easeIn": "Ease in",
-    "easeOut": "Ease out",
-    "easeInOut": "Ease in-out",
-    "easeInCubic": "Ease in (strong)",
-    "easeOutCubic": "Ease out (strong)",
-    "easeInOutCubic": "Ease in-out (strong)"
+    "named": "{{family}} · {{kind}}",
+    "families": {
+      "Sine": "Sine",
+      "Quad": "Quad",
+      "Cubic": "Cubic",
+      "Quart": "Quart",
+      "Quint": "Quint",
+      "Expo": "Expo",
+      "Circ": "Circ",
+      "Back": "Back",
+      "Elastic": "Elastic",
+      "Bounce": "Bounce"
+    },
+    "kinds": {
+      "In": "In",
+      "Out": "Out",
+      "InOut": "In-out"
+    }
+  },
+  "easeEditor": {
+    "title": "Easing",
+    "open": "Change how this animation speeds up and slows down",
+    "custom": "Custom curve",
+    "mine": "My presets",
+    "mineEmpty": "Curves you save appear here.",
+    "basic": "Basic",
+    "time": "Time",
+    "value": "Value",
+    "hint": "Drag the points and handles. Double-click to add a point; right-click it or press Delete to remove it. Alt+drag a handle to move it on its own.",
+    "removePoint": "Remove point",
+    "builtInHint": "Drag any point to start editing a copy of it.",
+    "motion": "How the motion looks",
+    "savePreset": "Save as preset…",
+    "defaultName": "My curve {{n}}",
+    "saved": "Saved easing preset “{{name}}”",
+    "deletePreset": "Delete this preset"
   },
   "formats": {
     "containers": {

@@ -3,8 +3,10 @@
     "untitled": "無題",
     "starting": "ClipWorld を起動しています…",
     "ffmpegNotFound": "ffmpeg が見つかりません",
-    "noFfmpeg": "ffmpeg が見つからないため、読み込みと書き出しは使用できません。プロジェクトのフォルダーで {{command}} を実行してから、再起動してください。",
-    "restored": "前回のセッションで保存されていなかった作業を復元しました"
+    "noFfmpeg": "ffmpeg が見つからないため、インポートとエクスポートは使用できません。プロジェクトのフォルダーで {{command}} を実行してから、再起動してください。",
+    "restored": "前回のセッションで保存されていなかった作業を復元しました",
+    "crashed": "このウィンドウで問題が発生しました。ClipWorld の他の部分は引き続き使え、プロジェクトも無事です。",
+    "tryAgain": "もう一度試す"
   },
   "common": {
     "cancel": "キャンセル",
@@ -21,8 +23,8 @@
     "edit": "編集",
     "window": "ウィンドウ",
     "help": "ヘルプ",
-    "importSubtitles": "字幕を読み込む…",
-    "exportSubtitles": "字幕を書き出す…",
+    "importSubtitles": "字幕をインポート…",
+    "exportSubtitles": "字幕をエクスポート…",
     "exit": "終了",
     "settings": "設定…",
     "shortcuts": "キーボードショートカット…",
@@ -70,8 +72,8 @@
       "open": "プロジェクトを開く…",
       "save": "保存",
       "saveAs": "名前を付けて保存…",
-      "import": "メディアを読み込む…",
-      "export": "書き出し…"
+      "import": "メディアをインポート…",
+      "export": "エクスポート…"
     },
     "edit": {
       "undo": "元に戻す",
@@ -116,7 +118,7 @@
   "about": {
     "title": "ClipWorld について",
     "tagline": "ffmpeg を使った動画編集ソフトです。",
-    "ffmpeg": "読み込み、音声の抽出、プロキシ、サムネイル、書き出しは ffmpeg {{version}} が行います。",
+    "ffmpeg": "インポート、音声の抽出、プロキシ、サムネイル、エクスポートは ffmpeg {{version}} が行います。",
     "projects": "プロジェクトは .vcws ファイルとして保存されます。"
   },
   "language": {
@@ -137,8 +139,8 @@
     "language": "言語",
     "preview": "プレビュー",
     "previewVolume": "プレビューの音量",
-    "previewVolumeHint": "プレビューを再生するときの音量です。書き出す動画には影響しません。",
-    "autoImportHint": "オンにすると、プリセットを使うときに必要なファイルを確認なしで読み込みます。",
+    "previewVolumeHint": "プレビューを再生するときの音量です。エクスポートする動画には影響しません。",
+    "autoImportHint": "オンにすると、プリセットを使うときに必要なファイルを確認なしでインポートします。",
     "layout": "ウィンドウのレイアウト",
     "layoutHint": "すべてのウィンドウを最初の位置に戻します。",
     "layoutDone": "レイアウトをリセットしました。",
@@ -148,20 +150,20 @@
     "resetColor": "既定の色に戻す"
   },
   "dialogs": {
-    "importMedia": "メディアを読み込む",
+    "importMedia": "メディアをインポート",
     "mediaFiles": "メディア",
     "allFiles": "すべてのファイル",
     "locate": "{{name}} の場所を指定",
-    "importSubtitles": "字幕を読み込む",
+    "importSubtitles": "字幕をインポート",
     "subtitleFiles": "字幕",
-    "exportSubtitles": "字幕を書き出す",
+    "exportSubtitles": "字幕をエクスポート",
     "openProject": "プロジェクトを開く",
     "saveProject": "プロジェクトを保存",
     "projectFiles": "ClipWorld プロジェクト",
-    "exportVideo": "動画を書き出す"
+    "exportVideo": "動画をエクスポート"
   },
   "errors": {
-    "exportRunning": "書き出しはすでに実行中です",
+    "exportRunning": "エクスポートはすでに実行中です",
     "ffmpegMissing": "ffmpeg が見つかりません。「npm run fetch-ffmpeg」を実行するか、設定で場所を指定してください。",
     "cancelled": "キャンセルされました",
     "ffmpegFailed": "ffmpeg が失敗しました（終了コード {{code}}）",
@@ -176,28 +178,28 @@
     "alreadyConverting": "すでに変換中です"
   },
   "media": {
-    "import": "読み込む",
+    "import": "インポート",
     "items_other": "{{count}} 個",
-    "emptyTitle": "動画、音声、画像を読み込みましょう",
-    "emptyHint": "ここにファイルをドロップするか、「読み込む」を使ってください。動画のオーディオトラックは自動的に抽出されます。",
+    "emptyTitle": "動画、音声、画像をインポートしましょう",
+    "emptyHint": "ここにファイルをドロップするか、「インポート」を使ってください。動画のオーディオトラックは自動的に抽出されます。",
     "mp4Tip": "最もなめらかに再生するには MP4 ファイルをおすすめします。",
     "audioN": "オーディオ {{n}}",
     "status": {
       "missing": "ファイルが見つかりません",
       "converting": "MP4 に変換中 {{percent}}%",
       "buildingPreview": "プレビューを作成中 {{percent}}%",
-      "previewUnavailable": "プレビューできません（書き出しは可能です）",
+      "previewUnavailable": "プレビューできません（エクスポートは可能です）",
       "extractingAudio": "音声を抽出中 {{percent}}%",
       "optimizing": "高速シーク用に最適化中 {{percent}}%",
       "optimized": "高速シーク用に最適化済み"
     },
     "dragHint": "タイムラインにドラッグするか、ダブルクリックで再生ヘッドの位置に追加します",
-    "optimizingHint": "作業中の位置から、シークしやすいプレビュー用コピーをバックグラウンドで作成しています。その間、再生と書き出しには元のファイルを使います。",
+    "optimizingHint": "作業中の位置から、シークしやすいプレビュー用コピーをバックグラウンドで作成しています。その間、再生とエクスポートには元のファイルを使います。",
     "used": "{{count}} 回使用",
     "convert": "MP4 に変換",
     "convertHint": "元のファイルの隣に MP4 のコピーを保存し、このプロジェクトで使います。プレビューでは MP4 が最もなめらかに再生されます。\n可能な場合は再エンコードせずにストリームをコピーします。{{name}} 自体は変更されません。",
     "fastSeekOn": "高速シーク用に最適化",
-    "fastSeekHint": "この動画のシークが遅い、またはカクつきますか？作業中の位置から 720p のプレビュー用コピーをバックグラウンドで作成し、タイムライン上をすばやく移動できるようにします。動画 1 時間あたり約 0.5 GB を使用します。書き出しには常に元のファイルを使います。",
+    "fastSeekHint": "この動画のシークが遅い、またはカクつきますか？作業中の位置から 720p のプレビュー用コピーをバックグラウンドで作成し、タイムライン上をすばやく移動できるようにします。動画 1 時間あたり約 0.5 GB を使用します。エクスポートには常に元のファイルを使います。",
     "fastSeekStop": "最適化を停止",
     "fastSeekStopHint": "高速シーク用コピーの作成を停止します。完成した部分は残るので、再びオンにすると続きから再開します。",
     "fastSeekOff": "高速シークをオフにする",
@@ -213,7 +215,7 @@
   "preview": {
     "play": "再生",
     "pause": "一時停止",
-    "volumeHint": "プレビューの音量（書き出しには影響しません）",
+    "volumeHint": "プレビューの音量（エクスポートには影響しません）",
     "mute": "プレビューをミュート"
   },
   "audio": {
@@ -227,7 +229,7 @@
     "level": "出力レベル"
   },
   "metadata": {
-    "exportFrame": "書き出しフレーム",
+    "exportFrame": "エクスポートフレーム",
     "resolution": "解像度",
     "size": "サイズ",
     "frameRate": "フレームレート",
@@ -239,7 +241,7 @@
       "square": "正方形"
     },
     "match": "「{{name}}」に合わせる",
-    "applyHint": "変更はプレビューと書き出しにすぐ反映されます。タイムラインの長さ: {{length}}。",
+    "applyHint": "変更はプレビューとエクスポートにすぐ反映されます。タイムラインの長さ: {{length}}。",
     "source": "ソースファイル",
     "name": "名前",
     "folder": "フォルダー",
@@ -281,7 +283,7 @@
     "none": "一致するフォントがありません"
   },
   "export": {
-    "title": "書き出し",
+    "title": "エクスポート",
     "format": "形式",
     "videoCodec": "映像コーデック",
     "encoder": "エンコーダー",
@@ -303,35 +305,35 @@
     "metadataHint": "解像度とフレームレートはメタデータウィンドウで設定します。",
     "starting": "開始しています…",
     "eta": "残り約 {{time}}",
-    "cancel": "書き出しをキャンセル",
-    "finished": "書き出しが完了しました",
-    "cancelled": "書き出しはキャンセルされました",
-    "failed": "書き出しに失敗しました",
+    "cancel": "エクスポートをキャンセル",
+    "finished": "エクスポートが完了しました",
+    "cancelled": "エクスポートはキャンセルされました",
+    "failed": "エクスポートに失敗しました",
     "showInFolder": "フォルダーに表示",
-    "again": "もう一度書き出す"
+    "again": "もう一度エクスポート"
   },
   "subtitles": {
     "defaultTrackName": "字幕",
     "defaultTrackNameN": "字幕 {{n}}",
     "languageUnspecified": "その他 / 指定なし",
     "emptyTitle": "字幕を作成",
-    "emptyHint": "ここに入力するか、字幕ファイルを読み込んでください。各トラックは字幕ファイルとして書き出せるほか、タイムラインに追加すると動画に入れられます。",
+    "emptyHint": "ここに入力するか、字幕ファイルをインポートしてください。各トラックは字幕ファイルとしてエクスポートできるほか、タイムラインに追加すると動画に入れられます。",
     "newTrack": "新しい字幕トラック",
     "deleteTrack": "この字幕トラックを削除（タイムライン上のクリップも削除されます）",
     "trackName": "トラック名",
     "toTimeline": "タイムラインに追加",
-    "toTimelineHint": "このトラックをクリップとしてタイムラインに配置します。字幕が書き出す動画に入り、移動、伸縮、トランスフォーム、エフェクトの追加ができるようになります。",
+    "toTimelineHint": "このトラックをクリップとしてタイムラインに配置します。字幕がエクスポートする動画に入り、移動、伸縮、トランスフォーム、エフェクトの追加ができるようになります。",
     "onTimeline": "タイムライン上",
     "onTimelineClips": "タイムライン上（クリップ {{count}} 個）",
     "onTimelineHint": "このトラックは動画に入っています。移動したりエフェクトを追加したりするには、タイムライン上のクリップを選択してください。",
-    "import": "読み込む",
+    "import": "インポート",
     "importFile": "字幕ファイル…（{{formats}}）",
     "searching": "動画の中の字幕トラックを探しています…",
     "noStreams": "プロジェクトの動画には字幕トラックが含まれていません。",
     "pictureBased": "画像ベースの字幕（DVD / Blu-ray）はテキストに変換できません",
     "streamName": "{{name}} の字幕",
     "trackN": "トラック {{n}}",
-    "exportFile": "ファイルに書き出す",
+    "exportFile": "ファイルにエクスポート",
     "timing": "タイミング",
     "timingTimeline": "動画に合わせる（タイムライン上のクリップの位置）",
     "timingOriginal": "元の字幕の時間",
@@ -390,8 +392,8 @@
     "saved": "プロジェクトを保存しました",
     "openFailed": "プロジェクトを開けませんでした: {{error}}",
     "saveFailed": "保存できませんでした: {{error}}",
-    "noFfmpeg": "ffmpeg が見つからないため、メディアを読み込めません。",
-    "alreadyImported": "すでに読み込まれています",
+    "noFfmpeg": "ffmpeg が見つからないため、メディアをインポートできません。",
+    "alreadyImported": "すでにインポートされています",
     "removed": "{{name}} を削除しました",
     "removedWithClips_other": "{{name}} と、タイムライン上のクリップ {{count}} 個を削除しました",
     "relinkFailed": "再リンクできませんでした: {{error}}",
@@ -402,10 +404,10 @@
     "trackDeleted": "字幕トラック「{{name}}」を削除しました",
     "selectSubtitle": "先に字幕を選択してください",
     "trackEmpty": "先にこのトラックに字幕を追加してください",
-    "subtitlesImported_other": "「{{name}}」に字幕を {{count}} 件読み込みました",
-    "importFailed": "{{name}} を読み込めませんでした: {{error}}",
-    "streamImportFailed": "{{name}} から字幕を読み込めませんでした: {{error}}",
-    "nothingToExport": "書き出せるテキスト付きの字幕がありません",
+    "subtitlesImported_other": "「{{name}}」に字幕を {{count}} 件インポートしました",
+    "importFailed": "{{name}} をインポートできませんでした: {{error}}",
+    "streamImportFailed": "{{name}} から字幕をインポートできませんでした: {{error}}",
+    "nothingToExport": "エクスポートできるテキスト付きの字幕がありません",
     "subtitlesSaved_other": "字幕 {{count}} 件を {{name}} に保存しました",
     "timelineEmpty": "タイムラインが空です"
   },
@@ -451,7 +453,11 @@
         "y": "位置 Y",
         "scale": "スケール",
         "rotation": "回転",
-        "opacity": "不透明度"
+        "opacity": "不透明度",
+        "cropLeft": "左をクロップ",
+        "cropRight": "右をクロップ",
+        "cropTop": "上をクロップ",
+        "cropBottom": "下をクロップ"
       }
     },
     "zoom": {
@@ -479,7 +485,7 @@
       }
     },
     "picker": {
-      "import": "ファイルを読み込む…",
+      "import": "ファイルをインポート…",
       "image": {
         "choose": "画像を選択…",
         "missing": "（見つかりません — 画像を選択してください）",
@@ -550,12 +556,12 @@
     "apply": "使う",
     "applyHint": "このプリセットを再生ヘッドの位置でタイムラインに追加",
     "applied": "プリセット「{{name}}」を追加しました",
-    "partly_other": "「{{name}}」を追加しましたが、読み込めなかったファイル {{count}} 個のクリップは含まれていません",
+    "partly_other": "「{{name}}」を追加しましたが、インポートできなかったファイル {{count}} 個のクリップは含まれていません",
     "delete": "プリセットを削除",
     "confirmDelete": "削除しますか？",
-    "autoImport": "プリセットを使うときにメディアを自動で読み込む",
+    "autoImport": "プリセットを使うときにメディアを自動でインポートする",
     "importTitle": "プリセット「{{name}}」を使う",
-    "importQuestion": "このプリセットを使うには、次のファイルを読み込む必要があります。今すぐ読み込みますか？",
+    "importQuestion": "このプリセットを使うには、次のファイルをインポートする必要があります。今すぐインポートしますか？",
     "notFound": "ファイルが見つかりません",
     "missingHint_other": "{{count}} 個のファイルが保存時の場所にありません。見つからないメディアとして追加されるので、メディアウィンドウの「ファイルの場所を指定」で探してください。",
     "yes": "はい",
@@ -818,12 +824,42 @@
   },
   "easing": {
     "linear": "リニア",
-    "easeIn": "イーズイン",
-    "easeOut": "イーズアウト",
-    "easeInOut": "イーズインアウト",
-    "easeInCubic": "イーズイン（強）",
-    "easeOutCubic": "イーズアウト（強）",
-    "easeInOutCubic": "イーズインアウト（強）"
+    "named": "{{family}} · {{kind}}",
+    "families": {
+      "Sine": "サイン",
+      "Quad": "2次",
+      "Cubic": "3次",
+      "Quart": "4次",
+      "Quint": "5次",
+      "Expo": "指数",
+      "Circ": "円形",
+      "Back": "バック",
+      "Elastic": "エラスティック",
+      "Bounce": "バウンス"
+    },
+    "kinds": {
+      "In": "イン",
+      "Out": "アウト",
+      "InOut": "インアウト"
+    }
+  },
+  "easeEditor": {
+    "title": "イージング",
+    "open": "このアニメーションの加速・減速の仕方を変更",
+    "custom": "カスタムカーブ",
+    "mine": "マイプリセット",
+    "mineEmpty": "保存したカーブがここに表示されます。",
+    "basic": "基本",
+    "time": "時間",
+    "value": "値",
+    "hint": "ポイントとハンドルをドラッグします。ダブルクリックでポイントを追加し、右クリックまたは Delete キーで削除します。Alt を押しながらハンドルをドラッグすると、片側だけ動かせます。",
+    "removePoint": "ポイントを削除",
+    "builtInHint": "いずれかのポイントをドラッグすると、そのコピーの編集を始めます。",
+    "motion": "動きのプレビュー",
+    "savePreset": "プリセットとして保存…",
+    "defaultName": "マイカーブ {{n}}",
+    "saved": "イージングプリセット「{{name}}」を保存しました",
+    "deletePreset": "このプリセットを削除"
   },
   "formats": {
     "containers": {

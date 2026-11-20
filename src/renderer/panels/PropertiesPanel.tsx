@@ -44,11 +44,11 @@ function SpeedSection({ clip }: { clip: Clip }) {
     }, { key: `${clip.id}:pitch` })
   return (
     <Section title={t('properties.speedPitch')} icon="film">
-      <Slider label={t('properties.speed')} value={clip.speed} min={0.1} max={8} step={0.01} display={100} unit="%" reset={1} mark={1}
+      <Slider label={t('properties.speed')} value={clip.speed} min={0.1} max={8} field={{ min: MIN_SPEED, max: MAX_SPEED }} step={0.01} display={100} unit="%" reset={1} mark={1}
         onChange={setSpeed} testId="prop-speed" />
       {audioClips.length > 0 && (
         <>
-          <Slider label={t('properties.pitch')} value={pitch} min={-12} max={12} step={0.1} unit="st" reset={0} mark={0}
+          <Slider label={t('properties.pitch')} value={pitch} min={-12} max={12} field={{ min: -24, max: 24 }} step={0.1} unit="st" reset={0} mark={0}
             onChange={setPitch} testId="prop-pitch" />
           <Toggle label={t('tools.speed.keepPitch')} value={clip.preservePitch}
             onChange={(v) => edit((p) => { for (const c of groupOf(p, p.clips.find((x) => x.id === clip.id)!)) c.preservePitch = v })} />

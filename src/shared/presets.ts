@@ -3,8 +3,8 @@
 // another project knows which files to import, and copies of the subtitle tracks its subtitle clips show.
 import { EFFECT_MAP } from './effects'
 import {
-  type Clip, type MediaItem, type Project, type SubtitleTrack, type TrackKind, clone, defaultSubtitleStyle, defaultTransform,
-  defaultZoom, makeClip, uid
+  type Clip, type MediaItem, type Project, type SubtitleTrack, type TrackKind, clone, defaultSubtitleStyle, makeClip,
+  normalizeAnimation, uid
 } from './model'
 import { type ClipboardData, copyClips, pasteClips } from './timeline-ops'
 
@@ -121,8 +121,7 @@ export function parsePreset(raw: unknown): Preset | null {
     clips: r.clips.map((c) => ({
       ...makeClip({ trackId: c.trackId, type: c.type, start: c.start, duration: c.duration }),
       ...c,
-      transform: { ...defaultTransform(), ...(c.transform ?? {}) },
-      zoom: { ...defaultZoom(), ...(c.zoom ?? {}) },
+      ...normalizeAnimation(c),
       effects: c.effects ?? []
     })),
     kinds: r.kinds ?? {},

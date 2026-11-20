@@ -19,7 +19,7 @@ interface HistoryEntry {
 }
 
 /** 'shortcuts' and 'language' open the Settings window at that page. */
-export type Modal = null | 'export' | 'settings' | 'shortcuts' | 'close' | 'about' | 'language' | 'presetImport'
+export type Modal = null | 'export' | 'settings' | 'shortcuts' | 'close' | 'about' | 'language' | 'presetImport' | 'ease'
 
 export interface Toast {
   id: number
@@ -69,6 +69,8 @@ export interface State {
   lang: string
   /** Saved presets (shared by every project). */
   presets: Preset[]
+  /** The ease shown in the easing graph: which clip, and its transform's or its zoom's. */
+  easeTarget: { clipId: string; field: 'transform' | 'zoom' } | null
   /** The question asked before importing a preset's media. */
   presetPrompt: { presetName: string; files: { item: MediaItem; exists: boolean }[]; answer: (yes: boolean) => void } | null
 }
@@ -101,7 +103,8 @@ export const useStore = create<State>(() => ({
   toasts: [],
   lang: 'en',
   presets: [],
-  presetPrompt: null
+  presetPrompt: null,
+  easeTarget: null
 }))
 
 export const get = useStore.getState

@@ -1,6 +1,7 @@
 // The dockable workspace: six panels the user can drag, tab, split, float and close.
 import { type DockviewApi, type DockviewMessages, DockviewReact, type DockviewReadyEvent, themeAbyss } from 'dockview-react'
 import 'dockview-react/dist/styles/dockview.css'
+import { ErrorBoundary } from '../components/ErrorBoundary'
 import { AudioPanel } from '../panels/AudioPanel'
 import { MediaPanel } from '../panels/MediaPanel'
 import { MetadataPanel } from '../panels/MetadataPanel'
@@ -22,15 +23,17 @@ export const PANELS = [
 
 export type PanelId = (typeof PANELS)[number]['id']
 
+/** Each window is drawn inside its own error boundary, so one crashing doesn't take the others with it. */
+const guarded = (Panel: () => React.ReactNode) => () => <ErrorBoundary><Panel /></ErrorBoundary>
 const components = {
-  media: MediaPanel,
-  subtitles: SubtitlesPanel,
-  preview: PreviewPanel,
-  tools: ToolsPanel,
-  properties: PropertiesPanel,
-  metadata: MetadataPanel,
-  audio: AudioPanel,
-  timeline: TimelinePanel
+  media: guarded(MediaPanel),
+  subtitles: guarded(SubtitlesPanel),
+  preview: guarded(PreviewPanel),
+  tools: guarded(ToolsPanel),
+  properties: guarded(PropertiesPanel),
+  metadata: guarded(MetadataPanel),
+  audio: guarded(AudioPanel),
+  timeline: guarded(TimelinePanel)
 }
 
 let api: DockviewApi | null = null

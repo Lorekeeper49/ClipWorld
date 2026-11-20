@@ -166,7 +166,7 @@ function StyleSection({ track }: { track: SubtitleTrack }) {
   return (
     <Section title={t('subtitles.style')} icon="text" defaultOpen={false}>
       <Field label={t('tools.text.font')}><FontPicker value={st.fontFamily} onChange={(f) => up('fontFamily', f)} /></Field>
-      <Slider label={t('tools.text.size')} value={st.fontSize} min={12} max={200} step={1} unit="px" onChange={(v) => up('fontSize', v)} />
+      <Slider label={t('tools.text.size')} value={st.fontSize} min={12} max={200} field={{ min: 1 }} step={1} unit="px" onChange={(v) => up('fontSize', v)} />
       <Field label={t('tools.text.style')}>
         <Btn small active={st.bold} onClick={() => up('bold', !st.bold)} title={t('tools.text.bold')}><b>B</b></Btn>
         <Btn small active={st.italic} onClick={() => up('italic', !st.italic)} title={t('tools.text.italic')}><i>I</i></Btn>
@@ -177,7 +177,7 @@ function StyleSection({ track }: { track: SubtitleTrack }) {
       </Field>
       <Color label={t('subtitles.textColor')} value={st.fill} onChange={(v) => up('fill', v)} />
       <Color label={t('tools.text.outline')} value={st.outline} onChange={(v) => up('outline', v)} />
-      <Slider label={t('tools.text.outlineWidth')} value={st.outlineWidth} min={0} max={20} step={0.5} unit="px" onChange={(v) => up('outlineWidth', v)} />
+      <Slider label={t('tools.text.outlineWidth')} value={st.outlineWidth} min={0} max={20} field={{ min: 0 }} step={0.5} unit="px" onChange={(v) => up('outlineWidth', v)} />
       <Toggle label={t('subtitles.box')} value={st.box} onChange={(v) => up('box', v)} />
       {st.box && (
         <>
@@ -190,9 +190,9 @@ function StyleSection({ track }: { track: SubtitleTrack }) {
           options={(['bottom', 'middle', 'top'] as const).map((value) => ({ value, label: t(`subtitles.positions.${value}`) }))} />
       </Field>
       {st.position !== 'middle' && (
-        <Slider label={t('subtitles.margin')} value={st.margin} min={0} max={0.4} step={0.005} display={100} unit="%" onChange={(v) => up('margin', v)} />
+        <Slider label={t('subtitles.margin')} value={st.margin} min={0} max={0.4} field={{ min: 0, max: 1 }} step={0.005} display={100} unit="%" onChange={(v) => up('margin', v)} />
       )}
-      <Slider label={t('subtitles.lineWidth')} value={st.maxWidth} min={0.2} max={1} step={0.01} display={100} unit="%" onChange={(v) => up('maxWidth', v)} />
+      <Slider label={t('subtitles.lineWidth')} value={st.maxWidth} min={0.2} max={1} field={{ min: 0.05, max: 1 }} step={0.01} display={100} unit="%" onChange={(v) => up('maxWidth', v)} />
     </Section>
   )
 }

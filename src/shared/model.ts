@@ -23,6 +23,7 @@ export interface AudioStreamInfo {
 }
 
 import type { ClipLoop } from './loop'
+import { normalizeEase } from './easing'
 
 export interface MediaItem {
   id: string
@@ -55,14 +56,25 @@ export interface ProjectSettings {
   fps: number
 }
 
-export type EaseName =
-  | 'linear'
-  | 'easeIn'
-  | 'easeOut'
-  | 'easeInOut'
-  | 'easeInCubic'
-  | 'easeOutCubic'
-  | 'easeInOutCubic'
+/** A built-in easing: 'linear' or an easings.net name such as 'easeOutBounce' (see easing.ts). */
+export type EaseName = string
+
+/** A point of a custom easing curve; handles are offsets from the point, in the graph's units. */
+export interface CurvePoint {
+  /** Time, 0..1. */
+  x: number
+  /** Progress at that time: 0 is the start value, 1 the end value (beyond them overshoots). */
+  y: number
+  in: [number, number]
+  out: [number, number]
+}
+
+/** A custom easing curve drawn in the easing graph. Starts at (0,0) and ends at (1,1). */
+export interface EaseCurve {
+  points: CurvePoint[]
+}
+
+export type Ease = EaseName | EaseCurve
 
 export interface TransformState {
   /** Offset from frame centre as a fraction of frame width. */
@@ -73,13 +85,18 @@ export interface TransformState {
   /** Degrees, clockwise. */
   rotation: number
   opacity: number
+  /** Crop: how much of each edge of the clip is hidden, as a fraction of its width or height. */
+  cropLeft: number
+  cropRight: number
+  cropTop: number
+  cropBottom: number
 }
 
 export interface TransformAnim {
   animate: boolean
   start: TransformState
   end: TransformState
-  ease: EaseName
+  ease: Ease
 }
 
 export interface ZoomAnim {
@@ -89,7 +106,7 @@ export interface ZoomAnim {
   /** Focal point inside the clip, 0..1. */
   focusX: number
   focusY: number
-  ease: EaseName
+  ease: Ease
 }
 
 export interface TextProps {
@@ -225,15 +242,15 @@ export function uid(prefix = ''): string {
 export const clone = <T>(o: T): T => JSON.parse(JSON.stringify(o)) as T
 
 export function defaultTransformState(): TransformState {
-  return { x: 0, y: 0, scale: 1, rotation: 0, opacity: 1 }
+  return { x: 0, y: 0, scale: 1, rotation: 0, opacity: 1, cropLeft: 0, cropRight: 0, cropTop: 0, cropBottom: 0 }
 }
 
 export function defaultTransform(): TransformAnim {
-  return { animate: false, start: defaultTransformState(), end: defaultTransformState(), ease: 'easeInOut' }
+  return { animate: false, start: defaultTransformState(), end: defaultTransformState(), ease: 'easeInOutQuad' }
 }
 
 export function defaultZoom(): ZoomAnim {
-  return { enabled: false, start: 1, end: 1.5, focusX: 0.5, focusY: 0.5, ease: 'easeInOut' }
+  return { enabled: false, start: 1, end: 1.5, focusX: 0.5, focusY: 0.5, ease: 'easeInOutQuad' }
 }
 
 export function defaultText(): TextProps {
@@ -325,6 +342,24 @@ export function fitSize(mw: number, mh: number, W: number, H: number): { w: numb
   return { w: Math.max(2, Math.round(mw * s)), h: Math.max(2, Math.round(mh * s)) }
 }
 
+/**
+ * A clip's transform and zoom with everything filled in: crop for files saved before it existed, and
+ * easing names from before the easings.net set mapped to their new names.
+ */
+export function normalizeAnimation(c: Partial<Clip>): Pick<Clip, 'transform' | 'zoom'> {
+  const t = { ...defaultTransform(), ...(c.transform ?? {}) }
+  const z = { ...defaultZoom(), ...(c.zoom ?? {}) }
+  return {
+    transform: {
+      ...t,
+      start: { ...defaultTransformState(), ...t.start },
+      end: { ...defaultTransformState(), ...t.end },
+      ease: normalizeEase(t.ease)
+    },
+    zoom: { ...z, ease: normalizeEase(z.ease) }
+  }
+}
+
 /** Validates and upgrades a parsed .vcws file. Throws on anything that is not a ClipWorld project. */
 export function parseProject(raw: unknown): Project {
   const p = raw as Partial<Project> | null
@@ -357,8 +392,7 @@ export function parseProject(raw: unknown): Project {
     project.clips.push({
       ...makeClip({ trackId: c.trackId, type: c.type, start: c.start, duration: c.duration }),
       ...c,
-      transform: { ...defaultTransform(), ...(c.transform ?? {}) },
-      zoom: { ...defaultZoom(), ...(c.zoom ?? {}) },
+      ...normalizeAnimation(c),
       effects: c.effects ?? []
     })
   }

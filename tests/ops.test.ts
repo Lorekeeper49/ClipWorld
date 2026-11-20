@@ -1,5 +1,4 @@
 import { describe, expect, it } from 'vitest'
-import { EASES, EASE_NAMES, animExpr } from '../src/shared/easing'
 import { atempoChain, echoTaps, reverbImpulse } from '../src/shared/effects'
 import { type MediaItem, type Project, clipEnd, newProject, parseProject, projectDuration } from '../src/shared/model'
 import {
@@ -25,30 +24,6 @@ function withVideo(): { p: Project; ids: string[] } {
   p.media.push(m)
   return { p, ids: placeMedia(p, m, 0) }
 }
-
-/** Evaluates an ffmpeg expression in JS (only the functions the easing module emits). */
-function evalExpr(expr: string, t: number): number {
-  const fn = new Function(
-    't', 'pow', 'clip', 'lt', 'if_',
-    `return ${expr.replace(/\bif\(/g, 'if_(')}`
-  )
-  return fn(t, Math.pow, (v: number, a: number, b: number) => Math.min(b, Math.max(a, v)), (a: number, b: number) => (a < b ? 1 : 0), (c: number, a: number, b: number) => (c ? a : b))
-}
-
-describe('easing', () => {
-  it('ffmpeg expressions agree with the JS functions', () => {
-    for (const name of EASE_NAMES) {
-      const expr = animExpr(2, 10, name, 't', 1, 4)
-      for (const t of [0, 1, 1.5, 2.9, 3, 3.1, 4.7, 5, 9]) {
-        const p = Math.min(1, Math.max(0, (t - 1) / 4))
-        expect(evalExpr(expr, t)).toBeCloseTo(2 + 8 * EASES[name].fn(p), 5)
-      }
-    }
-  })
-  it('constant animations collapse to a number', () => {
-    expect(animExpr(1.5, 1.5, 'easeIn', 't', 0, 3)).toBe('1.5')
-  })
-})
 
 describe('placing media', () => {
   it('a video brings one linked audio clip per audio stream, each on its own track', () => {

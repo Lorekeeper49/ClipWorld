@@ -1,6 +1,6 @@
 // Renders one clip's layer for the preview: effects, zoom and drop shadow, in the same order the
 // export's filter graph applies them (see shared/filtergraph.ts).
-import { zoomAt } from '@shared/easing'
+import { CROP_SIDES, cropBox, hasCrop, transformAt, zoomAt } from '@shared/easing'
 import { EFFECT_MAP, b, cssFilter, n, parseColor, s } from '@shared/effects'
 import type { Clip, EffectInstance } from '@shared/model'
 import { rasterOverlay, rgba } from './raster'
@@ -380,6 +380,7 @@ export interface LayerResult {
 
 export function needsProcessing(clip: Clip): boolean {
   if (clip.zoom.enabled && (clip.zoom.start !== 1 || clip.zoom.end !== 1)) return true
+  if (hasCrop(clip.transform)) return true
   return clip.effects.some((e) => e.enabled && EFFECT_MAP[e.type]?.target === 'video' && e.type !== 'fadeIn' && e.type !== 'fadeOut')
 }
 
@@ -546,6 +547,15 @@ export function renderLayer(
     const zh = ch * zoom
     dst.ctx.drawImage(a.canvas, (cw - zw) * z.focusX, (ch - zh) * z.focusY, zw, zh)
     a = dst
+  }
+
+  // Crop: the hidden edges become transparent (the clip keeps its size and place), before the shadow.
+  if (hasCrop(clip.transform)) {
+    const tr = transformAt(clip.transform, local, clip.duration)
+    for (const side of CROP_SIDES) {
+      const box = cropBox(side, tr[side], cw, ch)
+      if (box) a.ctx.clearRect(box.x, box.y, box.w, box.h)
+    }
   }
 
   const shadow = effects.find((e) => e.type === 'dropShadow')

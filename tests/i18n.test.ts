@@ -55,7 +55,11 @@ describe('English messages', () => {
       }
       if (e.kind === 'mask') keys.push(`tools.mask.hints.${e.type}`)
     }
-    for (const e of EASE_NAMES) keys.push(`easing.${e}`)
+    keys.push('easing.linear', 'easing.named')
+    for (const e of EASE_NAMES.filter((n) => n !== 'linear')) {
+      const [, kind, family] = /^ease(InOut|In|Out)(\w+)$/.exec(e)!
+      keys.push(`easing.kinds.${kind}`, `easing.families.${family}`)
+    }
     for (const c of CONTAINERS) keys.push(`formats.containers.${c.id}`)
     for (const v of Object.values(VIDEO_CODECS)) {
       keys.push(`formats.video.${v.id}`)
@@ -71,7 +75,7 @@ describe('English messages', () => {
     for (const k of ['vertical', 'portrait', 'square']) keys.push(`metadata.presets.${k}`)
     for (const k of ['draft', 'good', 'high', 'veryHigh', 'maximum']) keys.push(`export.qualities.${k}`)
     for (const k of ['left', 'center', 'right']) keys.push(`tools.text.align.${k}`, `tools.text.alignTitle.${k}`)
-    for (const k of ['x', 'y', 'scale', 'rotation', 'opacity']) keys.push(`tools.transform.fields.${k}`)
+    for (const k of ['x', 'y', 'scale', 'rotation', 'opacity', 'cropLeft', 'cropRight', 'cropTop', 'cropBottom']) keys.push(`tools.transform.fields.${k}`)
     for (const k of ['bottom', 'middle', 'top']) keys.push(`subtitles.positions.${k}`)
     for (const w of ['image', 'imageOrVideo']) for (const k of ['choose', 'missing', 'unusable']) keys.push(`tools.picker.${w}.${k}`)
     for (const g of ['File', 'Edit', 'Playback', 'Timeline', 'Subtitles']) keys.push(`shortcuts.groups.${g}`)

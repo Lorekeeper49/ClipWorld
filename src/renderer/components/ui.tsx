@@ -139,6 +139,11 @@ export function Num({ value, onChange, min, max, step = 1, display = 1, unit, wi
 }
 
 interface SliderProps extends NumProps {
+  /**
+   * Limits for typing in the box, when wider than the slider's own range (min/max). Leave a side out for
+   * no limit that way. Without this, the box keeps to the slider's range.
+   */
+  field?: { min?: number; max?: number }
   label?: string
   /** Value restored on double-click. */
   reset?: number
@@ -146,7 +151,7 @@ interface SliderProps extends NumProps {
   mark?: number
 }
 
-export function Slider({ label, reset, mark, ...p }: SliderProps) {
+export function Slider({ label, reset, mark, field, ...p }: SliderProps) {
   const { value, onChange, min = 0, max = 1, step = 0.01 } = p
   const frac = (v: number) => ((clampNum(v, min, max) - min) / (max - min)) * 100
   return (
@@ -167,7 +172,7 @@ export function Slider({ label, reset, mark, ...p }: SliderProps) {
         />
         {mark !== undefined && <span className="slider-mark" style={{ left: `${frac(mark)}%` }} />}
       </span>
-      <Num {...p} width={p.width ?? 62} />
+      <Num {...p} {...(field ? { min: field.min, max: field.max } : {})} width={p.width ?? 62} />
     </label>
   )
 }

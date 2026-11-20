@@ -9,7 +9,12 @@ export const effectGroupName = (group: string): string => t(`effects.groups.${gr
 export const paramName = (def: EffectDef, p: ParamDef): string => t(`effects.${def.type}.params.${p.key}`)
 export const optionName = (def: EffectDef, p: ParamDef, value: string): string => t(`effects.${def.type}.options.${p.key}.${value}`)
 
-export const easeName = (e: EaseName): string => t(`easing.${e}`)
+/** "Bounce · In-out" for 'easeInOutBounce'; "Linear" for 'linear'. */
+export function easeName(e: EaseName): string {
+  const m = /^ease(InOut|In|Out)(\w+)$/.exec(e)
+  if (!m) return t(`easing.${e}`)
+  return t('easing.named', { family: t(`easing.families.${m[2]}`), kind: t(`easing.kinds.${m[1]}`) })
+}
 
 export const containerName = (id: string): string => t(`formats.containers.${id}`)
 export const videoCodecName = (id: string): string => t(`formats.video.${id}`)

@@ -1,0 +1,6 @@
+# Every text file in ClipWorld is UTF-8 (without a byte-order mark). Editors that read this file
+# (VS Code with the EditorConfig extension, JetBrains, Visual Studio and others) save new files that way.
+root = true
+
+[*]
+charset = utf-8

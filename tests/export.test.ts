@@ -7,7 +7,7 @@ import { probeMedia } from '../src/main/probe'
 import { EFFECTS, makeEffect } from '../src/shared/effects'
 import type { Caps, ExportAssets } from '../src/shared/filtergraph'
 import { CONTAINERS, type ExportSettings, defaultExportSettings, normalizeExportSettings } from '../src/shared/formats'
-import { type MediaItem, type Project, newProject } from '../src/shared/model'
+import { type MediaItem, type Project, defaultTransformState, newProject } from '../src/shared/model'
 import { addTextClip, deleteClips, placeMedia, splitAt, stretchClip } from '../src/shared/timeline-ops'
 import { type Fixtures, TMP, fixtures, frameColor, info, meanVolume, setupFfmpeg } from './helpers'
 
@@ -128,11 +128,11 @@ describe('export', () => {
       clip.effects.push(e)
       if (def.kind === 'overlay') assets.overlays![e.id] = fx.overlay
     }
-    clip.zoom = { enabled: true, start: 1, end: 1.6, focusX: 0.3, focusY: 0.6, ease: 'easeInOut' }
+    clip.zoom = { enabled: true, start: 1, end: 1.6, focusX: 0.3, focusY: 0.6, ease: 'easeInOutQuad' }
     clip.transform = {
       animate: true, ease: 'easeOutCubic',
-      start: { x: -0.2, y: 0, scale: 0.5, rotation: 0, opacity: 0.2 },
-      end: { x: 0.2, y: 0.1, scale: 1.3, rotation: 25, opacity: 1 }
+      start: { ...defaultTransformState(), x: -0.2, y: 0, scale: 0.5, rotation: 0, opacity: 0.2 },
+      end: { ...defaultTransformState(), x: 0.2, y: 0.1, scale: 1.3, rotation: 25, opacity: 1, cropLeft: 0.1 }
     }
     const i = await info(await exportTo(p, 'mp4', {}, assets))
     expect(i.duration).toBeCloseTo(6, 1)

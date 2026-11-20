@@ -146,17 +146,20 @@ async function sweep(page, label) {
     await scan(`${menu} menu`)
     await page.keyboard.press('Escape')
   }
-  for (const modal of ['export', 'shortcuts', 'about', 'language', 'close', 'presetImport']) {
+  for (const modal of ['export', 'shortcuts', 'about', 'language', 'close', 'presetImport', 'ease']) {
     await page.evaluate((modal) => {
-      const media = window.__cw.get().project.media
+      const s = window.__cw.get()
+      const media = s.project.media
       // The preset question, listing one file that exists and one that has moved.
       const presetPrompt = { presetName: 'clip', files: media.map((item, i) => ({ item, exists: i === 0 })), answer: () => {} }
-      window.__cw.set({ modal, pendingAfterClose: () => {}, presetPrompt })
+      // The easing graph, for the video's (animated) transform.
+      const easeTarget = { clipId: s.project.clips.find((c) => c.type === 'video').id, field: 'transform' }
+      window.__cw.set({ modal, pendingAfterClose: () => {}, presetPrompt, easeTarget })
     }, modal)
     await page.waitForSelector('.modal')
     await scan(`${modal} dialog`)
     await page.screenshot({ path: join(shots, `i18n-${label}-${modal}.png`) })
-    await page.evaluate(() => window.__cw.set({ modal: null, pendingAfterClose: null, presetPrompt: null }))
+    await page.evaluate(() => window.__cw.set({ modal: null, pendingAfterClose: null, presetPrompt: null, easeTarget: null }))
   }
   // Every page of the Settings window.
   await page.evaluate(() => window.__cw.set({ modal: 'settings' }))

@@ -1,7 +1,7 @@
 // The contract between the renderer and the main process.
 import type { Caps } from './filtergraph'
 import type { ExportSettings } from './formats'
-import type { MediaItem, Project, SubtitleCue } from './model'
+import type { EaseCurve, MediaItem, Project, SubtitleCue } from './model'
 import type { Preset } from './presets'
 
 /** Waveform peak resolution of the cached peak files (one unsigned byte per window). */
@@ -74,6 +74,8 @@ export interface AppSettings {
   autoImportPresetMedia?: boolean
   /** Timeline colour for each kind of clip ('#rrggbb'); missing kinds use the default. */
   clipColors?: Partial<Record<'video' | 'audio' | 'image' | 'text' | 'subtitles', string>>
+  /** Easing curves saved from the easing graph. */
+  easePresets?: { id: string; name: string; curve: EaseCurve }[]
 }
 
 export interface AppInfo {

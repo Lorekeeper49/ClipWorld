@@ -22,6 +22,22 @@ export interface ParamDef {
   accept?: ('image' | 'video')[]
   /** Only shown (and used) when another parameter has this value. */
   showIf?: { key: string; value: ParamValue }
+  /**
+   * What can be typed in the box, when that's not the default (see fieldLimits). min/max are only the
+   * slider's comfortable range.
+   */
+  limit?: [number, number]
+}
+
+/**
+ * Limits for typing a setting's value. Proportions (0–100%) stay between 0 and 100%. Anything else can go
+ * past the slider's maximum, and below its minimum only where that minimum is negative (angles, gains).
+ * Settings with a real limit (in ffmpeg or the preview) say so with `limit`.
+ */
+export function fieldLimits(p: ParamDef): { min?: number; max?: number } {
+  if (p.limit) return { min: p.limit[0], max: p.limit[1] }
+  if (p.max === 1 && p.display === 100 && (p.min ?? 0) >= 0) return { min: p.min, max: p.max }
+  return { min: (p.min ?? 0) >= 0 ? p.min : undefined }
 }
 
 /**
@@ -76,7 +92,7 @@ export const EFFECTS: EffectDef[] = [
   { type: 'blur', target: 'video', group: 'Stylize', kind: 'css',
     params: [{ key: 'radius', type: 'number', default: 8, min: 0, max: 100, step: 0.5, unit: 'px' }] },
   { type: 'sharpen', target: 'video', group: 'Stylize', kind: 'special',
-    params: [{ key: 'amount', type: 'number', default: 0.5, min: 0, max: 2, step: 0.01, display: 100, unit: '%' }] },
+    params: [{ key: 'amount', type: 'number', default: 0.5, min: 0, max: 2, step: 0.01, display: 100, unit: '%', limit: [0, 2] }] },
   { type: 'pixelate', target: 'video', group: 'Stylize', kind: 'special',
     params: [{ key: 'size', type: 'number', default: 16, min: 2, max: 128, step: 1, unit: 'px' }] },
   { type: 'vignette', target: 'video', group: 'Stylize', kind: 'overlay',
@@ -144,7 +160,8 @@ export const EFFECTS: EffectDef[] = [
 
   // ---- audio
   { type: 'pitch', target: 'audio', group: 'Audio', kind: 'special',
-    params: [{ key: 'semitones', type: 'number', default: 4, min: -12, max: 12, step: 0.1, unit: 'st' }] },
+    // The preview's pitch shifter goes at most two octaves either way.
+    params: [{ key: 'semitones', type: 'number', default: 4, min: -12, max: 12, step: 0.1, unit: 'st', limit: [-24, 24] }] },
   { type: 'distortion', target: 'audio', group: 'Audio', kind: 'special',
     params: [
       { key: 'drive', type: 'number', default: 8, min: 1, max: 50, step: 0.5, unit: '×' },
@@ -152,30 +169,31 @@ export const EFFECTS: EffectDef[] = [
     ] },
   { type: 'bitcrush', target: 'audio', group: 'Audio', kind: 'special',
     params: [
-      { key: 'bits', type: 'number', default: 6, min: 1, max: 16, step: 1, unit: 'bit' },
-      { key: 'downsample', type: 'number', default: 6, min: 1, max: 50, step: 1, unit: '×' }
+      { key: 'bits', type: 'number', default: 6, min: 1, max: 16, step: 1, unit: 'bit', limit: [1, 32] },
+      { key: 'downsample', type: 'number', default: 6, min: 1, max: 50, step: 1, unit: '×', limit: [1, 250] }
     ] },
   { type: 'echo', target: 'audio', group: 'Audio', kind: 'special',
     params: [
-      { key: 'delay', type: 'number', default: 300, min: 20, max: 2000, step: 10, unit: 'ms' },
-      { key: 'feedback', type: 'number', default: 0.4, min: 0, max: 0.9, step: 0.01, display: 100, unit: '%' }
+      // The preview's echo can delay at most 4 s, and the repeats reach twice the delay; 100% feedback never dies away.
+      { key: 'delay', type: 'number', default: 300, min: 20, max: 2000, step: 10, unit: 'ms', limit: [1, 2000] },
+      { key: 'feedback', type: 'number', default: 0.4, min: 0, max: 0.9, step: 0.01, display: 100, unit: '%', limit: [0, 0.95] }
     ] },
   { type: 'reverb', target: 'audio', group: 'Audio', kind: 'special',
     params: [
-      { key: 'size', type: 'number', default: 1.5, min: 0.2, max: 6, step: 0.1, unit: 's' },
+      { key: 'size', type: 'number', default: 1.5, min: 0.2, max: 6, step: 0.1, unit: 's', limit: [0.05, 30] },
       { key: 'mix', type: 'number', default: 0.35, ...pct }
     ] },
   { type: 'lowpass', target: 'audio', group: 'Audio', kind: 'special',
-    params: [{ key: 'frequency', type: 'number', default: 1200, min: 60, max: 20000, step: 10, unit: 'Hz' }] },
+    params: [{ key: 'frequency', type: 'number', default: 1200, min: 60, max: 20000, step: 10, unit: 'Hz', limit: [10, 23000] }] },
   { type: 'highpass', target: 'audio', group: 'Audio', kind: 'special',
-    params: [{ key: 'frequency', type: 'number', default: 800, min: 20, max: 12000, step: 10, unit: 'Hz' }] },
+    params: [{ key: 'frequency', type: 'number', default: 800, min: 20, max: 12000, step: 10, unit: 'Hz', limit: [10, 23000] }] },
   { type: 'bass', target: 'audio', group: 'Audio', kind: 'special',
-    params: [{ key: 'gain', type: 'number', default: 8, min: -20, max: 20, step: 0.5, unit: 'dB' }] },
+    params: [{ key: 'gain', type: 'number', default: 8, min: -20, max: 20, step: 0.5, unit: 'dB', limit: [-40, 40] }] },
   { type: 'treble', target: 'audio', group: 'Audio', kind: 'special',
-    params: [{ key: 'gain', type: 'number', default: 6, min: -20, max: 20, step: 0.5, unit: 'dB' }] },
+    params: [{ key: 'gain', type: 'number', default: 6, min: -20, max: 20, step: 0.5, unit: 'dB', limit: [-40, 40] }] },
   { type: 'tremolo', target: 'audio', group: 'Audio', kind: 'special',
     params: [
-      { key: 'rate', type: 'number', default: 6, min: 0.1, max: 20, step: 0.1, unit: 'Hz' },
+      { key: 'rate', type: 'number', default: 6, min: 0.1, max: 20, step: 0.1, unit: 'Hz', limit: [0.1, 1000] },
       { key: 'depth', type: 'number', default: 0.7, ...pct }
     ] },
   { type: 'audioFadeIn', target: 'audio', group: 'Audio', kind: 'special',

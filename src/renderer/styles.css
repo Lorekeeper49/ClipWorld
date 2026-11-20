@@ -513,3 +513,48 @@ html:lang(ja) body { font-family: "Segoe UI Variable Text", "Segoe UI", "Yu Goth
 .clip-swatch { position: relative; width: 170px; height: 30px; border-radius: 5px; overflow: hidden; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.14); flex: none; }
 .clip-swatch.clip-video { background: var(--clip-video); }
 .clip-swatch .clip-label { pointer-events: none; }
+
+/* Easing graph */
+.ease-field { display: flex; align-items: center; gap: 8px; text-align: left; cursor: pointer; min-width: 0; flex: 1; }
+.ease-field span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ease-icon { flex: none; color: var(--accent); }
+.ease-editor { display: grid; grid-template-columns: 240px 1fr; gap: 16px; }
+.ease-list { max-height: 470px; overflow-y: auto; padding-right: 6px; display: flex; flex-direction: column; gap: 2px; }
+.ease-list h4 { margin: 8px 0 2px; font-size: 11px; font-weight: 650; text-transform: uppercase; letter-spacing: 0.05em; color: var(--dim); }
+.ease-list h4:first-child { margin-top: 0; }
+.ease-item { display: flex; align-items: center; gap: 4px; border-radius: var(--radius); }
+.ease-item > button:first-child {
+  flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; padding: 4px 8px; border: 0; border-radius: var(--radius);
+  background: none; color: var(--text); font: inherit; text-align: left; cursor: pointer;
+}
+.ease-item > button:first-child span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ease-item:hover { background: var(--raised); }
+.ease-item.active { background: var(--accent-soft); }
+.ease-main { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.ease-current { display: flex; align-items: center; gap: 8px; font-weight: 600; }
+.ease-current .dim { font-weight: 400; }
+.ease-graph svg { display: block; width: 100%; height: auto; background: #12141a; border: 1px solid var(--border); border-radius: 8px; user-select: none; }
+.ease-box { fill: rgba(255, 255, 255, 0.025); }
+.ease-grid { stroke: rgba(255, 255, 255, 0.06); }
+.ease-axis { stroke: rgba(255, 255, 255, 0.22); stroke-dasharray: 4 4; }
+.ease-label { fill: var(--dim); font-size: 11px; }
+.ease-curve { fill: none; stroke: var(--accent); stroke-width: 2.5; }
+.ease-handle-line { stroke: rgba(255, 255, 255, 0.35); }
+.ease-handle { fill: #12141a; stroke: #fff; stroke-width: 1.5; cursor: grab; }
+.ease-node { fill: #fff; stroke: var(--accent-strong); stroke-width: 1.5; cursor: grab; }
+.ease-node.fixed { fill: var(--accent); cursor: default; }
+.ease-point.selected .ease-node { fill: var(--accent); stroke: #fff; stroke-width: 2; }
+.ease-point.suggested .ease-node, .ease-point.suggested .ease-handle { opacity: 0.55; }
+.ease-point.suggested .ease-handle-line { stroke-dasharray: 2 3; }
+.ease-graph-tools { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 6px; }
+.ease-motion { position: relative; height: 24px; margin: 0 8px; }
+.ease-motion-track { position: absolute; top: 11px; height: 2px; background: var(--border-strong); border-radius: 1px; }
+/* Marks where the start and end values are; the dot may swing past them. */
+.ease-motion-tick { position: absolute; top: 5px; width: 2px; height: 14px; margin-left: -1px; background: var(--dim); border-radius: 1px; }
+.ease-motion-dot { position: absolute; top: 5px; width: 14px; height: 14px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+.ease-naming { display: flex; align-items: center; gap: 6px; }
+.ease-naming .sub-name { width: 200px; flex: none; }
+
+/* A window or dialog that crashed */
+.crashed { margin: 16px; padding: 14px; border: 1px solid var(--danger); border-radius: 8px; background: #2a1418; display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
+.modal-backdrop + .crashed, body > #root > .app > .crashed { position: fixed; top: 80px; left: 50%; transform: translateX(-50%); z-index: 2100; }

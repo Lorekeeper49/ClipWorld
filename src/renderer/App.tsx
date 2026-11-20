@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react'
+import { ErrorBoundary } from './components/ErrorBoundary'
 import { MenuBar } from './components/MenuBar'
 import { Btn, Modal } from './components/ui'
 import { ExportDialog } from './dialogs/ExportDialog'
+import { EaseEditor } from './dialogs/EaseEditor'
 import { PresetImportDialog } from './dialogs/PresetImportDialog'
 import { loadPresets } from './state/presets'
 import { applyClipColors } from './settings/clipColors'
@@ -138,11 +140,14 @@ export function App() {
         </div>
       )}
       <main className="workspace"><Dock /></main>
+      <ErrorBoundary key={modal ?? ''} onReset={() => set({ modal: null })}>
       {modal === 'export' && <ExportDialog />}
       {(modal === 'settings' || modal === 'shortcuts' || modal === 'language') && <SettingsDialog key={modal} />}
       {modal === 'close' && <CloseDialog />}
       {modal === 'about' && <AboutDialog />}
       {modal === 'presetImport' && <PresetImportDialog />}
+      {modal === 'ease' && <EaseEditor />}
+      </ErrorBoundary>
       <Toasts />
     </div>
   )

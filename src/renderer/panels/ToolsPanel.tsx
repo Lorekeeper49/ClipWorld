@@ -1,20 +1,19 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { EASE_NAMES } from '@shared/easing'
-import { EFFECTS, EFFECT_MAP, type EffectDef, type ParamDef, makeEffect } from '@shared/effects'
-import { easeName, effectGroupName, effectName, optionName, paramName } from '@shared/labels'
+import { EFFECTS, EFFECT_MAP, type EffectDef, type ParamDef, fieldLimits, makeEffect } from '@shared/effects'
+import { effectGroupName, effectName, optionName, paramName } from '@shared/labels'
 import {
-  type Clip, type EaseName, type EffectInstance, MAX_SPEED, MIN_SPEED, type TextProps, type TransformState,
+  type Clip, type EffectInstance, MAX_SPEED, MIN_SPEED, type TextProps, type TransformState,
   defaultTransform, defaultZoom, isTimed
 } from '@shared/model'
 import { groupOf, stretchClip } from '@shared/timeline-ops'
 import { Btn, Color, Field, Icon, Num, Section, Select, Slider, Toggle, useDismiss } from '../components/ui'
 import { FontPicker } from '../components/FontPicker'
 import { PresetsTool } from './PresetsTool'
+import { EaseField } from '../dialogs/EaseEditor'
 import { t, useT } from '../i18n'
 import { addTextAction, importPaths } from '../state/actions'
 import { edit, mediaOf, primaryClip, set, toast, useStore } from '../state/store'
 
-const easeOptions = () => EASE_NAMES.map((e) => ({ value: e, label: easeName(e) }))
 
 /** Edits one clip; rapid changes to the same field merge into a single undo step. */
 function editClip(id: string, key: string, fn: (c: Clip) => void): void {
@@ -39,7 +38,7 @@ function TextTool({ clip }: { clip: Clip | undefined }) {
           <textarea className="textarea" rows={2} value={tp.content} spellCheck={false} data-testid="text-content"
             onChange={(e) => up('content', e.target.value)} />
           <Field label={t('tools.text.font')}><FontPicker value={tp.fontFamily} onChange={(f) => up('fontFamily', f)} /></Field>
-          <Slider label={t('tools.text.size')} value={tp.fontSize} min={8} max={400} step={1} unit="px" onChange={(v) => up('fontSize', v)} />
+          <Slider label={t('tools.text.size')} value={tp.fontSize} min={8} max={400} field={{ min: 1 }} step={1} unit="px" onChange={(v) => up('fontSize', v)} />
           <Field label={t('tools.text.style')}>
             <Btn small active={tp.bold} onClick={() => up('bold', !tp.bold)} title={t('tools.text.bold')}><b>B</b></Btn>
             <Btn small active={tp.italic} onClick={() => up('italic', !tp.italic)} title={t('tools.text.italic')}><i>I</i></Btn>
@@ -50,7 +49,7 @@ function TextTool({ clip }: { clip: Clip | undefined }) {
           </Field>
           <Color label={t('tools.text.fill')} value={tp.fill} onChange={(v) => up('fill', v)} />
           <Color label={t('tools.text.outline')} value={tp.outline} onChange={(v) => up('outline', v)} />
-          <Slider label={t('tools.text.outlineWidth')} value={tp.outlineWidth} min={0} max={40} step={0.5} unit="px" onChange={(v) => up('outlineWidth', v)} />
+          <Slider label={t('tools.text.outlineWidth')} value={tp.outlineWidth} min={0} max={40} field={{ min: 0 }} step={0.5} unit="px" onChange={(v) => up('outlineWidth', v)} />
         </>
       )}
     </Section>
@@ -69,7 +68,7 @@ function ClipTool({ clip }: { clip: Clip }) {
   }
   return (
     <Section title={t('tools.speed.title')} icon="film">
-      <Slider label={t('tools.speed.title')} value={clip.speed} min={0.1} max={8} step={0.01} display={100} unit="%" reset={1} mark={1} onChange={setSpeed} testId="speed" />
+      <Slider label={t('tools.speed.title')} value={clip.speed} min={0.1} max={8} field={{ min: MIN_SPEED, max: MAX_SPEED }} step={0.01} display={100} unit="%" reset={1} mark={1} onChange={setSpeed} testId="speed" />
       <Toggle label={t('tools.speed.keepPitch')} value={clip.preservePitch}
         onChange={(v) => edit((p) => { for (const c of groupOf(p, p.clips.find((x) => x.id === clip.id)!)) c.preservePitch = v })} />
       <p className="dim small">{t('tools.speed.hint')}</p>
@@ -79,13 +78,21 @@ function ClipTool({ clip }: { clip: Clip }) {
 
 // ---------------------------------------------------------------- transform
 
-/** Names are messages: tools.transform.fields.<key>. */
-const TRANSFORM_FIELDS: { key: keyof TransformState; min: number; max: number; step: number; display: number; unit: string }[] = [
-  { key: 'x', min: -2, max: 2, step: 0.001, display: 100, unit: '%' },
-  { key: 'y', min: -2, max: 2, step: 0.001, display: 100, unit: '%' },
+/**
+ * Names are messages: tools.transform.fields.<key>. Limits are only where something real stops: opacity and
+ * crop are proportions, and the export draws a scaled clip at full size, so 1000% is the most.
+ */
+const TRANSFORM_FIELDS: { key: keyof TransformState; min?: number; max?: number; step: number; display: number; unit: string }[] = [
+  { key: 'x', step: 0.001, display: 100, unit: '%' },
+  { key: 'y', step: 0.001, display: 100, unit: '%' },
   { key: 'scale', min: 0.01, max: 10, step: 0.01, display: 100, unit: '%' },
-  { key: 'rotation', min: -720, max: 720, step: 0.5, display: 1, unit: '°' },
-  { key: 'opacity', min: 0, max: 1, step: 0.01, display: 100, unit: '%' }
+  { key: 'rotation', step: 0.5, display: 1, unit: '°' },
+  { key: 'opacity', min: 0, max: 1, step: 0.01, display: 100, unit: '%' },
+  // Crop: how much of each edge to hide (the clip keeps its size and position).
+  { key: 'cropLeft', min: 0, max: 1, step: 0.001, display: 100, unit: '%' },
+  { key: 'cropRight', min: 0, max: 1, step: 0.001, display: 100, unit: '%' },
+  { key: 'cropTop', min: 0, max: 1, step: 0.001, display: 100, unit: '%' },
+  { key: 'cropBottom', min: 0, max: 1, step: 0.001, display: 100, unit: '%' }
 ]
 
 function TransformTool({ clip }: { clip: Clip }) {
@@ -119,7 +126,7 @@ function TransformTool({ clip }: { clip: Clip }) {
       </div>
       {tr.animate && (
         <Field label={t('tools.ease')}>
-          <Select<EaseName> value={tr.ease} options={easeOptions()} onChange={(v) => editClip(clip.id, 'tr.ease', (c) => { c.transform.ease = v })} />
+          <EaseField clipId={clip.id} field="transform" ease={tr.ease} />
         </Field>
       )}
     </Section>
@@ -138,12 +145,12 @@ function ZoomTool({ clip }: { clip: Clip }) {
         onChange={(v) => editClip(clip.id, 'zoom.enabled', (c) => { c.zoom.enabled = v })} />
       {z.enabled && (
         <>
-          <Slider label={t('tools.zoom.start')} value={z.start} min={0.25} max={8} step={0.01} display={100} unit="%" reset={1} mark={1} onChange={(v) => up('start', v)} />
-          <Slider label={t('tools.zoom.end')} value={z.end} min={0.25} max={8} step={0.01} display={100} unit="%" reset={1} mark={1} onChange={(v) => up('end', v)} />
+          <Slider label={t('tools.zoom.start')} value={z.start} min={0.25} max={8} field={{ min: 0.01, max: 8 }} step={0.01} display={100} unit="%" reset={1} mark={1} onChange={(v) => up('start', v)} />
+          <Slider label={t('tools.zoom.end')} value={z.end} min={0.25} max={8} field={{ min: 0.01, max: 8 }} step={0.01} display={100} unit="%" reset={1} mark={1} onChange={(v) => up('end', v)} />
           <Slider label={t('tools.zoom.focusX')} value={z.focusX} min={0} max={1} step={0.01} display={100} unit="%" reset={0.5} onChange={(v) => up('focusX', v)} />
           <Slider label={t('tools.zoom.focusY')} value={z.focusY} min={0} max={1} step={0.01} display={100} unit="%" reset={0.5} onChange={(v) => up('focusY', v)} />
           <Field label={t('tools.ease')}>
-            <Select<EaseName> value={z.ease} options={easeOptions()} onChange={(v) => editClip(clip.id, 'zoom.ease', (c) => { c.zoom.ease = v })} />
+            <EaseField clipId={clip.id} field="zoom" ease={z.ease} />
           </Field>
         </>
       )}
@@ -196,7 +203,7 @@ function ParamControl({ fx, def, effect, onChange }: { fx: EffectDef; def: Param
     )
   }
   return (
-    <Slider label={label} value={Number(v)} min={def.min} max={def.max} step={def.step} display={def.display} unit={def.unit}
+    <Slider label={label} value={Number(v)} min={def.min} max={def.max} field={fieldLimits(def)} step={def.step} display={def.display} unit={def.unit}
       reset={Number(def.default)} onChange={onChange} />
   )
 }

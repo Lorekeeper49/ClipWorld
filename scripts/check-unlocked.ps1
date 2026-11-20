@@ -2,7 +2,7 @@
 # is open. Lists every program that does (asking Windows' Restart Manager, the same thing installers use)
 # so you know exactly what to close. Exits with 1 when something is holding a file.
 #   powershell -NoProfile -ExecutionPolicy Bypass -File scripts\check-unlocked.ps1 dist\win-unpacked
-param([Parameter(Mandatory = $true)][string[]]$Folders)
+param([Parameter(Mandatory = $true, ValueFromRemainingArguments = $true)][string[]]$Folders)
 
 $files = foreach ($f in $Folders) { if (Test-Path $f) { Get-ChildItem -LiteralPath $f -Recurse -File | ForEach-Object FullName } }
 if (-not $files) { exit 0 }

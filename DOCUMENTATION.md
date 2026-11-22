@@ -512,7 +512,7 @@ When the format is **GIF**, you can make parts of it see-through, for stickers, 
   - **Softness:** hides colors just past the tolerance gradually.
   - **Feather:** rounds the edges of what's hidden.
 - The preview shows the frame at the playhead as the GIF will look, over a checkerboard where it's see-through.
-  - Quick tip: You can can use [Color mask](#masks) on the timeline to see what it looks like in better detail than the preview on the exort window, then delete the mask and use the same settings in the export.
+  - Quick tip: If you use [Color mask](#masks) on the timeline, it will automatically make the mask transparent without having to hit the color button
 - A GIF pixel can only be fully see-through or fully solid, so soft and feathered edges become hard edges in the file (anything more than half see-through is hidden).
 - Transparent GIFs are usually bigger files than ones with a solid background.
 

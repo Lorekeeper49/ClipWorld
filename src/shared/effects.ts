@@ -1,5 +1,5 @@
 // Effect registry. Each effect is defined once here: its parameters, the CSS-filter form the
-// preview uses, and the ffmpeg filter form the export uses. Colour filters follow the CSS filter
+// preview uses, and the ffmpeg filter form the export uses. Color filters follow the CSS filter
 // spec maths on both sides so the preview and the export agree.
 import { num } from './easing'
 import type { EffectInstance, ParamValue } from './model'
@@ -61,7 +61,7 @@ export interface EffectDef {
 const pct = { min: 0, max: 1, step: 0.01, display: 100, unit: '%' } as const
 
 export const EFFECTS: EffectDef[] = [
-  // ---- colour
+  // ---- color
   { type: 'brightness', target: 'video', group: 'Color', kind: 'css',
     params: [{ key: 'amount', type: 'number', default: 1.2, min: 0, max: 3, step: 0.01, display: 100, unit: '%' }] },
   { type: 'contrast', target: 'video', group: 'Color', kind: 'css',
@@ -241,7 +241,7 @@ export function fadeFactor(effects: EffectInstance[], local: number, duration: n
   return f
 }
 
-// ---------------------------------------------------------------- colour maths (CSS filter spec)
+// ---------------------------------------------------------------- color maths (CSS filter spec)
 
 type M3 = [number, number, number, number, number, number, number, number, number]
 

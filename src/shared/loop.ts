@@ -163,6 +163,76 @@ export function segmentAt(c: Clip, mediaDuration: number, t: number, segs = clip
   return { index, seg, src: seg.src + off, mixSrc: seg.mix.src + off, mixWeight: seg.mix.p0 + (seg.mix.p1 - seg.mix.p0) * f, until }
 }
 
+// ---------------------------------------------------------------- playing backwards
+//
+// A reversed clip covers the same window of its (virtual) source but plays it from the end: at clip time τ
+// it shows what the forward clip shows just before duration - τ. The export makes the same pictures, by
+// playing the window's frames in the opposite order (see reversePieces).
+
+/** A hair of source time, so a reversed clip shows the frame before a boundary, not the one after it. */
+const REVERSE_EPS = 1e-4
+
+/** For a reversed clip, the moment of the forward clip that shows the same picture as timeline time t. */
+export function forwardTime(c: Clip, t: number): number {
+  if (!c.reverse) return t
+  const local = Math.min(c.duration, Math.max(0, t - c.start))
+  return c.start + Math.max(0, c.duration - local - REVERSE_EPS / c.speed)
+}
+
+/** Position on the virtual source axis at timeline time t (playing direction included). */
+export function virtualAt(c: Clip, t: number): number {
+  return c.srcIn + Math.min(c.duration, Math.max(0, forwardTime(c, t) - c.start)) * c.speed
+}
+
+/**
+ * Like segmentAt, for either direction: `until` is the timeline time this stretch stops playing. Backwards,
+ * a segment ends when the playback reaches its start.
+ */
+export function playAt(c: Clip, mediaDuration: number, t: number, segs = clipSegments(c, mediaDuration)): SegmentAt {
+  if (!c.reverse) return segmentAt(c, mediaDuration, t, segs)
+  const at = segmentAt(c, mediaDuration, forwardTime(c, t), segs)
+  const v = virtualAt(c, t)
+  return { ...at, until: t + Math.max(0, v - Math.max(at.seg.v0, c.srcIn)) / c.speed }
+}
+
+/** A stretch of a reversed clip's source, in playing order: `count` frames (or samples) from `src`, played backwards. */
+export interface ReversePiece {
+  /** Source time of the piece's first frame in file order; the piece plays from its last frame back to this one. */
+  src: number
+  count: number
+  /** Crossfade: the second source (file order, like `src`) and the incoming weight at the piece's first and last frame in file order. */
+  mix?: { src: number; p0: number; p1: number }
+}
+
+/**
+ * A reversed clip's window cut into pieces of at most `maxCount` frames (or samples) at `rate`, in the order
+ * they play. Each piece is reversed on its own, so nothing ever holds more than one piece in memory. The
+ * cuts sit on one grid for the whole window, as for loops, so many pieces never drift.
+ */
+export function reversePieces(c: Clip, mediaDuration: number, rate: number, maxCount: number): ReversePiece[] {
+  const grid = (v: number) => Math.round((v - c.srcIn) * rate)
+  const out: ReversePiece[] = []
+  const segs = clipSegments(c, mediaDuration)
+  for (let i = segs.length - 1; i >= 0; i--) {
+    const sg = segs[i]
+    const g0 = grid(sg.v0)
+    const g1 = grid(sg.v1)
+    for (let hi = g1; hi > g0; hi -= maxCount) {
+      const lo = Math.max(g0, hi - maxCount)
+      const v0 = c.srcIn + lo / rate
+      const v1 = c.srcIn + hi / rate
+      const piece: ReversePiece = { src: sg.src + (v0 - sg.v0), count: hi - lo }
+      if (sg.mix) {
+        const span = Math.max(1e-9, sg.v1 - sg.v0)
+        const p = (v: number) => sg.mix!.p0 + (sg.mix!.p1 - sg.mix!.p0) * ((v - sg.v0) / span)
+        piece.mix = { src: sg.mix.src + (v0 - sg.v0), p0: p(v0), p1: p(v1) }
+      }
+      out.push(piece)
+    }
+  }
+  return out
+}
+
 /** Equal-power crossfade gains for audio (video blends linearly). */
 export const crossfadeGains = (w: number): [number, number] => [Math.cos((w * Math.PI) / 2), Math.sin((w * Math.PI) / 2)]
 

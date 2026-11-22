@@ -73,6 +73,8 @@ export interface State {
   easeTarget: { clipId: string; field: 'transform' | 'zoom' } | null
   /** The question asked before importing a preset's media. */
   presetPrompt: { presetName: string; files: { item: MediaItem; exists: boolean }[]; answer: (yes: boolean) => void } | null
+  /** A voiceover being recorded: getting the microphone ready, recording, or saving the take. */
+  voiceover: { phase: 'starting' | 'recording' | 'saving'; startedAt: number; level: number } | null
 }
 
 export const useStore = create<State>(() => ({
@@ -104,6 +106,7 @@ export const useStore = create<State>(() => ({
   lang: 'en',
   presets: [],
   presetPrompt: null,
+  voiceover: null,
   easeTarget: null
 }))
 

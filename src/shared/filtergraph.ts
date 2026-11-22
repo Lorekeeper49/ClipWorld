@@ -5,12 +5,12 @@ import {
   EFFECT_MAP, SAMPLE_RATE, atempoChain, audioEffectFfmpeg, b, cssEffectFfmpeg, n, parseColor, s
 } from './effects'
 import {
-  type ExportSettings, AUDIO_CODECS, CONTAINER_MAP, audioEncoderArgs, pixelFormatFor, videoEncoderArgs
+  type ExportSettings, type GifTransparency, AUDIO_CODECS, CONTAINER_MAP, audioEncoderArgs, pixelFormatFor, videoEncoderArgs
 } from './formats'
 import {
   type Clip, type EffectInstance, type MediaItem, type Project, type ProjectSettings, REF_HEIGHT, fitSize, isTimed, projectDuration
 } from './model'
-import { clipSegments } from './loop'
+import { type ReversePiece, clipSegments, reversePieces } from './loop'
 
 export interface TextAsset {
   path: string
@@ -33,6 +33,8 @@ export interface ExportAssets {
    * cue, plus gaps) timed in clip-local seconds; w/h is the frame size and k the raster scale.
    */
   subtitles: Record<string, TextAsset>
+  /** Reversed clips, by clip id: ffconcat lists of their pieces, already reversed (see reversedSource). */
+  reversed?: Record<string, { v?: string; a?: string }>
 }
 
 export interface Caps {
@@ -159,6 +161,93 @@ function loopedSource(g: Graph, c: Clip, media: MediaItem, kind: 'v' | 'a'): str
   return out
 }
 
+// ---------------------------------------------------------------- reversed clips
+//
+// ffmpeg's reverse filters keep everything they reverse in memory, so a reversed clip is cut into short
+// pieces (reversePieces) that are reversed one at a time. Before an export the main process renders each
+// piece to a file of its own, one small ffmpeg run after another, and the export reads them back as one
+// stream (assets.reversed). Without those files (tests, previews of the graph) the pieces go straight into
+// the graph, which is only sensible for short clips: every piece is then held in memory at once.
+
+/** Frames (or samples) in one reversed piece: at most about 300 MB of decoded picture, or 20 s of sound. */
+export function reversePieceSize(media: MediaItem, kind: 'v' | 'a'): number {
+  if (kind === 'a') return SAMPLE_RATE * 20
+  const frame = Math.max(1, (media.width || 1920) * (media.height || 1080) * 1.5)
+  return Math.max(8, Math.min(240, Math.floor(300e6 / frame)))
+}
+
+/** The grid a reversed clip is cut on: the file's frame rate, or the export's sample rate. */
+export const reverseRate = (media: MediaItem, kind: 'v' | 'a'): number => (kind === 'v' ? (media.fps > 0 ? media.fps : 30) : SAMPLE_RATE)
+
+/**
+ * The filters that play one reversed piece. `a` (and `b` for a crossfade) is the file from the piece's
+ * source time onward; `out` receives the piece backwards. Pictures come out as RGB so the pieces, wherever
+ * they are stored, need no further color-matrix guesswork.
+ */
+export function reversePieceChains(
+  kind: 'v' | 'a', media: MediaItem, piece: ReversePiece, a: string, b: string | null, out: string, label: () => string
+): string[] {
+  const rate = reverseRate(media, kind)
+  const len = piece.count / rate
+  const one = (input: string, o: string) =>
+    kind === 'v'
+      ? `${input}setpts=PTS-STARTPTS,fps=${num(rate)},trim=end_frame=${piece.count},reverse,setpts=PTS-STARTPTS,` +
+        `scale=iw:ih:flags=bicubic${colorMatrixFor(media)},format=${media.hasAlpha ? 'rgba' : 'rgb24'},setsar=1${o}`
+      : `${input}asetpts=PTS-STARTPTS,aresample=${SAMPLE_RATE},aformat=sample_fmts=fltp:channel_layouts=stereo,` +
+        `atrim=end_sample=${piece.count},areverse,asetpts=PTS-STARTPTS${o}`
+  if (!piece.mix || !b) return [one(a, out)]
+  const ra = label()
+  const rb = label()
+  // Played backwards, the piece starts at its last frame in file order, where the incoming weight is p1.
+  const { p0, p1 } = piece.mix
+  const w = (t: string) => `(${num(p1, 6)}+${num(p0 - p1, 6)}*${t}/${num(len, 6)})`
+  const chains = [one(a, ra), one(b, rb)]
+  if (kind === 'v') {
+    chains.push(`${ra}${rb}blend=all_expr='A*(1-${w('T')})+B*${w('T')}'${out}`)
+  } else {
+    const fa = label()
+    const fb = label()
+    chains.push(`${ra}volume='cos(${w('t')}*PI/2)':eval=frame${fa}`)
+    chains.push(`${rb}volume='sin(${w('t')}*PI/2)':eval=frame${fb}`)
+    chains.push(`${fa}${fb}amix=inputs=2:normalize=0:duration=first:dropout_transition=0${out}`)
+  }
+  return chains
+}
+
+/** Input options that read a reversed piece's file from its source time (one extra second for the decoder). */
+export const reversePieceInput = (kind: 'v' | 'a', media: MediaItem, src: number, count: number): string[] =>
+  ['-ss', num(src), '-t', num(count / reverseRate(media, kind) + 1), kind === 'v' ? '-an' : '-vn', '-sn', '-dn', '-i', media.path]
+
+/** A reversed clip's source as one stream (starting at 0, before speed): the rendered pieces, or the pieces themselves. */
+function reversedSource(g: Graph, c: Clip, media: MediaItem, kind: 'v' | 'a', assets: ExportAssets): string {
+  const list = assets.reversed?.[c.id]?.[kind]
+  if (list) {
+    const i = g.addInput(['-f', 'concat', '-safe', '0', '-i', list])
+    const out = g.label()
+    g.chains.push(
+      kind === 'v'
+        ? `[${i}:v]setpts=PTS-STARTPTS${out}`
+        : `[${i}:a]asetpts=PTS-STARTPTS,aresample=${SAMPLE_RATE},aformat=sample_fmts=fltp:channel_layouts=stereo${out}`
+    )
+    return out
+  }
+  const pieces = reversePieces(c, media.duration, reverseRate(media, kind), reversePieceSize(media, kind))
+  const threads = kind === 'v' && pieces.length > 2 ? ['-threads', '2'] : []
+  const stream = (i: number) => (kind === 'v' ? `[${i}:v]` : `[${i}:a:${c.audioStream}]`)
+  const parts: string[] = []
+  for (const pc of pieces) {
+    const a = stream(g.addInput([...threads, ...reversePieceInput(kind, media, pc.src, pc.count)]))
+    const b = pc.mix ? stream(g.addInput([...threads, ...reversePieceInput(kind, media, pc.mix.src, pc.count)])) : null
+    const out = g.label()
+    g.chains.push(...reversePieceChains(kind, media, pc, a, b, out, () => g.label()))
+    parts.push(out)
+  }
+  if (parts.length === 1) return parts[0]
+  const out = g.label()
+  g.chains.push(`${parts.join('')}concat=n=${parts.length}:v=${kind === 'v' ? 1 : 0}:a=${kind === 'a' ? 1 : 0}${out}`)
+  return out
+}
+
 /** A linear run of filters that can be flushed into the graph to obtain a label. */
 class Chain {
   private pending: string[] = []
@@ -179,7 +268,7 @@ class Chain {
 }
 
 /**
- * Multiplies a layer's alpha by a grey mask stream of the same size (255 shows, 0 hides), after the
+ * Multiplies a layer's alpha by a gray mask stream of the same size (255 shows, 0 hides), after the
  * mask's optional invert and feather. Returns the label of the masked layer.
  */
 function applyMask(g: Graph, layer: string, mask: string, e: EffectInstance, pxScale: number): string {
@@ -231,13 +320,17 @@ function buildVisualLayer(g: Graph, c: Clip, p: Project, assets: ExportAssets): 
     const i = g.addInput(['-loop', '1', '-framerate', num(fps), '-t', num(D), '-i', media!.path])
     chain = new Chain(g, `[${i}:v]`).add(`scale=${W0}:${H0}:flags=bicubic`, 'format=rgba', 'setsar=1')
   } else {
-    const source = c.loop
-      ? loopedSource(g, c, media!, 'v')
-      : `[${g.addInput(['-ss', num(c.srcIn), '-t', num(D * c.speed), '-an', '-i', media!.path])}:v]`
+    const back = !!c.reverse && c.type === 'video'
+    const source = back
+      ? reversedSource(g, c, media!, 'v', assets)
+      : c.loop
+        ? loopedSource(g, c, media!, 'v')
+        : `[${g.addInput(['-ss', num(c.srcIn), '-t', num(D * c.speed), '-an', '-i', media!.path])}:v]`
     chain = new Chain(g, source).add(
       Math.abs(c.speed - 1) > 1e-9 ? `setpts=(PTS-STARTPTS)/${num(c.speed)}` : 'setpts=PTS-STARTPTS',
       `fps=${num(fps)}`,
-      `scale=${W0}:${H0}:flags=bicubic${colorMatrixFor(media!)}`,
+      // Reversed pieces are RGB already.
+      `scale=${W0}:${H0}:flags=bicubic${back ? '' : colorMatrixFor(media!)}`,
       'format=rgba',
       'setsar=1',
       `trim=duration=${num(D)}`
@@ -245,7 +338,7 @@ function buildVisualLayer(g: Graph, c: Clip, p: Project, assets: ExportAssets): 
   }
   let alpha = c.type === 'text' || c.type === 'subtitles' || !!media?.hasAlpha
 
-  // ---- colour and image masks: hide parts of the clip before any other effect
+  // ---- color and image masks: hide parts of the clip before any other effect
   for (const e of c.effects) {
     if (!e.enabled) continue
     if (e.type === 'colorMask') {
@@ -256,7 +349,7 @@ function buildVisualLayer(g: Graph, c: Clip, p: Project, assets: ExportAssets): 
       const probe = g.label()
       const m = g.label('m')
       g.chains.push(`${cur}split${keep}${probe}`)
-      // colorkey compares RGB distance; the copy is made opaque first so only the colour decides.
+      // colorkey compares RGB distance; the copy is made opaque first so only the color decides.
       g.chains.push(
         `${probe}format=rgb24,format=rgba,colorkey=color=0x${hex}:similarity=${num(clamp(n(e, 'tolerance'), 0.00001, 1), 5)}:blend=${num(clamp(n(e, 'softness'), 0, 1), 5)},alphaextract${m}`
       )
@@ -487,7 +580,9 @@ function buildAudioClip(g: Graph, c: Clip, p: Project, assets: ExportAssets, cap
   if (!media || c.muted || c.volume <= 0) return null
   if (!media.audioStreams.some((a) => a.index === c.audioStream)) return null
   const D = c.duration
-  let chain = c.loop
+  let chain = c.reverse
+    ? new Chain(g, reversedSource(g, c, media, 'a', assets))
+    : c.loop
     ? new Chain(g, loopedSource(g, c, media, 'a'))
     : new Chain(g, `[${g.addInput(['-ss', num(c.srcIn), '-t', num(D * c.speed), '-vn', '-i', media.path])}:a:${c.audioStream}]`).add(
       `aresample=${SAMPLE_RATE}`,
@@ -519,6 +614,28 @@ function buildAudioClip(g: Graph, c: Clip, p: Project, assets: ExportAssets, cap
   return chain.flush()
 }
 
+/** A transparent GIF's chosen color made see-through, the way the Color mask does it to a clip. */
+function gifColorKey(g: Graph, frame: string, t: GifTransparency, pxScale: number): string {
+  const [r, gr, bl] = parseColor(t.color)
+  const hex = [r, gr, bl].map((v) => v.toString(16).padStart(2, '0')).join('')
+  const keep = g.label()
+  const probe = g.label()
+  const solid = g.label()
+  const key = g.label('m')
+  const a = g.label('a')
+  const m = g.label('m')
+  g.chains.push(`${frame}split=3${keep}${probe}${solid}`)
+  g.chains.push(
+    `${probe}format=rgb24,format=rgba,colorkey=color=0x${hex}:similarity=${num(clamp(t.tolerance, 0.00001, 1), 5)}:blend=${num(clamp(t.softness, 0, 1), 5)},alphaextract${key}`
+  )
+  // What is already see-through counts as hidden too, so feathering never brings back a clip's edge next to
+  // empty parts of the frame.
+  g.chains.push(`${solid}alphaextract${a}`)
+  g.chains.push(`${key}${a}blend=all_mode=multiply${m}`)
+  const e: EffectInstance = { id: 'gif', type: 'colorMask', enabled: true, params: { feather: t.feather, invert: false } }
+  return applyMask(g, keep, m, e, pxScale)
+}
+
 function mixAudio(g: Graph, labels: string[], total: number, out: string): void {
   const tail = `apad=whole_dur=${num(total)},atrim=end=${num(total)}${out}`
   if (labels.length === 1) g.chains.push(`${labels[0]}${tail}`)
@@ -544,8 +661,11 @@ export function buildExport(p: Project, settings: ExportSettings, assets: Export
     const visual = p.clips
       .filter((c) => c.type !== 'audio' && !hidden.has(c.trackId))
       .sort((a, b2) => (order.get(b2.trackId) ?? 0) - (order.get(a.trackId) ?? 0) || a.start - b2.start)
+    const enc = settings.videoEncoder
+    // A transparent GIF starts from a see-through frame instead of black.
+    const gifAlpha = enc === 'gif' && settings.gif?.transparent
     let bg = g.label('bg')
-    g.chains.push(`color=c=black:s=${W}x${H}:r=${num(st.fps)}:d=${num(total)},format=rgba${bg}`)
+    g.chains.push(`color=c=${gifAlpha ? 'black@0' : 'black'}:s=${W}x${H}:r=${num(st.fps)}:d=${num(total)},format=rgba${bg}`)
     for (const c of visual) {
       const layer = buildVisualLayer(g, c, { ...p, settings: { ...st, width: W, height: H } }, assets)
       if (!layer) continue
@@ -607,12 +727,13 @@ export function buildExport(p: Project, settings: ExportSettings, assets: Export
       }
       bg = next
     }
-    const enc = settings.videoEncoder
     if (enc === 'gif') {
       const gfps = Math.min(st.fps, 25)
+      if (gifAlpha && settings.gif.key) bg = gifColorKey(g, bg, settings.gif, H / REF_HEIGHT)
       g.chains.push(`${bg}fps=${num(gfps)},split[gifa][gifb]`)
-      g.chains.push('[gifa]palettegen=stats_mode=diff[gifp]')
-      g.chains.push('[gifb][gifp]paletteuse=dither=bayer:bayer_scale=3[vout]')
+      g.chains.push(`[gifa]palettegen=stats_mode=diff${gifAlpha ? ':reserve_transparent=1' : ''}[gifp]`)
+      // GIF pixels are see-through or solid: anything under half opaque becomes see-through.
+      g.chains.push(`[gifb][gifp]paletteuse=dither=bayer:bayer_scale=3${gifAlpha ? ':alpha_threshold=128' : ''}[vout]`)
     } else {
       g.chains.push(`${bg}scale=out_color_matrix=bt709:out_range=tv,format=${pixelFormatFor(enc)}[vout]`)
     }

@@ -108,7 +108,8 @@
       "back1s": "Back 1 second",
       "fwd1s": "Forward 1 second",
       "start": "Go to start",
-      "end": "Go to end"
+      "end": "Go to end",
+      "goTo": "Go to a time"
     }
   },
   "close": {
@@ -148,7 +149,8 @@
     "clipColors": "Clip colors",
     "clipColorsHint": "The color of each kind of clip on the timeline. Pick any color: on light colors, waveforms and subtitle blocks are drawn dark so they stay easy to see.",
     "resetColors": "Reset all colors",
-    "resetColor": "Back to the default color"
+    "resetColor": "Back to the default color",
+    "voiceoverHint": "Recordings are saved in a Voiceovers folder next to the project (or in Documents ▸ ClipWorld ▸ Voiceovers before the project is saved)."
   },
   "dialogs": {
     "importMedia": "Import media",
@@ -313,7 +315,19 @@
     "cancelled": "Export cancelled",
     "failed": "Export failed",
     "showInFolder": "Show in folder",
-    "again": "Export again"
+    "again": "Export again",
+    "gif": {
+      "transparent": "Transparent background",
+      "transparentHint": "What nothing covers, and the see-through parts of clips, stay see-through instead of black. A GIF pixel is either see-through or solid, so soft edges become hard ones.",
+      "key": "Make a color see-through",
+      "color": "Color",
+      "tolerance": "Tolerance",
+      "softness": "Softness",
+      "feather": "Feather",
+      "preview": "The frame at the playhead, as the GIF will show it",
+      "previewPick": "The frame at the playhead, as the GIF will show it. Click it to pick the color.",
+      "pickHint": "Click to make this color see-through"
+    }
   },
   "subtitles": {
     "defaultTrackName": "Subtitles",
@@ -345,7 +359,7 @@
     "style": "Style",
     "textColor": "Text",
     "box": "Background box",
-    "boxColor": "Box colour",
+    "boxColor": "Box color",
     "boxOpacity": "Box opacity",
     "position": "Position",
     "positions": {
@@ -390,7 +404,12 @@
     "unmuteTrack": "Unmute track",
     "text": "Text",
     "subtitlesClip": "Subtitles · {{name}}",
-    "loopBadge": "Loops {{times}} times"
+    "loopBadge": "Loops {{times}} times",
+    "goTo": "Go to this time",
+    "goToButton": "Go",
+    "goToHint": "Type a time and press Enter to move the playhead there: minutes:seconds:frames as in the preview (01:30:12), minutes:seconds (1:30), or seconds (90.5).",
+    "goToInvalid": "That isn't a time. Try 01:30:12 (minutes:seconds:frames), 1:30, or 90.5 seconds.",
+    "reversedBadge": "Plays backwards"
   },
   "toasts": {
     "saved": "Project saved",
@@ -449,7 +468,8 @@
     "speed": {
       "title": "Speed",
       "keepPitch": "Keep audio pitch when speed changes",
-      "hint": "Dragging a clip's edge on the timeline changes its speed to fit the new length."
+      "hint": "Dragging a clip's edge on the timeline changes its speed to fit the new length. A negative speed, such as -100%, plays a video or audio clip backwards.",
+      "reversed": "This clip plays backwards. The first time it plays, the preview may be choppy while ClipWorld prepares a reversed copy; the export is always smooth."
     },
     "transform": {
       "title": "Transform",
@@ -479,15 +499,15 @@
     "mask": {
       "title": "Mask",
       "color": "Color",
-      "colorHint": "Make one colour see-through",
+      "colorHint": "Make one color see-through",
       "image": "Image",
       "imageHint": "Show and hide parts of the clip with an image",
       "difference": "Difference",
       "differenceHint": "Hide what matches the video underneath or a clean background (clone shots)",
       "empty": "Hide parts of this clip so what's underneath shows through. Masks apply before filters and effects.",
       "hints": {
-        "colorMask": "Makes one colour see-through. Raise Tolerance to include similar shades.",
-        "imageMask": "White areas of the image show the clip and black areas hide it (grey is in between). The image is stretched over the clip.",
+        "colorMask": "Makes one color see-through. Raise Tolerance to include similar shades.",
+        "imageMask": "White areas of the image show the clip and black areas hide it (gray is in between). The image is stretched over the clip.",
         "differenceMask": "Hides the parts of this clip that match the reference. For a clone shot, put two takes from the same fixed camera on top of each other and compare the top one with a clean background: a frame with nobody in shot."
       }
     },
@@ -517,6 +537,29 @@
       "moveUp": "Move up",
       "moveDown": "Move down",
       "remove": "Remove"
+    },
+    "voiceover": {
+      "title": "Voiceover",
+      "mic": "Microphone",
+      "defaultMic": "Default microphone",
+      "micNumber": "Microphone {{n}}",
+      "monitor": "Hear the timeline while recording",
+      "record": "Record",
+      "stop": "Stop",
+      "starting": "Starting…",
+      "saving": "Saving…",
+      "recordHint": "Plays the timeline from the playhead and records your voice",
+      "stopHint": "Stops recording and adds it to the timeline (Space works too)",
+      "level": "Microphone level",
+      "hint": "Press Record and the timeline plays from the playhead while your voice is recorded. Press Stop (or Space) and the recording becomes a new audio clip, lined up with what you heard. Use headphones, or turn off “Hear the timeline”, so the microphone doesn't pick up the video's sound.",
+      "noSound": "The microphone isn't sending any sound",
+      "denied": "ClipWorld isn't allowed to use the microphone. Check Windows Settings ▸ Privacy & security ▸ Microphone.",
+      "noMic": "No microphone was found. Plug one in and try again.",
+      "failed": "Recording failed: {{error}}",
+      "writeFailed": "The recording couldn't be saved: {{error}}",
+      "tooShort": "The recording was too short to keep.",
+      "clipName": "Voiceover",
+      "added": "Added the voiceover “{{name}}”"
     }
   },
   "properties": {

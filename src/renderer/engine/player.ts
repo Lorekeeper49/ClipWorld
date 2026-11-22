@@ -15,13 +15,15 @@ import { AudioEngine, type EffectChain } from './audio'
 import { type LayerEnv, Scratch, applyMask, differenceMaskCanvas, renderLayer } from './layers'
 import { measureText, rasterSubtitle, rasterText } from './raster'
 import { clipTrackTime, cueAt } from '@shared/subtitles'
-import { crossfadeGains, segmentAt } from '@shared/loop'
+import { clipSegments, crossfadeGains, playAt, virtualAt } from '@shared/loop'
 
 type Mode = 'play' | 'hold' | 'paused'
 type Role = 'active' | 'preload'
 
 interface VideoSlot {
   el: HTMLVideoElement
+  /** Stepping through a reversed clip by seeking, while its reversed copy is still being built. */
+  scrub: boolean
   /** Source key (`clipId#part`) this element is assigned to, or null when free. */
   clipId: string | null
   role: Role
@@ -40,36 +42,55 @@ interface VideoSource {
   mediaId: string
   /** Timeline time at which this source stops covering the clip (next chunk or clip end). */
   until: number
+  /** A reversed clip playing before its reversed copy is ready: shown by seeking, frame by frame. */
+  scrub?: boolean
 }
 
 /**
  * Picks the fastest thing to show for clip `c` at timeline time `t`: the fast-seek preview chunk when
  * it is built, otherwise the original file. `current` is the key already playing this clip; while
- * playing, an element showing the original keeps going instead of switching mid-stream.
+ * playing, an element showing the original keeps going instead of switching mid-stream. A reversed clip
+ * plays from its reversed copy (`playing`); while still, it shows the original like any other clip.
  */
-function resolveVideo(s: State, c: Clip, m: MediaItem | undefined, t: number, current?: string): VideoSource | null {
+function resolveVideo(s: State, c: Clip, m: MediaItem | undefined, t: number, current?: string, playing = false): VideoSource | null {
   if (!m) return null
-  if (!c.loop) return resolveAt(s, c, m, t, sourceTime(c, m, t), c.id, clipEnd(c), current)
+  if (!c.loop && !c.reverse) return resolveAt(s, c, m, t, sourceTime(c, m, t), c.id, clipEnd(c), current)
   // Each pass of a loop is its own source, so the next one can be loaded before the jump back.
-  const at = segmentAt(c, m.duration, t)
-  return resolveAt(s, c, m, t, at.src, `${c.id}~${at.index}`, Math.min(clipEnd(c), at.until), current)
+  const at = playAt(c, m.duration, t)
+  const prefix = c.loop ? `${c.id}~${at.index}` : c.id
+  return resolveAt(s, c, m, t, at.src, prefix, Math.min(clipEnd(c), at.until), current, playing)
 }
 
 /** During a crossfade: the source fading in, and how far it has faded in (0..1). */
-function resolveMix(s: State, c: Clip, m: MediaItem | undefined, t: number): { src: VideoSource; weight: number } | null {
+function resolveMix(s: State, c: Clip, m: MediaItem | undefined, t: number, playing = false): { src: VideoSource; weight: number } | null {
   if (!m || !c.loop) return null
-  const at = segmentAt(c, m.duration, t)
+  const at = playAt(c, m.duration, t)
   if (at.mixSrc === undefined) return null
-  const src = resolveAt(s, c, m, t, at.mixSrc, `${c.id}~${at.index}m`, Math.min(clipEnd(c), at.until))
+  const src = resolveAt(s, c, m, t, at.mixSrc, `${c.id}~${at.index}m`, Math.min(clipEnd(c), at.until), undefined, playing)
   return src ? { src, weight: at.mixWeight ?? 0 } : null
 }
 
 /** The original file or a preview chunk at source time `src`; `until` is when this stretch ends on the timeline. */
 function resolveAt(
-  s: State, c: Clip, m: MediaItem, t: number, src: number, prefix: string, until: number, current?: string
+  s: State, c: Clip, m: MediaItem, t: number, src: number, prefix: string, until: number, current?: string, playing = false
 ): VideoSource | null {
   const cache = s.mediaCache[m.id]
   if (!cache || cache.missing) return null
+  if (c.reverse && playing && m.kind === 'video') {
+    const rc = cache.reverse
+    if (rc) {
+      const k = Math.min(rc.count - 1, Math.max(0, Math.floor((src - 1e-6) / rc.seconds)))
+      if (rc.done.includes(k)) {
+        const from = k * rc.seconds
+        const length = Math.min(rc.seconds, m.duration - from)
+        const end = k > 0 ? Math.min(until, t + (src - from) / c.speed) : until
+        return { key: `${prefix}#r${k}`, url: rc.prefix + chunkName(k), time: from + length - src, mediaId: m.id, until: end }
+      }
+    }
+    // Not built yet: step through the original (or fast-seek copy) by seeking.
+    const still = resolveAt(s, c, m, t, src, prefix, until)
+    return still ? { ...still, key: `${still.key}s`, until, scrub: true } : null
+  }
   if (m.kind === 'image') {
     return cache.proxyUrl && cache.proxyState === 'ready'
       ? { key: `${prefix}#a`, url: cache.proxyUrl, time: src, mediaId: m.id, until }
@@ -109,13 +130,15 @@ const EPS = 1e-3
 const isVideoLike = (c: Clip, m?: MediaItem): boolean => c.type === 'video' || (c.type === 'image' && !!m?.animated)
 /** Where in the file clip `c` is at timeline time t (the main source, for a crossfade). */
 const sourceTime = (c: Clip, m: MediaItem | undefined, t: number): number =>
-  c.loop && m ? segmentAt(c, m.duration, t).src : c.srcIn + clamp(t - c.start, 0, c.duration) * c.speed
+  c.loop && m ? playAt(c, m.duration, t).src : virtualAt(c, t)
 
 /** True when `next` continues exactly where `prev` leaves off in the same source (e.g. after a split). */
 function continues(prev: Clip, next: Clip): boolean {
   return (
     !prev.loop &&
     !next.loop &&
+    !prev.reverse &&
+    !next.reverse &&
     prev.mediaId === next.mediaId &&
     prev.audioStream === next.audioStream &&
     Math.abs(prev.speed - next.speed) < 1e-6 &&
@@ -205,7 +228,11 @@ class Player {
     this.emit()
   }
 
+  /** Called first by toggle(); returning true means it handled the key or click (a voiceover stops instead). */
+  toggleHook: (() => boolean) | null = null
+
   toggle(): void {
+    if (this.toggleHook?.()) return
     if (this.playing) this.pause()
     else this.play()
   }
@@ -223,6 +250,16 @@ class Player {
     this.seek(Math.round(this.time * fps + frames) / fps)
   }
 
+  /** Silences the preview's sound (while a voiceover is recorded without headphones). */
+  monitorMuted = false
+
+  /** The preview's audio context, running. Voiceovers record on its clock so they line up with what is heard. */
+  async audioContext(): Promise<AudioContext> {
+    const ctx = this.engine().ctx
+    if (ctx.state !== 'running') await ctx.resume()
+    return ctx
+  }
+
   /** Current output level (peak, 1 = full scale) of a playing audio clip. */
   level(clipId: string): number {
     if (!this.playing) return 0
@@ -236,6 +273,36 @@ class Player {
       }
     }
     return peak
+  }
+
+  /** Drawing a frame for frameCanvas() with a see-through background. */
+  private clearBackground = false
+
+  /**
+   * The frame at the playhead on a canvas of its own, at the preview's size. With `transparent`, what no clip
+   * covers stays see-through instead of black (a transparent GIF's preview).
+   */
+  frameCanvas(transparent: boolean): HTMLCanvasElement | null {
+    const main = this.canvas
+    const mainCtx = this.ctx
+    if (!main || !mainCtx) return null
+    const out = document.createElement('canvas')
+    out.width = main.width
+    out.height = main.height
+    const ctx = out.getContext('2d')
+    if (!ctx) return null
+    this.canvas = out
+    this.ctx = ctx
+    this.clearBackground = transparent
+    try {
+      const s = get()
+      this.draw(s.project, activeClips(s.project, this.time).visual)
+    } finally {
+      this.canvas = main
+      this.ctx = mainCtx
+      this.clearBackground = false
+    }
+    return out
   }
 
   /** Renders the current frame to a PNG data URL (used by tests to compare preview and export). */
@@ -253,12 +320,12 @@ class Player {
       const m = p.media.find((x) => x.id === c.mediaId)
       if (!isVideoLike(c, m)) continue
       // Judge against the current playhead, not the last tick's choice: a seek may not have been synced yet.
-      const want = resolveVideo(s, c, m, this.time, this.activeKeys.get(c.id)?.key)
+      const want = resolveVideo(s, c, m, this.time, this.activeKeys.get(c.id)?.key, this.playing)
       const src = this.activeKeys.get(c.id)
       const slot = src ? this.videos.find((v) => v.clipId === src.key) : undefined
       if (!want || !src || src.key !== want.key || !slot || slot.el.readyState < 2 || slot.el.seeking) return false
       if (Math.abs(slot.el.currentTime - want.time) > 0.05) return false
-      const mix = resolveMix(s, c, m, this.time)
+      const mix = resolveMix(s, c, m, this.time, this.playing)
       if (mix) {
         const other = this.videos.find((v) => v.clipId === mix.src.key)
         if (!other || other.el.readyState < 2 || other.el.seeking || Math.abs(other.el.currentTime - mix.src.time) > 0.05) return false
@@ -270,7 +337,9 @@ class Player {
   /** Which source each visible clip is using: 'original', 'chunk', or 'none' (for tests and diagnostics). */
   sources(): Record<string, string> {
     const out: Record<string, string> = {}
-    for (const [clipId, src] of this.activeKeys) out[clipId] = src.key.endsWith('#o') ? 'original' : src.key.endsWith('#a') ? 'proxy' : 'chunk'
+    for (const [clipId, src] of this.activeKeys) {
+      out[clipId] = src.scrub ? 'scrub' : /#r\d+$/.test(src.key) ? 'reverse' : src.key.endsWith('#o') ? 'original' : src.key.endsWith('#a') ? 'proxy' : 'chunk'
+    }
     return out
   }
 
@@ -320,9 +389,10 @@ class Player {
     this.syncAudios(s, p, active.audio, upcoming, mode)
     this.reportFocus(s, p, active.visual, now)
 
-    if (this.audio && s.settings.previewVolume !== this.lastVolume) {
-      this.lastVolume = s.settings.previewVolume
-      this.audio.setMasterVolume(this.lastVolume)
+    const volume = this.monitorMuted ? 0 : s.settings.previewVolume
+    if (this.audio && volume !== this.lastVolume) {
+      this.lastVolume = volume
+      this.audio.setMasterVolume(volume)
     }
     if (this.playing || this.needsDraw || busy) {
       this.needsDraw = false
@@ -333,7 +403,7 @@ class Player {
   private isStalled(): boolean {
     for (const slot of this.videos) {
       // Only what is on screen can hold playback; an element preloading the next clip cannot.
-      if (!slot.clipId || slot.failed || !slot.url || slot.role !== 'active') continue
+      if (!slot.clipId || slot.failed || !slot.url || slot.role !== 'active' || slot.scrub) continue
       if (slot.el.readyState < 2 || slot.el.seeking) return true
     }
     return false
@@ -343,6 +413,7 @@ class Player {
   private reportFocus(s: State, p: Project, visual: Clip[], now: number): void {
     if (now - this.focusAt < 400) return
     this.focusAt = now
+    this.reportReverse(p)
     for (const c of visual) {
       const m = p.media.find((x) => x.id === c.mediaId)
       const ch = m ? s.mediaCache[m.id]?.chunks : undefined
@@ -353,6 +424,43 @@ class Player {
         this.focusSent.set(m.id, src)
         window.cw.proxyFocus(m.id, src)
       }
+    }
+  }
+
+  /** Source ranges of each file that clips play backwards, last sent to the main process. */
+  private reverseSent = new Map<string, { key: string; focus: number }>()
+
+  /**
+   * Tells the main process which parts of which files clips play backwards (so their reversed copies get
+   * built) and where the playhead is in them, so the nearest parts come first.
+   */
+  private reportReverse(p: Project): void {
+    const ranges = new Map<string, [number, number][]>()
+    const focus = new Map<string, number>()
+    for (const c of p.clips) {
+      const m = c.reverse ? p.media.find((x) => x.id === c.mediaId) : undefined
+      if (!m || m.duration <= 0) continue
+      const list = ranges.get(m.id) ?? []
+      for (const sg of clipSegments(c, m.duration)) {
+        list.push([sg.src, sg.src + (sg.v1 - sg.v0)])
+        if (sg.mix) list.push([sg.mix.src, sg.mix.src + (sg.v1 - sg.v0)])
+      }
+      ranges.set(m.id, list)
+      if (this.time >= c.start && this.time < clipEnd(c)) focus.set(m.id, sourceTime(c, m, this.time))
+      else if (!focus.has(m.id)) focus.set(m.id, sourceTime(c, m, c.start))
+    }
+    for (const [id, list] of ranges) {
+      const key = JSON.stringify(list.map(([a, b]) => [Number(a.toFixed(3)), Number(b.toFixed(3))]))
+      const f = focus.get(id) ?? 0
+      const prev = this.reverseSent.get(id)
+      if (prev && prev.key === key && Math.abs(prev.focus - f) < 2) continue
+      this.reverseSent.set(id, { key, focus: f })
+      window.cw.reverseFocus(id, list, f)
+    }
+    for (const id of [...this.reverseSent.keys()]) {
+      if (ranges.has(id)) continue
+      this.reverseSent.delete(id)
+      window.cw.reverseFocus(id, [], NaN)
     }
   }
 
@@ -391,20 +499,20 @@ class Player {
         mode === 'play'
           ? (this.videos.find((v) => v.role === 'active' && v.clipId?.startsWith(c.id + '#'))?.clipId ?? undefined)
           : undefined
-      const src = resolveVideo(s, c, m, this.time, current)
+      const src = resolveVideo(s, c, m, this.time, current, this.playing)
       if (!src) continue
       wanted.set(src.key, { clip: c, src, role: 'active' })
       this.activeKeys.set(c.id, src)
-      const mix = resolveMix(s, c, m, this.time)
+      const mix = resolveMix(s, c, m, this.time, this.playing)
       if (mix) {
         wanted.set(mix.src.key, { clip: c, src: mix.src, role: 'active' })
         this.mixKeys.set(c.id, { key: mix.src.key, weight: mix.weight })
       }
       // Crossing into the next preview chunk or loop pass: have it loaded and positioned before the boundary.
       if (this.playing && src.until < clipEnd(c) - EPS && src.until - this.time < PRELOAD_WINDOW) {
-        const next = resolveVideo(s, c, m, src.until + 1e-4)
+        const next = resolveVideo(s, c, m, src.until + 1e-4, undefined, true)
         if (next && !wanted.has(next.key)) wanted.set(next.key, { clip: c, src: next, role: 'preload' })
-        const nextMix = resolveMix(s, c, m, src.until + 1e-4)
+        const nextMix = resolveMix(s, c, m, src.until + 1e-4, true)
         if (nextMix && !wanted.has(nextMix.src.key)) wanted.set(nextMix.src.key, { clip: c, src: nextMix.src, role: 'preload' })
       }
     }
@@ -413,7 +521,7 @@ class Player {
       if (!isVideoLike(c, m)) continue
       // A clip that simply continues an active one takes over its element; no separate preload.
       if (visual.some((a) => continues(a, c))) continue
-      const src = resolveVideo(s, c, m, c.start)
+      const src = resolveVideo(s, c, m, c.start, undefined, true)
       if (src && !wanted.has(src.key)) wanted.set(src.key, { clip: c, src, role: 'preload' })
     }
     for (const slot of this.videos) if (slot.clipId && !wanted.has(slot.clipId)) slot.clipId = null
@@ -441,8 +549,10 @@ class Player {
         }
       }
       slot.role = w.role
+      slot.scrub = !!w.src.scrub
       if (slot.failed) continue
-      this.syncElement(slot.el, w.src.time, w.clip, mode, w.role)
+      // Stepping through a reversed clip: the element stays paused and seeks to each new picture.
+      this.syncElement(slot.el, w.src.time, w.clip, w.src.scrub && mode === 'play' ? 'paused' : mode, w.role)
       if (w.role === 'active' && (slot.el.seeking || slot.el.readyState < 2)) busy = true
     }
     const free = this.videos.filter((v) => !v.clipId)
@@ -463,7 +573,7 @@ class Player {
     el.muted = true
     el.playsInline = true
     el.preload = 'auto'
-    const slot: VideoSlot = { el, clipId: null, role: 'preload', url: '', mediaId: '', failed: false }
+    const slot: VideoSlot = { el, scrub: false, clipId: null, role: 'preload', url: '', mediaId: '', failed: false }
     const redraw = () => {
       this.needsDraw = true
     }
@@ -485,38 +595,48 @@ class Player {
 
   private syncAudios(s: ReturnType<typeof get>, p: Project, audio: Clip[], upcoming: Clip[], mode: Mode): void {
     const wanted = new Map<string, { clip: Clip; url: string; target: number; role: Role; gain: number }>()
-    const urlFor = (c: Clip): string | null => {
+    // A reversed clip plays the file's reversed sound, where file time τ is source time (duration - τ).
+    // Until that is ready the clip is silent.
+    const audioFor = (c: Clip): { url: string; at: (src: number) => number } | null => {
       const cache = c.mediaId ? s.mediaCache[c.mediaId] : undefined
-      return cache && !cache.missing ? (cache.audioUrls[c.audioStream] ?? null) : null
+      if (!cache || cache.missing) return null
+      if (c.reverse) {
+        const r = cache.reverseAudio?.[c.audioStream]
+        return r ? { url: r.url, at: (src) => Math.max(0, r.duration - src) } : null
+      }
+      const url = cache.audioUrls[c.audioStream]
+      return url ? { url, at: (src) => src } : null
     }
     const mediaOf = (c: Clip) => p.media.find((x) => x.id === c.mediaId)
     for (const c of audio) {
-      const url = urlFor(c)
-      if (!url) continue
+      const a = audioFor(c)
+      if (!a) continue
+      const { url } = a
       const m = mediaOf(c)
       if (!c.loop || !m) {
-        wanted.set(c.id, { clip: c, url, target: sourceTime(c, m, this.time), role: 'active', gain: 1 })
+        wanted.set(c.id, { clip: c, url, target: a.at(sourceTime(c, m, this.time)), role: 'active', gain: 1 })
         continue
       }
       // A looped clip plays each pass on its own element (the next one waits, positioned, in the wings);
       // a crossfade plays two at once with equal-power gains.
-      const at = segmentAt(c, m.duration, this.time)
+      const at = playAt(c, m.duration, this.time)
       const [ga, gb] = at.mixSrc === undefined ? [1, 0] : crossfadeGains(at.mixWeight ?? 0)
-      wanted.set(`${c.id}~${at.index}`, { clip: c, url, target: at.src, role: 'active', gain: ga })
-      if (at.mixSrc !== undefined) wanted.set(`${c.id}~${at.index}m`, { clip: c, url, target: at.mixSrc, role: 'active', gain: gb })
+      wanted.set(`${c.id}~${at.index}`, { clip: c, url, target: a.at(at.src), role: 'active', gain: ga })
+      if (at.mixSrc !== undefined) wanted.set(`${c.id}~${at.index}m`, { clip: c, url, target: a.at(at.mixSrc), role: 'active', gain: gb })
       if (this.playing && at.until < clipEnd(c) - EPS && at.until - this.time < PRELOAD_WINDOW) {
-        const nx = segmentAt(c, m.duration, at.until + 1e-4)
+        const nx = playAt(c, m.duration, at.until + 1e-4)
         const key = `${c.id}~${nx.index}`
-        if (!wanted.has(key)) wanted.set(key, { clip: c, url, target: nx.src, role: 'preload', gain: 1 })
-        if (nx.mixSrc !== undefined && !wanted.has(key + 'm')) wanted.set(key + 'm', { clip: c, url, target: nx.mixSrc, role: 'preload', gain: 1 })
+        if (!wanted.has(key)) wanted.set(key, { clip: c, url, target: a.at(nx.src), role: 'preload', gain: 1 })
+        if (nx.mixSrc !== undefined && !wanted.has(key + 'm')) wanted.set(key + 'm', { clip: c, url, target: a.at(nx.mixSrc), role: 'preload', gain: 1 })
       }
     }
     for (const c of upcoming) {
-      if (c.type !== 'audio' || audio.some((a) => continues(a, c))) continue
-      const url = urlFor(c)
-      if (url) {
+      if (c.type !== 'audio' || audio.some((x) => continues(x, c))) continue
+      const a = audioFor(c)
+      if (a) {
         const m = mediaOf(c)
-        wanted.set(c.loop ? `${c.id}~0` : c.id, { clip: c, url, target: sourceTime(c, m, c.start), role: 'preload', gain: 1 })
+        const first = c.loop && m ? `${c.id}~${playAt(c, m.duration, c.start).index}` : c.id
+        wanted.set(first, { clip: c, url: a.url, target: a.at(sourceTime(c, m, c.start)), role: 'preload', gain: 1 })
       }
     }
     for (const slot of this.audios) if (slot.clipId && !wanted.has(slot.clipId)) slot.clipId = null
@@ -630,8 +750,11 @@ class Player {
     const px = canvas.width / W
     ctx.setTransform(1, 0, 0, 1, 0, 0)
     ctx.globalAlpha = 1
-    ctx.fillStyle = '#000'
-    ctx.fillRect(0, 0, canvas.width, canvas.height)
+    if (this.clearBackground) ctx.clearRect(0, 0, canvas.width, canvas.height)
+    else {
+      ctx.fillStyle = '#000'
+      ctx.fillRect(0, 0, canvas.width, canvas.height)
+    }
     ctx.imageSmoothingQuality = 'high'
 
     for (const c of visual) {

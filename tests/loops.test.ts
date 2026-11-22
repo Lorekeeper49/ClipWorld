@@ -185,7 +185,7 @@ const SECOND_LEVELS = [0.05, 0.15, 0.4, 0.9]
 beforeAll(async () => {
   setupFfmpeg()
   caps = await usableCapabilities()
-  // Each second of the file has its own colour and its own loudness, so any frame or stretch of sound
+  // Each second of the file has its own color and its own loudness, so any frame or stretch of sound
   // tells which part of the file is playing.
   const file = join(TMP, 'loop_source.mkv')
   if (!existsSync(file)) {

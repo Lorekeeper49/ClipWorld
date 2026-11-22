@@ -125,7 +125,9 @@ await page.waitForFunction(() => window.__cw.get().project.clips.length === 3, n
 check(await page.locator('.modal').count() === 0, 'media is imported without asking')
 
 step('a file that has moved since the preset was saved')
-await page.getByTestId('preset-auto-import').uncheck({ force: true })
+// Clicks the switch the way a user does: on its visible track.
+await page.locator('label.toggle', { has: page.getByTestId('preset-auto-import') }).click()
+check(!(await page.getByTestId('preset-auto-import').isChecked()), 'auto import is off again')
 renameSync(files.mask, files.mask + '.moved')
 await freshProject(page)
 await page.getByTestId('preset-apply').click()

@@ -5,6 +5,7 @@
 // grabbed with keyframe seeks instead of a full read.
 import { createHash } from 'node:crypto'
 import { existsSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, statSync, statfsSync, writeFileSync } from 'node:fs'
+import { open } from 'node:fs/promises'
 import { cpus } from 'node:os'
 import { basename, dirname, extname, join, sep } from 'node:path'
 import { type Filmstrip, type MediaCache, PEAKS_PER_SECOND, type ProxyChunks, chunkName } from '@shared/ipc'
@@ -113,7 +114,8 @@ function update(id: string, patch: Partial<MediaCache>): void {
     ...cur,
     ...patch,
     audioUrls: { ...cur.audioUrls, ...(patch.audioUrls ?? {}) },
-    peakUrls: { ...cur.peakUrls, ...(patch.peakUrls ?? {}) }
+    peakUrls: { ...cur.peakUrls, ...(patch.peakUrls ?? {}) },
+    ...(patch.reverseAudio ? { reverseAudio: { ...cur.reverseAudio, ...patch.reverseAudio } } : {})
   }
   states.set(id, next)
   emit(id, patch)
@@ -279,6 +281,13 @@ function chunkEncoderArgs(gop: string): string[] {
 interface ChunkJob {
   m: MediaItem
   dir: string
+  /** Reversed chunks (for clips that play backwards) rather than the fast-seek copy. */
+  reverse: boolean
+  seconds: number
+  /** Reversed chunks: only the ones reversed clips use are built. */
+  wanted?: Set<number>
+  /** Reversed copies: some clip plays this file backwards (so its sound is reversed too). */
+  active?: boolean
   count: number
   done: Set<number>
   /** Chunks being built, with the controller that cancels each one. */
@@ -292,11 +301,14 @@ interface ChunkJob {
 }
 
 const chunkJobs = new Map<string, ChunkJob>()
+/** Reversed-chunk jobs, by media id. They share the chunk workers with the fast-seek copies. */
+const reverseJobs = new Map<string, ChunkJob>()
 let chunkRunning = 0
+const allChunkJobs = () => [...chunkJobs.values(), ...reverseJobs.values()]
 
 function chunkState(job: ChunkJob): ProxyChunks {
   return {
-    seconds: CHUNK_SECONDS,
+    seconds: job.seconds,
     count: job.count,
     prefix: `${SCHEME}://local/${encodeURIComponent(job.dir + sep)}`,
     done: [...job.done].sort((a, b) => a - b),
@@ -336,7 +348,7 @@ function startChunks(m: MediaItem, required: boolean): void {
   const count = Math.max(1, Math.ceil(m.duration / CHUNK_SECONDS - 1e-6))
   const audioPending = m.audioStreams.some((s) => !existsSync(audioPath(dirFor(m), s.index)))
   job = {
-    m, dir, count, done, running: new Map(), failed: new Set(), focus: 0, focusAt: 0, required,
+    m, dir, reverse: false, seconds: CHUNK_SECONDS, count, done, running: new Map(), failed: new Set(), focus: 0, focusAt: 0, required,
     waitForAudio: !required && audioPending
   }
   chunkJobs.set(m.id, job)
@@ -344,12 +356,16 @@ function startChunks(m: MediaItem, required: boolean): void {
   pumpChunks()
 }
 
-const focusChunk = (job: ChunkJob): number => Math.min(job.count - 1, Math.max(0, Math.floor(job.focus / CHUNK_SECONDS)))
+const focusChunk = (job: ChunkJob): number => Math.min(job.count - 1, Math.max(0, Math.floor(job.focus / job.seconds)))
 
-/** How far chunk k is from where the user is working: ahead of the playhead is cheaper than behind. */
+/**
+ * How far chunk k is from where the user is working: ahead of the playhead is cheaper than behind.
+ * Reversed clips play toward the start of the file, so for them "ahead" is the earlier chunks.
+ */
 function chunkCost(job: ChunkJob, k: number): number {
   const fk = focusChunk(job)
-  return k >= fk ? k - fk : (fk - k) * 3
+  const ahead = job.reverse ? fk - k : k - fk
+  return ahead >= 0 ? ahead : -ahead * 3
 }
 
 /** Next chunk to build: the one under the focus, then the ones after it, then the ones before. */
@@ -357,7 +373,7 @@ function nextChunk(job: ChunkJob): number | undefined {
   let best: number | undefined
   let bestCost = Infinity
   for (let k = 0; k < job.count; k++) {
-    if (job.done.has(k) || job.running.has(k) || job.failed.has(k)) continue
+    if (job.done.has(k) || job.running.has(k) || job.failed.has(k) || (job.wanted && !job.wanted.has(k))) continue
     const cost = chunkCost(job, k)
     if (cost < bestCost) {
       bestCost = cost
@@ -375,9 +391,10 @@ function nextChunk(job: ChunkJob): number | undefined {
 function preemptFor(job: ChunkJob): void {
   const fk = focusChunk(job)
   if (job.done.has(fk) || job.running.has(fk) || job.failed.has(fk) || job.waitForAudio) return
+  if (job.wanted && !job.wanted.has(fk)) return
   if (chunkRunning < CHUNK_WORKERS) return
   let victim: { ctrl: AbortController; cost: number } | undefined
-  for (const j of chunkJobs.values()) {
+  for (const j of allChunkJobs()) {
     for (const [k, ctrl] of j.running) {
       // Other videos' chunks are always less useful than the one being looked at.
       const cost = j === job ? chunkCost(j, k) : Infinity
@@ -390,7 +407,7 @@ function preemptFor(job: ChunkJob): void {
 function pumpChunks(): void {
   while (chunkRunning < CHUNK_WORKERS && !bgAbort.signal.aborted) {
     // Most recently focused video first; a video the preview cannot play without chunks before others.
-    const jobs = [...chunkJobs.values()]
+    const jobs = allChunkJobs()
       .filter((j) => !j.waitForAudio)
       .sort((a, b) => Number(b.required) - Number(a.required) || b.focusAt - a.focusAt)
     let picked: { job: ChunkJob; k: number } | undefined
@@ -418,27 +435,177 @@ async function buildChunk(job: ChunkJob, k: number, cancel: AbortSignal): Promis
   const { m } = job
   const out = join(job.dir, chunkName(k))
   const tmp = partName(out)
-  const start = k * CHUNK_SECONDS
-  const length = Math.min(CHUNK_SECONDS, m.duration - start)
+  const start = k * job.seconds
+  const length = Math.min(job.seconds, m.duration - start)
   const gop = String(Math.max(1, Math.round((m.fps || 30) * CHUNK_KEYFRAME_SECONDS)))
   const signal = AbortSignal.any([cancel, bgAbort.signal])
+  const state = (s: ProxyChunks): Partial<MediaCache> => (job.reverse ? { reverse: s } : { chunks: s })
+  // Reversed chunks start a quarter frame early so the frame on the boundary is never lost to rounding.
+  const from = job.reverse ? Math.max(0, start - 0.25 / (m.fps || 30)) : start
   try {
     await ffmpeg([
-      ...q, '-ss', start.toFixed(3), '-t', length.toFixed(3), '-i', m.path, '-map', '0:v:0', '-an', '-sn', '-dn',
-      '-vf', "scale=-2:'min(720,ih)':flags=bilinear,format=yuv420p",
+      ...q, '-ss', from.toFixed(4), '-t', length.toFixed(4), '-i', m.path, '-map', '0:v:0', '-an', '-sn', '-dn',
+      // Reversed chunks are scaled down first: the reverse filter holds the whole chunk in memory.
+      '-vf', `scale=-2:'min(720,ih)':flags=bilinear,format=yuv420p${job.reverse ? ',reverse' : ''}`,
       ...chunkEncoderArgs(gop),
       '-movflags', '+faststart', '-f', 'mp4', tmp
     ], { lowPriority: true, signal })
     renameSync(tmp, out)
     job.done.add(k)
-    update(m.id, { chunks: chunkState(job) })
+    update(m.id, state(chunkState(job)))
   } catch (err) {
     remove(tmp)
     if (signal.aborted) return
-    console.error(`[media] preview chunk ${k} of ${m.name}:`, (err as Error).message)
+    console.error(`[media] ${job.reverse ? 'reversed' : 'preview'} chunk ${k} of ${m.name}:`, (err as Error).message)
     job.failed.add(k)
-    if (job.failed.size >= 3 && job.done.size === 0) update(m.id, { chunks: { ...chunkState(job), failed: true } })
+    if (job.failed.size >= 3 && job.done.size === 0) update(m.id, state({ ...chunkState(job), failed: true }))
   }
+}
+
+// ---------------------------------------------------------------- reversed preview copies
+//
+// A clip that plays backwards is previewed from reversed copies of its file: the picture in short reversed
+// chunks (720p, like the fast-seek copy), built only where reversed clips use the file and nearest the
+// playhead first, and each audio track reversed whole. While the playhead is still, the preview shows the
+// original as usual; the copies are only needed for playing.
+
+/** Frames per reversed chunk: the reverse filter keeps them all in memory (about 1.4 MB each at 720p). */
+const REVERSE_CHUNK_FRAMES = 120
+const REVERSE_FORMAT = 1
+
+/** Chunk length: whole frames, at most 4 s. */
+function reverseChunkSeconds(m: MediaItem): number {
+  const fps = m.fps > 0 ? m.fps : 30
+  return Math.max(1, Math.min(REVERSE_CHUNK_FRAMES, Math.round(4 * fps))) / fps
+}
+
+function reverseJob(m: MediaItem): ChunkJob {
+  let job = reverseJobs.get(m.id)
+  if (job) return job
+  const seconds = reverseChunkSeconds(m)
+  const dir = join(dirFor(m), 'reverse')
+  mkdirSync(dir, { recursive: true })
+  const metaFile = join(dir, 'format.json')
+  const meta = { format: REVERSE_FORMAT, seconds }
+  try {
+    if (JSON.stringify(JSON.parse(readFileSync(metaFile, 'utf8'))) !== JSON.stringify(meta)) throw new Error('stale')
+  } catch {
+    remove(dir)
+    mkdirSync(dir, { recursive: true })
+    writeFileSync(metaFile, JSON.stringify(meta))
+  }
+  const done = new Set<number>()
+  for (const f of readdirSync(dir)) {
+    const match = /^(\d{5})\.mp4$/.exec(f)
+    if (match) done.add(Number(match[1]))
+    else if (f.includes('.part.')) remove(join(dir, f))
+  }
+  job = {
+    m, dir, reverse: true, seconds, wanted: new Set(), count: Math.max(1, Math.ceil(m.duration / seconds - 1e-6)), done,
+    running: new Map(), failed: new Set(), focus: 0, focusAt: 0, required: false, waitForAudio: false
+  }
+  reverseJobs.set(m.id, job)
+  return job
+}
+
+/** Each audio track backwards, as 16-bit stereo WAV (exact to seek in, and quick to write). */
+const reverseAudioPath = (dir: string, index: number) => join(dir, `reverse_audio_${index}.wav`)
+const REVERSE_RATE = 48000
+
+function wavHeader(bytes: number): Buffer {
+  const h = Buffer.alloc(44)
+  h.write('RIFF', 0, 'ascii')
+  h.writeUInt32LE(36 + bytes, 4)
+  h.write('WAVEfmt ', 8, 'ascii')
+  h.writeUInt32LE(16, 16)
+  h.writeUInt16LE(1, 20)
+  h.writeUInt16LE(2, 22)
+  h.writeUInt32LE(REVERSE_RATE, 24)
+  h.writeUInt32LE(REVERSE_RATE * 4, 28)
+  h.writeUInt16LE(4, 32)
+  h.writeUInt16LE(16, 34)
+  h.write('data', 36, 'ascii')
+  h.writeUInt32LE(bytes, 40)
+  return h
+}
+
+/** Decodes a track to raw samples, then writes them out last to first. */
+async function writeReversedAudio(input: string, out: string): Promise<void> {
+  const raw = `${out}.raw`
+  try {
+    await ffmpeg([...q, '-i', input, '-map', '0:a:0', '-vn', '-ac', '2', '-ar', String(REVERSE_RATE), '-f', 's16le', raw], bg())
+    const src = await open(raw, 'r')
+    const dst = await open(out, 'w')
+    try {
+      const total = (await src.stat()).size
+      const size = total - (total % 4)
+      await dst.write(wavHeader(size), 0, 44, 0)
+      const BLOCK = 1 << 20
+      let written = 44
+      for (let end = size; end > 0; end -= BLOCK) {
+        if (bgAbort.signal.aborted) throw new Error('stopped')
+        const start = Math.max(0, end - BLOCK)
+        const buf = Buffer.alloc(end - start)
+        await src.read(buf, 0, buf.length, start)
+        // One stereo 16-bit frame is 4 bytes, so reversing 32-bit words reverses the frames.
+        new Uint32Array(buf.buffer, buf.byteOffset, buf.length / 4).reverse()
+        await dst.write(buf, 0, buf.length, written)
+        written += buf.length
+      }
+    } finally {
+      await src.close()
+      await dst.close()
+    }
+  } finally {
+    remove(raw)
+  }
+}
+
+const reverseAudioDuration = (file: string): number => Math.max(0, (statSync(file).size - 44) / 4 / REVERSE_RATE)
+
+/** Reverses each extracted audio track of a file that reversed clips use (once; cached on disk). */
+function ensureReverseAudio(m: MediaItem): void {
+  if (!reverseJobs.get(m.id)?.active) return
+  const dir = dirFor(m)
+  for (const s of m.audioStreams) {
+    const audio = audioPath(dir, s.index)
+    if (!existsSync(audio)) continue
+    const out = reverseAudioPath(dir, s.index)
+    void cached(out, (tmp) => writeReversedAudio(audio, tmp)).then((ok) => {
+      if (ok) update(m.id, { reverseAudio: { [s.index]: { url: mediaUrl(out), duration: reverseAudioDuration(out) } } })
+    })
+  }
+}
+
+/**
+ * Where reversed clips use a file (source seconds, one range per clip) and the source time at the playhead.
+ * The reversed chunks covering those ranges are built, nearest the playhead first, and the file's sound is
+ * reversed. An empty list stops building for the file.
+ */
+export function setReverseWanted(mediaId: string, ranges: [number, number][], focus: number): void {
+  const m = items.get(mediaId)
+  if (!m || m.duration <= 0) return
+  const job = reverseJob(m)
+  const wanted = new Set<number>()
+  if (m.kind === 'video') {
+    for (const [a, b] of ranges) {
+      const k0 = Math.max(0, Math.floor(a / job.seconds))
+      const k1 = Math.min(job.count - 1, Math.floor(Math.max(a, b - 1e-6) / job.seconds))
+      for (let k = k0; k <= k1; k++) wanted.add(k)
+    }
+  }
+  job.wanted = wanted
+  job.active = ranges.length > 0
+  // Chunks being built that nothing needs any more are stopped.
+  for (const [k, ctrl] of job.running) if (!wanted.has(k)) ctrl.abort()
+  if (Number.isFinite(focus)) {
+    job.focus = Math.max(0, focus)
+    job.focusAt = Date.now()
+  }
+  if (m.kind === 'video') update(m.id, { reverse: chunkState(job) })
+  ensureReverseAudio(m)
+  preemptFor(job)
+  pumpChunks()
 }
 
 export function setProxyFocus(mediaId: string, sourceTime: number): void {
@@ -493,6 +660,7 @@ export function prepareMedia(m: MediaItem): void {
         job.waitForAudio = false
         pumpChunks()
       }
+      ensureReverseAudio(m)
     }
     if (m.audioStreams.every((s) => existsSync(audioPath(dir, s.index)))) finish()
     else if (!inFlight.has(key)) {
@@ -587,6 +755,11 @@ export function forgetMedia(mediaId: string): void {
   items.delete(mediaId)
   states.delete(mediaId)
   stopChunks(mediaId)
+  const rev = reverseJobs.get(mediaId)
+  if (rev) {
+    reverseJobs.delete(mediaId)
+    for (const ctrl of rev.running.values()) ctrl.abort()
+  }
 }
 
 /** Stops building a video's preview chunks. Chunks in progress are cancelled and their temp files dropped. */

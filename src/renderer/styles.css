@@ -297,6 +297,9 @@ input, textarea, select, button { font: inherit; color: inherit; }
 }
 .time-input:focus { border-color: var(--accent); }
 .time-input.invalid { border-color: var(--danger); }
+.goto { display: inline-flex; align-items: center; gap: 4px; flex: none; }
+.goto-input { width: 96px; height: 24px; font-size: 12px; }
+.goto-input::placeholder { color: var(--dim); opacity: 0.6; }
 .cue-text {
   height: 56px; resize: none; background: #12141a; border: 1px solid var(--border); border-radius: 5px; padding: 4px 7px;
   outline: 0; user-select: text; font-size: 13px; line-height: 1.3;
@@ -360,6 +363,11 @@ input, textarea, select, button { font: inherit; color: inherit; }
 .meter { height: 5px; border-radius: 3px; background: #0d0f13; position: relative; overflow: hidden; }
 .meter-fill { height: 100%; width: 0; background: linear-gradient(to right, #2aa889, #3ddc97 70%, #e8c14a 88%); border-radius: 3px; }
 .meter-fill.hot { background: var(--danger); }
+.voiceover-row { display: flex; align-items: center; gap: 10px; }
+.voiceover-meter { flex: 1; height: 7px; }
+.btn.record-btn svg { color: #ff5d6c; }
+.btn.record-btn.on { background: #ff5d6c; border-color: #ff5d6c; color: #fff; }
+.btn.record-btn.on svg { color: #fff; }
 .meter-zero { position: absolute; top: 0; bottom: 0; left: 88.9%; width: 1px; background: rgba(255, 255, 255, 0.35); }
 
 /* ---------------------------------------------------------------- timeline */
@@ -409,6 +417,7 @@ input, textarea, select, button { font: inherit; color: inherit; }
 .clip-name { overflow: hidden; text-overflow: ellipsis; }
 .clip-badge { background: rgba(255, 255, 255, 0.2); border-radius: 7px; padding: 0 5px; font-size: 10px; flex: none; }
 .clip-badge.speed { background: #ffd166; color: #1c1600; font-weight: 700; }
+.clip-badge.speed.reverse { background: #ff9f5a; color: #2a1000; }
 .clip-badge.fx { background: #c79bff; color: #1d0b33; font-weight: 700; }
 .clip-edge { position: absolute; top: 0; bottom: 0; width: 8px; cursor: ew-resize; z-index: 3; }
 .clip-edge.start { left: 0; }
@@ -436,6 +445,13 @@ input, textarea, select, button { font: inherit; color: inherit; }
 .export-result { padding: 10px 0; display: flex; flex-direction: column; gap: 6px; }
 .export-result h3 { font-size: 15px; color: var(--ok); }
 .export-result.bad h3 { color: var(--danger); }
+.gif-transparency { display: flex; flex-direction: column; gap: 8px; }
+.gif-preview { margin: 2px 0 0; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.gif-preview canvas {
+  max-width: 100%; max-height: 200px; border: 1px solid var(--border); border-radius: 4px;
+  background: repeating-conic-gradient(#9a9a9a 0 25%, #d0d0d0 0 50%) 0 0 / 16px 16px;
+}
+.gif-preview canvas.pickable { cursor: crosshair; }
 .error-text { white-space: pre-wrap; background: #12141a; border-radius: 6px; padding: 10px; font-size: 12px; max-height: 220px; overflow: auto; margin: 0; }
 .notice { background: #3a3115; color: #ffe9a6; padding: 6px 10px; border-radius: 6px; font-size: 12.5px; }
 .shortcut-list { display: flex; flex-direction: column; gap: 12px; }

@@ -47,7 +47,7 @@ async function launch() {
 }
 
 // Words that are allowed to stay as they are in any language: product and format names, key names,
-// units, and the brand.
+// units, the brand, and folder names on disk (the Voiceovers folder is called that in every language).
 const ALWAYS_OK = new Set([
   'ClipWorld', 'ffmpeg', 'npm', 'fetch', 'Ctrl', 'Shift', 'Alt', 'Space', 'Delete', 'Left', 'Right', 'Home', 'End', 'Escape',
   'Backspace', 'Enter', 'Tab', 'fps', 'kbps', 'kHz', 'vcws', 'mp4', 'mkv', 'png', 'aac', 'h264', 'MP4', 'MKV', 'MOV', 'GIF',
@@ -55,7 +55,7 @@ const ALWAYS_OK = new Set([
   'QuickTime', 'Apple', 'ProRes', 'MPEG', 'Part', 'NVIDIA', 'NVENC', 'Intel', 'Quick', 'Sync', 'AMD', 'AMF', 'x264', 'x265',
   'libvpx', 'SVT', 'libaom', 'SubRip', 'srt', 'WebVTT', 'vtt', 'Advanced', 'SubStation', 'Alpha', 'ass', 'ssa', 'YouTube',
   'SubViewer', 'sbv', 'TTML', 'DFXP', 'ttml', 'SAMI', 'smi', 'MicroDVD', 'sub', 'LRC', 'lrc', 'txt', 'SRT', 'VTT', 'ASS',
-  'SBV', 'SUB', 'DVD', 'Blu', 'ray', 'UHD', 'Web', 'Language'
+  'SBV', 'SUB', 'DVD', 'Blu', 'ray', 'UHD', 'Web', 'Language', 'Voiceovers'
 ])
 
 /** Every visible piece of text, tooltip and placeholder, with where it was found. */
@@ -83,7 +83,7 @@ const collectText = (page) => page.evaluate(() => {
       if (v) out.push({ text: v, where: `${where(el)} @${a}` })
     }
   }
-  // Typed values (colours such as #ffffff are not words).
+  // Typed values (colors such as #ffffff are not words).
   for (const el of document.querySelectorAll('input[type=text], textarea')) {
     if (visible(el) && el.value && !/^#[0-9a-f]{3,8}$/i.test(el.value)) out.push({ text: el.value, where: `${where(el)} value` })
   }

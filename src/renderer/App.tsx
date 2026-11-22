@@ -100,7 +100,7 @@ export function App() {
     }
   }, [])
 
-  // Clip colours chosen in Settings.
+  // Clip colors chosen in Settings.
   const settings = useStore((s) => s.settings)
   useEffect(() => applyClipColors(settings), [settings.clipColors]) // eslint-disable-line react-hooks/exhaustive-deps
 

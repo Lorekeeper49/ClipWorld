@@ -4,8 +4,9 @@ import { join } from 'node:path'
 import { EFFECT_MAP, encodeWav, n, reverbImpulse } from '@shared/effects'
 import { type Caps, type ExportAssets, buildExport } from '@shared/filtergraph'
 import type { ExportSettings } from '@shared/formats'
-import type { Project } from '@shared/model'
+import { type Project, projectDuration } from '@shared/model'
 import { ffmpegProgress } from './ffmpeg'
+import { renderReversed, reversedSeconds } from './reverse'
 
 export interface ExportJob {
   project: Project
@@ -97,11 +98,18 @@ export async function runExport(job: ExportJob): Promise<{ args: string[]; filte
         assets.irs[e.id] = file
       }
     }
+    // Reversed clips are rendered backwards first; the progress bar shares out the time by seconds of work.
+    const progress = job.onProgress ?? (() => {})
+    const reversing = reversedSeconds(job.project, job.settings)
+    const share = reversing > 0 ? reversing / (reversing + projectDuration(job.project)) : 0
+    if (reversing > 0) {
+      assets.reversed = await renderReversed(job.project, job.settings, job.tmpDir, job.caps.encoders, (f) => progress(f * share), job.signal)
+    }
     const built = buildExport(job.project, job.settings, assets, job.caps)
     const script = join(job.tmpDir, 'graph.txt')
     writeFileSync(script, built.filter, 'utf8')
     const args = ['-y', ...built.inputArgs, '-/filter_complex', script, ...built.outputArgs, job.outPath]
-    await ffmpegProgress(args, built.duration, job.onProgress ?? (() => {}), job.signal)
+    await ffmpegProgress(args, built.duration, (f) => progress(share + (1 - share) * f), job.signal)
     return { args, filter: built.filter }
   } catch (err) {
     if (job.signal?.aborted) rmSync(job.outPath, { force: true })

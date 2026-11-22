@@ -37,6 +37,13 @@ export interface MediaCache {
   sourceUrl: string
   /** Chunked fast-seek preview copy (long-keyframe, very large or undecodable video). */
   chunks?: ProxyChunks
+  /**
+   * Reversed copy of the picture for clips that play backwards: chunk k holds source time [k*seconds,
+   * (k+1)*seconds) played from its end, so chunk time τ shows source time (k*seconds + chunk length) - τ.
+   */
+  reverse?: ProxyChunks
+  /** Each audio track reversed whole, by audio stream index: file time τ is source time duration - τ. */
+  reverseAudio?: Record<number, { url: string; duration: number }>
   /** Proxy for animated images (GIF etc.), with alpha. */
   proxyUrl?: string
   proxyState?: 'pending' | 'ready' | 'error'
@@ -72,10 +79,14 @@ export interface AppSettings {
   language?: string
   /** Import a preset's missing media without asking. */
   autoImportPresetMedia?: boolean
-  /** Timeline colour for each kind of clip ('#rrggbb'); missing kinds use the default. */
+  /** Timeline color for each kind of clip ('#rrggbb'); missing kinds use the default. */
   clipColors?: Partial<Record<'video' | 'audio' | 'image' | 'text' | 'subtitles', string>>
   /** Easing curves saved from the easing graph. */
   easePresets?: { id: string; name: string; curve: EaseCurve }[]
+  /** Microphone for voiceovers (a device id); unset uses the system's default. */
+  voiceoverDevice?: string
+  /** Play the timeline's sound while recording a voiceover (off when there are no headphones). */
+  voiceoverMonitor?: boolean
 }
 
 export interface AppInfo {
@@ -159,6 +170,11 @@ export interface Api {
   setFastSeek(mediaId: string, on: boolean): Promise<void>
   /** Where the user is working in a video (source seconds), so nearby preview chunks are built first. */
   proxyFocus(mediaId: string, sourceTime: number): void
+  /**
+   * Where clips play a file backwards (source ranges) and the source time at the playhead, so the reversed
+   * copies they need are built (nearest first). An empty list means no clip plays it backwards any more.
+   */
+  reverseFocus(mediaId: string, ranges: [number, number][], sourceTime: number): void
   /** Writes an MP4 copy next to the original (which is left untouched) and describes it. */
   convertToMp4(mediaId: string): Promise<ConvertResult>
   cancelConvert(mediaId: string): Promise<void>
@@ -183,8 +199,11 @@ export interface Api {
   saveSubtitleFile(suggestedName: string, ext: string, label: string, content: string): Promise<string | null>
 
   openProject(path?: string): Promise<OpenedProject | null>
-  /** Saves to `path`, or asks for a location when it is null. Returns the path, or null if cancelled. */
-  saveProject(path: string | null, project: Project): Promise<string | null>
+  /**
+   * Saves to `path`, or asks for a location when it is null (starting next to `saveAsFrom`, the project's
+   * current file, or in Documents/ClipWorld/Projects). Returns the path, or null if cancelled.
+   */
+  saveProject(path: string | null, project: Project, saveAsFrom?: string | null): Promise<string | null>
   writeRecovery(data: Recovery | null): Promise<void>
   /** A project file was opened from outside (double-clicked while the app is running). */
   onOpenPath(cb: (path: string) => void): () => void
@@ -194,6 +213,17 @@ export interface Api {
   cancelExport(): Promise<void>
   onExportProgress(cb: (fraction: number) => void): () => void
   showInFolder(path: string): Promise<void>
+
+  /**
+   * Voiceover recording: opens a WAV file (next to the project, or in Documents/ClipWorld/Voiceovers before
+   * it is saved), appends 16-bit mono samples as they are recorded, and finishes or throws the take away.
+   */
+  voiceoverBegin(projectPath: string | null, sampleRate: number): Promise<{ id: string; path: string }>
+  voiceoverWrite(id: string, samples: Uint8Array): Promise<void>
+  voiceoverEnd(id: string, sampleRate: number): Promise<{ path: string; duration: number } | null>
+  voiceoverDiscard(id: string): Promise<void>
+  /** Deletes a finished take's file. */
+  voiceoverRemove(path: string): Promise<void>
 
   setWindowState(state: { title: string; dirty: boolean }): void
   /** The window wants to close while there are unsaved changes. */

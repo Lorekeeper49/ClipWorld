@@ -91,7 +91,7 @@ describe('custom easing in the export', () => {
     ]) }
     dot.transform = { ...dot.transform, animate: true, ease: curve, start: { ...dot.transform.start, x: -0.4, scale: 0.1 }, end: { ...dot.transform.end, x: 0, scale: 0.1 } }
     const out = await exportTo(p)
-    // At 1 s (curve 1.3): x = -0.4 + 0.4*1.3 = +0.12 of the width → centre at 160 + 38.4 ≈ 198.
+    // At 1 s (curve 1.3): x = -0.4 + 0.4*1.3 = +0.12 of the width → center at 160 + 38.4 ≈ 198.
     const v = evalCurve(curve, 0.5)
     const cx = 160 + 320 * (-0.4 + 0.4 * v)
     const at = await frameColor(out, 1, `8:8:${Math.round(cx - 4)}:86`)

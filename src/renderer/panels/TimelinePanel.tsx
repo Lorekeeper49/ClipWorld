@@ -1,12 +1,13 @@
-import { memo, useCallback, useEffect, useLayoutEffect, useRef } from 'react'
+import { memo, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { PEAKS_PER_SECOND } from '@shared/ipc'
-import { type Clip, type MediaItem, type Track, clipEnd, isTimed, projectDuration } from '@shared/model'
+import { type Clip, type MediaItem, type Track, clipEnd, isTimed, projectDuration, signedSpeed } from '@shared/model'
 import { clipCues } from '@shared/subtitles'
 import { clipSegments, loopable, virtualToSource } from '@shared/loop'
 import {
   type MoveOrigin, addTrack, loopClip, mediaById, moveClips, removeTrack, snapPoints, snapTime, stretchClip, trimClip, withLinked
 } from '@shared/timeline-ops'
-import { Btn, Icon } from '../components/ui'
+import { Btn, Icon, formatTime } from '../components/ui'
+import { parseTime } from '@shared/timecode'
 import { player } from '../engine/player'
 import { addTextAction, addToTimeline, deleteSelectionAction, redo, splitAction, undo, zoomTimeline } from '../state/actions'
 import { t, useT } from '../i18n'
@@ -139,7 +140,10 @@ function ClipCanvas({ clip, media, pps, height }: { clip: Clip; media: MediaItem
       ctx.clearRect(0, 0, canvas.width, canvas.height)
       // Where in the file each point of the clip plays (loops repeat part of it).
       const mediaDur = media?.duration ?? Infinity
-      const srcAt = (px: number) => virtualToSource(clip.loop, clip.srcIn + (px / pps) * clip.speed, mediaDur)
+      // A reversed clip plays its window from the top down.
+      const virtualAtPx = (px: number) =>
+        clip.reverse ? clip.srcIn + (clip.duration - px / pps) * clip.speed : clip.srcIn + (px / pps) * clip.speed
+      const srcAt = (px: number) => virtualToSource(clip.loop, virtualAtPx(px), mediaDur)
 
       if (clip.type === 'audio' && peaks) {
         const mid = canvas.height / 2
@@ -147,8 +151,10 @@ function ClipCanvas({ clip, media, pps, height }: { clip: Clip; media: MediaItem
         ctx.fillStyle = inkOn(audioColor)
         const hot: number[] = []
         for (let x = 0; x < canvas.width; x++) {
-          const t0 = srcAt(visL + x / dpr)
-          const t1 = t0 + (1 / dpr / pps) * clip.speed
+          const a = srcAt(visL + x / dpr)
+          const b = srcAt(visL + (x + 1) / dpr)
+          const t0 = Math.min(a, b)
+          const t1 = Math.max(t0 + 1e-6, Math.min(Math.max(a, b), t0 + (1 / dpr / pps) * clip.speed))
           const i0 = Math.max(0, Math.floor(t0 * PEAKS_PER_SECOND))
           const i1 = Math.min(peaks.length - 1, Math.max(i0, Math.floor(t1 * PEAKS_PER_SECOND)))
           let peak = 0
@@ -178,7 +184,8 @@ function ClipCanvas({ clip, media, pps, height }: { clip: Clip; media: MediaItem
       // Loops: a dashed line where each pass starts again, and a shaded band over a crossfade.
       if (clip.loop && media) {
         const segs = clipSegments(clip, media.duration)
-        const xOf = (v: number) => (((v - clip.srcIn) / clip.speed) * pps - visL) * dpr
+        const xOf = (v: number) =>
+          (((clip.reverse ? clip.srcIn + clip.duration * clip.speed - v : v - clip.srcIn) / clip.speed) * pps - visL) * dpr
         ctx.save()
         ctx.strokeStyle = 'rgba(255,255,255,0.7)'
         ctx.lineWidth = Math.max(1, dpr)
@@ -198,7 +205,7 @@ function ClipCanvas({ clip, media, pps, height }: { clip: Clip; media: MediaItem
     }
     draw()
     return view.subscribe(draw)
-  }, [clip.start, clip.duration, clip.srcIn, clip.speed, clip.volume, clip.muted, clip.type, clip.loop, pps, height, peaks, strip, film, media, audioColor])
+  }, [clip.start, clip.duration, clip.srcIn, clip.speed, clip.reverse, clip.volume, clip.muted, clip.type, clip.loop, pps, height, peaks, strip, film, media, audioColor])
 
   return <canvas ref={ref} className="clip-canvas" />
 }
@@ -222,7 +229,7 @@ const ClipView = memo(function ClipView({ clip, media, pps, height, selected, mi
       : clip.type === 'subtitles' ? t('timeline.subtitlesClip', { name: subName ?? clip.name })
         : clip.name || media?.name || ''
   const fx = clip.effects.filter((e) => e.enabled).length
-  const speedPct = Math.round(clip.speed * 100)
+  const speedPct = Math.round(signedSpeed(clip) * 100)
   return (
     <div
       className={`clip clip-${clip.type}${selected ? ' selected' : ''}${missing ? ' missing' : ''}${clip.muted ? ' muted' : ''}`}
@@ -237,7 +244,11 @@ const ClipView = memo(function ClipView({ clip, media, pps, height, selected, mi
       <div className="clip-label">
         {clip.linkId && <Icon name="link" size={11} />}
         <span className="clip-name">{label}</span>
-        {timed && speedPct !== 100 && <span className="clip-badge speed" data-testid="clip-speed">{speedPct}%</span>}
+        {timed && speedPct !== 100 && (
+          <span className={`clip-badge speed${clip.reverse ? ' reverse' : ''}`} data-testid="clip-speed" title={clip.reverse ? t('timeline.reversedBadge') : undefined}>
+            {clip.reverse ? '◀ ' : ''}{speedPct}%
+          </span>
+        )}
         {clip.loop && <span className="clip-badge loop" data-testid="clip-loop" title={t('timeline.loopBadge', { times: formatCount(clip.loop.count) })}>↻ {formatCount(clip.loop.count)}×</span>}
         {clip.type === 'audio' && Math.abs(clip.volume - 1) > 0.005 && <span className="clip-badge">{Math.round(clip.volume * 100)}%</span>}
         {fx > 0 && <span className="clip-badge fx">fx {fx}</span>}
@@ -294,6 +305,61 @@ function Ruler({ pps, onDown }: { pps: number; onDown: (e: React.PointerEvent) =
     <div className="tl-ruler" onPointerDown={onDown} data-testid="ruler">
       <canvas ref={ref} />
     </div>
+  )
+}
+
+// ---------------------------------------------------------------- go to a time
+
+/**
+ * A box for a time, in the preview's format (mm:ss:ff) or in seconds; Enter or the button moves the
+ * playhead there. It shows what it understood afterwards, so "90" becomes 01:30:00.
+ */
+function GoToTime() {
+  useT()
+  const fps = useStore((s) => s.project.settings.fps)
+  const [text, setText] = useState('')
+  const [bad, setBad] = useState(false)
+  const ref = useRef<HTMLInputElement>(null)
+  const go = () => {
+    const v = parseTime(text, fps)
+    if (v === null) {
+      setBad(true)
+      ref.current?.focus()
+      return
+    }
+    setBad(false)
+    player.seek(v)
+    setText(formatTime(player.time, fps))
+  }
+  return (
+    <span className="goto">
+      <input
+        ref={ref} type="text" className={`time-input goto-input${bad ? ' invalid' : ''}`} data-testid="goto-time" spellCheck={false}
+        value={text} placeholder={formatTime(0, fps)} aria-label={t('timeline.goTo')}
+        title={bad ? t('timeline.goToInvalid') : t('timeline.goToHint')}
+        onChange={(e) => {
+          setText(e.target.value)
+          setBad(false)
+        }}
+        onFocus={(e) => {
+          // Starts from where the playhead is, selected, so typing replaces it.
+          if (!text) setText(formatTime(player.time, fps))
+          const el = e.target
+          requestAnimationFrame(() => el.select())
+        }}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') {
+            e.preventDefault()
+            go()
+          } else if (e.key === 'Escape') {
+            setText('')
+            setBad(false)
+            e.currentTarget.blur()
+          }
+        }}
+      />
+      <Btn small icon="right" title={t('timeline.goTo')} onClick={go} testId="goto-button">{t('timeline.goToButton')}</Btn>
+    </span>
   )
 }
 
@@ -509,6 +575,8 @@ export function TimelinePanel() {
         <span className="toolbar-sep" />
         <Btn icon="magnet" title={t('timeline.withKeys', { action: t('timeline.snapping'), keys: bindingFor('timeline.snap') })} active={snapping} onClick={() => set({ snapping: !snapping })} />
         <Btn icon="text" title={t('timeline.withKeys', { action: t('timeline.addTextHere'), keys: bindingFor('timeline.addText') })} onClick={() => addTextAction()} />
+        <span className="toolbar-sep" />
+        <GoToTime />
         <span className="toolbar-hint">{t('timeline.hint')}</span>
         <span className="toolbar-spacer" />
         <Btn small icon="plus" title={t('timeline.addVideoTrack')} onClick={() => edit((p) => { addTrack(p, 'video') })}>{t('timeline.video')}</Btn>

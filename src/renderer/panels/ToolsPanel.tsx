@@ -2,13 +2,15 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { EFFECTS, EFFECT_MAP, type EffectDef, type ParamDef, fieldLimits, makeEffect } from '@shared/effects'
 import { effectGroupName, effectName, optionName, paramName } from '@shared/labels'
 import {
-  type Clip, type EffectInstance, MAX_SPEED, MIN_SPEED, type TextProps, type TransformState,
+  type Clip, type EffectInstance, type TextProps, type TransformState,
   defaultTransform, defaultZoom, isTimed
 } from '@shared/model'
-import { groupOf, stretchClip } from '@shared/timeline-ops'
+import { groupOf } from '@shared/timeline-ops'
+import { SpeedField } from './SpeedField'
 import { Btn, Color, Field, Icon, Num, Section, Select, Slider, Toggle, useDismiss } from '../components/ui'
 import { FontPicker } from '../components/FontPicker'
 import { PresetsTool } from './PresetsTool'
+import { VoiceoverTool } from './VoiceoverTool'
 import { EaseField } from '../dialogs/EaseEditor'
 import { t, useT } from '../i18n'
 import { addTextAction, importPaths } from '../state/actions'
@@ -61,14 +63,9 @@ function TextTool({ clip }: { clip: Clip | undefined }) {
 function ClipTool({ clip }: { clip: Clip }) {
   const media = useStore((s) => mediaOf(s, clip.mediaId))
   if (!isTimed(clip, media)) return null
-  const setSpeed = (speed: number) => {
-    const sp = Math.min(MAX_SPEED, Math.max(MIN_SPEED, speed))
-    // Changing speed is the same operation as dragging the clip's right edge.
-    edit((p) => { stretchClip(p, clip.id, 'end', clip.start + (clip.duration * clip.speed) / sp) }, { key: `${clip.id}:speed` })
-  }
   return (
     <Section title={t('tools.speed.title')} icon="film">
-      <Slider label={t('tools.speed.title')} value={clip.speed} min={0.1} max={8} field={{ min: MIN_SPEED, max: MAX_SPEED }} step={0.01} display={100} unit="%" reset={1} mark={1} onChange={setSpeed} testId="speed" />
+      <SpeedField clip={clip} label={t('tools.speed.title')} testId="speed" />
       <Toggle label={t('tools.speed.keepPitch')} value={clip.preservePitch}
         onChange={(v) => edit((p) => { for (const c of groupOf(p, p.clips.find((x) => x.id === clip.id)!)) c.preservePitch = v })} />
       <p className="dim small">{t('tools.speed.hint')}</p>
@@ -324,6 +321,7 @@ export function ToolsPanel() {
   return (
     <div className="panel tools-panel scroll" data-panel="tools">
       <TextTool clip={clip} />
+      <VoiceoverTool />
       <PresetsTool />
       {!clip && (
         <div className="empty small">

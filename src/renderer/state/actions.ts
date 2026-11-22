@@ -56,7 +56,7 @@ export function openProjectAction(path?: string): void {
 export async function saveProjectAction(saveAs = false): Promise<boolean> {
   const s = get()
   try {
-    const path = await window.cw.saveProject(saveAs ? null : s.projectPath, s.project)
+    const path = await window.cw.saveProject(saveAs ? null : s.projectPath, s.project, s.projectPath)
     if (!path) return false
     // Only clear the dirty flag if nothing changed while the file was being written.
     set((cur) => ({ projectPath: path, dirty: cur.project !== s.project }))
@@ -232,7 +232,8 @@ export function initMediaCacheListener(): () => void {
       ...cur,
       ...patch,
       audioUrls: { ...cur.audioUrls, ...(patch.audioUrls ?? {}) },
-      peakUrls: { ...cur.peakUrls, ...(patch.peakUrls ?? {}) }
+      peakUrls: { ...cur.peakUrls, ...(patch.peakUrls ?? {}) },
+      ...(patch.reverseAudio ? { reverseAudio: { ...cur.reverseAudio, ...patch.reverseAudio } } : {})
     }
     set({ mediaCache: { ...s.mediaCache, [id]: next } })
     if (media?.kind === 'video' && next.sourceUrl && !next.missing && !s.playable[id]) checkPlayable(id, next.sourceUrl)

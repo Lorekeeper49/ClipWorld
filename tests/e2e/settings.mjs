@@ -1,5 +1,5 @@
 // Settings window test: opening it (Edit menu, Ctrl+,, and the pages the old menu items lead to), clip
-// colours on the timeline (change, reset, kept after a restart), and editing a shortcut inside it.
+// colors on the timeline (change, reset, kept after a restart), and editing a shortcut inside it.
 // Run with: npm run build && node tests/e2e/settings.mjs
 import { _electron as electron } from 'playwright'
 import { mkdirSync, rmSync, writeFileSync } from 'node:fs'
@@ -80,7 +80,7 @@ const before = await clipBackground(page, 'video')
 await setColor(page, 'video', '#ff8800')
 check(await clipBackground(page, 'video') === 'rgb(255, 136, 0)', `video clips turn orange on the timeline (was ${before})`)
 await setColor(page, 'audio', '#f0f0f0')
-check(await clipBackground(page, 'audio') === 'rgb(240, 240, 240)', 'audio clips turn light grey')
+check(await clipBackground(page, 'audio') === 'rgb(240, 240, 240)', 'audio clips turn light gray')
 check(await page.evaluate(() => getComputedStyle(document.querySelector('[data-kind=video] .clip-swatch')).backgroundColor) === 'rgb(255, 136, 0)',
   'the sample in Settings shows the new color')
 check(await page.evaluate(() => getComputedStyle(document.querySelector('[data-kind=audio] .clip-swatch')).backgroundColor) === 'rgb(240, 240, 240)' &&

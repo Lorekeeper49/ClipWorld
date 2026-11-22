@@ -221,7 +221,7 @@ function Graph({ target, ease }: { target: Target; ease: Ease }) {
 }
 
 /**
- * Where the start-to-end line sits in the motion strip, as fractions of its width: centred, half as wide,
+ * Where the start-to-end line sits in the motion strip, as fractions of its width: centered, half as wide,
  * so curves that overshoot (Elastic, Back) or dip below the start (Elastic In) stay in view either side.
  */
 const MOTION_FROM = 0.25

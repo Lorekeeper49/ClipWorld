@@ -8,6 +8,7 @@ import { patchSettings, set, useStore } from '../state/store'
 import { CLIP_KINDS, type ClipKind, DEFAULT_CLIP_COLORS, clipColor } from './clipColors'
 import { LanguagePicker } from './LanguagePicker'
 import { ShortcutsEditor } from './ShortcutsEditor'
+import { VoiceoverSettings } from '../panels/VoiceoverTool'
 
 type Page = 'general' | 'timeline' | 'shortcuts'
 const PAGES: { id: Page; icon: string }[] = [
@@ -31,6 +32,9 @@ function GeneralPage() {
       <Slider label={t('settings.previewVolume')} value={volume} min={0} max={1} step={0.01} display={100} unit="%" reset={1}
         onChange={(v) => patchSettings({ previewVolume: v })} testId="settings-preview-volume" />
       <p className="dim small">{t('settings.previewVolumeHint')}</p>
+      <h3>{t('tools.voiceover.title')}</h3>
+      <VoiceoverSettings testPrefix="settings-voiceover" />
+      <p className="dim small">{t('settings.voiceoverHint')}</p>
       <h3>{t('presets.title')}</h3>
       <Toggle label={t('presets.autoImport')} value={autoImport} onChange={(v) => patchSettings({ autoImportPresetMedia: v })} testId="settings-auto-import" />
       <p className="dim small">{t('settings.autoImportHint')}</p>

@@ -3,8 +3,9 @@ import { makeEffect } from '@shared/effects'
 import {
   type ClipLoop, MAX_LOOP_COUNT, MIN_LOOP_COUNT, effectiveCrossfade, loopFromClip, loopable, partialIntoOutro
 } from '@shared/loop'
-import { type Clip, MAX_SPEED, MIN_SPEED, isTimed } from '@shared/model'
-import { groupOf, setClipLoop, stretchClip } from '@shared/timeline-ops'
+import { type Clip, isTimed } from '@shared/model'
+import { groupOf, setClipLoop } from '@shared/timeline-ops'
+import { SpeedField } from './SpeedField'
 import { Field, Icon, Num, Section, Slider, Toggle, formatDuration } from '../components/ui'
 import { t, useT } from '../i18n'
 import { edit, mediaOf, primaryClip, toast, useStore } from '../state/store'
@@ -22,10 +23,6 @@ function SpeedSection({ clip }: { clip: Clip }) {
   // Pitch is the clip's pitch-shift effect (on its sound), so it sounds the same as adding one by hand.
   const pitchFx = audioClips.map((c) => c.effects.find((e) => e.type === 'pitch' && e.enabled)).find(Boolean)
   const pitch = pitchFx ? Number(pitchFx.params.semitones ?? 0) : 0
-  const setSpeed = (speed: number) => {
-    const sp = Math.min(MAX_SPEED, Math.max(MIN_SPEED, speed))
-    edit((p) => { stretchClip(p, clip.id, 'end', clip.start + (clip.duration * clip.speed) / sp) }, { key: `${clip.id}:speed` })
-  }
   const setPitch = (semitones: number) =>
     edit((p) => {
       for (const c of groupOf(p, p.clips.find((x) => x.id === clip.id)!)) {
@@ -44,8 +41,7 @@ function SpeedSection({ clip }: { clip: Clip }) {
     }, { key: `${clip.id}:pitch` })
   return (
     <Section title={t('properties.speedPitch')} icon="film">
-      <Slider label={t('properties.speed')} value={clip.speed} min={0.1} max={8} field={{ min: MIN_SPEED, max: MAX_SPEED }} step={0.01} display={100} unit="%" reset={1} mark={1}
-        onChange={setSpeed} testId="prop-speed" />
+      <SpeedField clip={clip} label={t('properties.speed')} testId="prop-speed" />
       {audioClips.length > 0 && (
         <>
           <Slider label={t('properties.pitch')} value={pitch} min={-12} max={12} field={{ min: -24, max: 24 }} step={0.1} unit="st" reset={0} mark={0}

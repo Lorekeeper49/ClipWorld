@@ -1,17 +1,18 @@
 import { BrowserWindow, Menu, app, dialog, ipcMain, session, shell } from 'electron'
 import { execFile } from 'node:child_process'
 import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs'
-import { delimiter, dirname, extname, isAbsolute, join, relative, resolve } from 'node:path'
+import { basename, delimiter, dirname, extname, isAbsolute, join, relative, resolve } from 'node:path'
 import type { Caps } from '@shared/filtergraph'
 import type { AppInfo, ExportRequest, ExportResult, OpenedProject, Recovery } from '@shared/ipc'
 import { type MediaItem, PROJECT_EXT, type Project, parseProject } from '@shared/model'
 import { runExport } from './export'
 import { type FfmpegPaths, findFfmpeg, run, setFfmpegPaths, usableCapabilities, vendorDirs } from './ffmpeg'
 import {
-  cancelConvert, convertToMp4, initMediaCache, prepareMedia, requestProxy, setChunkEncoders, setFastSeek, setProxyFocus,
+  cancelConvert, convertToMp4, initMediaCache, prepareMedia, requestProxy, setChunkEncoders, setFastSeek, setProxyFocus, setReverseWanted,
   stopBackgroundWork
 } from './media'
 import { probeMedia } from './probe'
+import { beginTake, discardTake, endTake, removeTakeFile, voiceoverFolder, writeTake } from './voiceover'
 import { extractSubtitleStream, listSubtitleStreams, readSubtitleFile } from './subtitles'
 import { SUBTITLE_IMPORT_EXTS } from '@shared/subtitles'
 import { allowFile, handleProtocol, registerScheme } from './protocol'
@@ -271,6 +272,14 @@ function registerIpc(): void {
   })
   ipcMain.handle('media:proxy', (_e, id: string) => requestProxy(id))
   ipcMain.on('media:focus', (_e, id: string, t: number) => setProxyFocus(id, t))
+
+  ipcMain.handle('voiceover:begin', (_e, projectPath: string | null, rate: number) =>
+    beginTake(voiceoverFolder(projectPath, app.getPath('documents')), rate))
+  ipcMain.handle('voiceover:write', (_e, id: string, data: Uint8Array) => writeTake(id, data))
+  ipcMain.handle('voiceover:end', (_e, id: string, rate: number) => endTake(id, rate))
+  ipcMain.handle('voiceover:discard', (_e, id: string) => discardTake(id))
+  ipcMain.handle('voiceover:remove', (_e, path: string) => removeTakeFile(path))
+  ipcMain.on('media:reverse', (_e, id: string, ranges: [number, number][], t: number) => setReverseWanted(id, ranges, t))
   ipcMain.handle('media:fast-seek', (_e, id: string, on: boolean) => setFastSeek(id, on))
   ipcMain.handle('media:convert', async (_e, id: string) => {
     const r = await convertToMp4(id, caps.encoders)
@@ -341,6 +350,7 @@ function registerIpc(): void {
       else {
         const r = await dialog.showOpenDialog(win!, {
           title: t('dialogs.openProject'),
+          defaultPath: projectsFolder(),
           properties: ['openFile'],
           filters: [{ name: t('dialogs.projectFiles'), extensions: [PROJECT_EXT] }]
         })
@@ -352,7 +362,7 @@ function registerIpc(): void {
     addRecent(target)
     return opened
   })
-  ipcMain.handle('project:save', async (_e, path: string | null, project: Project) => {
+  ipcMain.handle('project:save', async (_e, path: string | null, project: Project, saveAsFrom?: string | null) => {
     let target = path
     if (!target) {
       const test = testDialogAnswer('save')
@@ -360,7 +370,10 @@ function registerIpc(): void {
       else {
         const r = await dialog.showSaveDialog(win!, {
           title: t('dialogs.saveProject'),
-          defaultPath: `${t('app.untitled')}.${PROJECT_EXT}`,
+          // A project that was saved before is saved as next to itself; a new one goes in Documents/ClipWorld/Projects.
+          defaultPath: saveAsFrom
+            ? join(dirname(saveAsFrom), `${basename(saveAsFrom, extname(saveAsFrom))}.${PROJECT_EXT}`)
+            : join(projectsFolder(), `${t('app.untitled')}.${PROJECT_EXT}`),
           filters: [{ name: t('dialogs.projectFiles'), extensions: [PROJECT_EXT] }]
         })
         target = r.canceled ? null : (r.filePath ?? null)
@@ -456,6 +469,17 @@ function registerIpc(): void {
   ipcMain.on('window:devtools', () => win?.webContents.toggleDevTools())
 }
 
+/** Where projects are saved unless the user picks somewhere else: Documents/ClipWorld/Projects (made when needed). */
+function projectsFolder(): string {
+  const dir = join(app.getPath('documents'), 'ClipWorld', 'Projects')
+  try {
+    mkdirSync(dir, { recursive: true })
+  } catch {
+    return app.getPath('documents')
+  }
+  return dir
+}
+
 // ---------------------------------------------------------------- app lifecycle
 
 if (!app.requestSingleInstanceLock()) {
@@ -476,7 +500,11 @@ if (!app.requestSingleInstanceLock()) {
     initMediaCache(join(app.getPath('userData'), 'cache'), (id, patch) => win?.webContents.send('media:cache', id, patch))
     await locateFfmpeg()
     // The font picker and the media protocol are the only extra capabilities the page needs.
-    session.defaultSession.setPermissionRequestHandler((_wc, permission, cb) => cb(permission === 'local-fonts'))
+    // The font picker, and the microphone for voiceovers (sound only, never the camera or the screen).
+    session.defaultSession.setPermissionRequestHandler((_wc, permission, cb, details) => {
+      const types = (details as { mediaTypes?: string[] }).mediaTypes ?? []
+      cb(permission === 'local-fonts' || (permission === 'media' && types.length > 0 && types.every((m) => m === 'audio')))
+    })
     registerIpc()
     createWindow()
   })

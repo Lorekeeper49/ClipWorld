@@ -1,4 +1,4 @@
-// Mask UI test: adds colour, image and difference (clone) masks from the Tools window and checks the
+// Mask UI test: adds color, image and difference (clone) masks from the Tools window and checks the
 // preview and the exported video agree. Run with: npm run build && node tests/e2e/masks.mjs
 import { _electron as electron } from 'playwright'
 import { mkdirSync, rmSync, writeFileSync } from 'node:fs'
@@ -40,7 +40,7 @@ await page.waitForSelector('.menubar')
 const step = (m) => console.log('•', m)
 const check = (cond, msg) => { if (!cond) throw new Error('FAILED: ' + msg); console.log('  ✓', msg) }
 
-/** Average colour of a region (x, y, w, h in 320x180 frame pixels) of the preview at time t. */
+/** Average color of a region (x, y, w, h in 320x180 frame pixels) of the preview at time t. */
 const previewAt = (t, [x, y, w, h]) => page.evaluate(async ({ t, x, y, w, h }) => {
   const { player } = window.__cw
   player.pause()

@@ -109,7 +109,7 @@ The Preview window shows your video at the playhead's position.
 - **Play / pause:** click the picture, press **Space**, or use the play button.
 - **Step one frame:** the buttons either side of play, or the **Left** and **Right** arrow keys.
 - **Jump to the start or end:** the outer buttons, or **Home** and **End**.
-- **Time display:** the current time and the total length, as `minutes:seconds:frames`.
+- **Time display:** the current time and the total length, as `minutes:seconds:frames`. To jump to an exact time, type it into the box on the [timeline](#timeline)'s toolbar.
 - **Preview volume:** the slider on the right only changes how loud the preview plays (0–100%). It **does not** change your exported video. The speaker button mutes the preview.
 
 The picture always fits the window, so you see the whole frame.
@@ -121,6 +121,12 @@ The timeline is where you build your video.
 **Moving around**
 
 - **Move the playhead:** click or drag on the time ruler at the top, or click an empty part of a track.
+- **Go to an exact time:** type a time into the box on the toolbar and press **Enter** (or click **Go**). **Ctrl+G** puts the cursor in the box. You can type:
+  - the preview's format, `minutes:seconds:frames`, such as `01:30:12` (add hours in front for long videos: `01:02:03:04`);
+  - minutes and seconds, such as `1:30`;
+  - just seconds, such as `90` or `90.5`.
+
+  The box then shows the time it went to, in the preview's format. A time past the end goes to the end.
 - **Zoom in and out:** hold **Ctrl** and scroll the mouse wheel, use the **−** and **+** buttons or the slider, or press **Ctrl+=** and **Ctrl+−**. The **fit** button (the four corners) shows the whole video at once.
 - **Scroll:** use the scroll bars or the mouse wheel.
 
@@ -143,6 +149,14 @@ The timeline is where you build your video.
 - **Hold Alt while dragging an edge to trim instead.** This cuts off the beginning or end without changing the speed.
 - **Hold Ctrl while dragging an edge to loop the clip.** The clip plays again and again (at the same speed) to fill the new length. A green **↻** badge shows how many times it loops, and dashed lines mark where each loop starts again. This works on videos and sound; see [Properties](#properties) for the loop settings.
 
+**Playing a clip backwards**
+
+- Type a **negative speed**, such as **−100%**, into the **Speed** box in the Tools or Properties window. **−100%** plays the clip backwards at normal speed, **−200%** backwards at double speed, and so on. A video and its sound reverse together.
+- A reversed clip shows an orange **◀** badge with its speed, and its picture strip and waveform are drawn backwards too.
+- It still uses the same part of the file, so trimming works as you'd expect from what you see: dragging the right edge out (with **Alt**) shows earlier parts of the file, because that's where a backwards clip ends.
+- The first time a reversed clip plays, ClipWorld prepares a backwards copy of that part of the file in the background. Until it's ready, the preview steps through the picture (it may look choppy) and the sound is silent. Exports are always smooth and exact.
+- Type a positive speed to play it forwards again.
+
 **Cutting and copying**
 
 - **Split** (**Ctrl+K** or the **Split** button) cuts clips in two at the playhead.
@@ -159,7 +173,7 @@ The timeline is where you build your video.
 - The **eye** button hides a video track. The **speaker** button mutes an audio track.
 - An empty track can be removed with its **×** button (when there's at least one other track of that kind).
 
-Clips are colour-coded: blue for video, green for audio, orange for pictures, purple for text, and gold for subtitles. You can choose your own colours in [Settings](#settings). A small **fx** badge means the clip has effects.
+Clips are color-coded: blue for video, green for audio, orange for pictures, purple for text, and gold for subtitles. You can choose your own colors in [Settings](#settings). A small **fx** badge means the clip has effects.
 
 ### Tools
 
@@ -172,8 +186,23 @@ The Tools window changes the selected clip. Each part folds open and closed by c
   - **The words.** Press Enter for a new line.
   - **Font:** any font installed on your computer. Click it and type to search.
   - **Size**, **Bold** (B), **Italic** (I), and alignment (**Left**, **Center**, **Right**).
-  - **Fill:** the colour of the letters.
+  - **Fill:** the color of the letters.
   - **Outline** and **Outline width:** a border around the letters, which helps text stand out.
+
+**Voiceover**
+
+Record yourself talking over your video:
+
+1. Move the playhead to where your voiceover should start.
+2. Click **Record**. The timeline starts playing from the playhead, and everything the microphone hears is recorded. A timer and a level meter show it's working.
+3. Talk along with the video.
+4. Click **Stop** (or press **Space**). The timeline stops, and your recording appears as a new audio clip called **Voiceover**, on its own track, starting where the playhead was. It's lined up with what you heard while you spoke.
+
+- **Microphone:** which microphone to use. **Default microphone** follows Windows' choice.
+- **Hear the timeline while recording:** plays the video's sound while you record. Wear headphones, or turn this off, so the microphone doesn't pick up the video's sound as well.
+- Recordings are saved as WAV files in a **Voiceovers** folder next to your project file. If the project hasn't been saved yet, they go in **Documents ▸ ClipWorld ▸ Voiceovers**.
+- A voiceover is an ordinary audio clip: move it, trim it, change its volume or add effects like any other. **Ctrl+Z** removes it.
+- The first time, Windows may ask whether ClipWorld can use the microphone. If recording says it isn't allowed, turn it on in **Windows Settings ▸ Privacy & security ▸ Microphone**.
 
 **Presets**
 
@@ -181,14 +210,16 @@ The Tools window changes the selected clip. Each part folds open and closed by c
 
 **Speed** (videos and audio)
 
-- Plays the clip faster or slower, from 10% to 800%. 100% is normal speed. Double-click the slider to go back to 100%.
+- Plays the clip faster or slower. 100% is normal speed. Double-click the slider to go back to 100%.
+- The slider goes from 10% to 800%; type into the box for anything from 5% to 2000%.
+- **Negative speeds play the clip backwards** (videos and sound only): −100% is backwards at normal speed. See [Playing a clip backwards](#timeline).
 - **Keep audio pitch when speed changes:** when this is on, sped-up voices don't sound squeaky and slowed-down voices don't sound deep.
 
 **Zoom on video**
 
 - Slowly zooms into (or out of) the picture over the length of the clip, like a camera pushing in.
 - **Start zoom** and **End zoom:** 100% is normal size, and higher numbers zoom in.
-- **Focus X / Focus Y:** the point the zoom moves towards (50% / 50% is the centre).
+- **Focus X / Focus Y:** the point the zoom moves towards (50% / 50% is the center).
 - **Ease:** how the movement starts and stops (see [Easing](#easing) below).
 
 **Transform**
@@ -240,7 +271,7 @@ The Properties window (a tab next to Tools) shows the settings of the selected c
 
 **Speed & pitch** (videos and audio)
 
-- **Speed:** plays the clip faster or slower, the same as dragging its edge.
+- **Speed:** plays the clip faster or slower, the same as dragging its edge. A negative speed plays it backwards.
 - **Pitch:** makes the sound higher or lower without changing its speed, in semitones (+12 is one octave higher, −12 one octave lower). Double-click the slider to go back to 0.
 - **Keep audio pitch when speed changes:** the same switch as in the Tools window.
 
@@ -305,7 +336,7 @@ The Subtitles window lets you write subtitles, style them, save them as subtitle
 
 **Style** (click to open)
 
-- Font, size, bold, italic, alignment, text colour, outline, and an optional background box behind the words.
+- Font, size, bold, italic, alignment, text color, outline, and an optional background box behind the words.
 - **Position:** bottom, middle or top, plus how far from the edge.
 - **Line width:** how wide a line can get before the words wrap onto the next line.
 
@@ -336,19 +367,19 @@ Select a clip, open **Filters & effects** in the Tools window, and pick an effec
 - The tick box turns an effect off without removing it. The trash button removes it.
 - **For a video with sound:** buttons at the top let you choose whether the effect goes on the picture or on one of its audio tracks.
 
-**Colour**
+**Color**
 
-| Effect        | What it does                                                                   |
-| ------------- | ------------------------------------------------------------------------------ |
-| Brightness    | Makes the picture lighter or darker.                                           |
-| Contrast      | Makes the difference between light and dark stronger or weaker.                |
-| Saturation    | Makes colours stronger, or fades them toward grey.                             |
-| Hue shift     | Rotates every colour around the colour wheel (blues become greens, and so on). |
-| Black & white | Removes colour.                                                                |
-| Sepia         | Gives an old-photo brown tone.                                                 |
-| Invert        | Turns the picture into its negative.                                           |
-| Color tint    | Washes the picture with a colour you choose.                                   |
-| Gradient      | Lays a fade from one colour to another over the picture, at any angle.         |
+| Effect        | What it does                                                                 |
+| ------------- | ---------------------------------------------------------------------------- |
+| Brightness    | Makes the picture lighter or darker.                                         |
+| Contrast      | Makes the difference between light and dark stronger or weaker.              |
+| Saturation    | Makes colors stronger, or fades them toward gray.                            |
+| Hue shift     | Rotates every color around the color wheel (blues become greens, and so on). |
+| Black & white | Removes color.                                                               |
+| Sepia         | Gives an old-photo brown tone.                                               |
+| Invert        | Turns the picture into its negative.                                         |
+| Color tint    | Washes the picture with a color you choose.                                  |
+| Gradient      | Lays a fade from one color to another over the picture, at any angle.        |
 
 **Stylize**
 
@@ -360,7 +391,7 @@ Select a clip, open **Filters & effects** in the Tools window, and pick an effec
 | Vignette    | Darkens the corners.                                                  |
 | Film grain  | Adds a fine noisy texture like old film.                              |
 | Drop shadow | Adds a shadow behind the clip. Great for text and picture-in-picture. |
-| Chroma key  | Removes a green screen (or any background colour you pick).           |
+| Chroma key  | Removes a green screen (or any background color you pick).            |
 | Flip        | Mirrors the picture left-to-right and/or upside down.                 |
 
 **Transitions**
@@ -397,16 +428,16 @@ Every mask has:
 - **Feather:** softens the edge between the hidden and visible parts.
 - **Invert:** swaps what's hidden and what's shown.
 
-**Color mask:** makes one colour invisible.
+**Color mask:** makes one color invisible.
 
-- Pick the colour.
+- Pick the color.
 - Raise **Tolerance** to include similar shades.
 - Use **Softness** for a smoother edge.
-- Unlike Chroma key, it works on any colour, including black, white and grey.
+- Unlike Chroma key, it works on any color, including black, white and gray.
 
 **Image mask:** uses a picture as a stencil.
 
-- Where the picture is **white**, the clip shows. Where it's **black**, the clip is hidden. Grey is in between.
+- Where the picture is **white**, the clip shows. Where it's **black**, the clip is hidden. Gray is in between.
 - You can also use the picture's transparency instead of its brightness.
 - The picture is stretched to cover the clip.
 - Choose a picture from your Media, or pick **Import a file…** to bring one in.
@@ -466,6 +497,20 @@ Open the Export window with **File ▸ Export…** or **Ctrl+Shift+E**.
 - **Audio codec** and **Audio bitrate:** a higher bitrate gives better sound and a bigger file. 192 kbps is plenty for most videos.
 - **Audio tracks:** if your timeline has more than one audio track, you can mix them into one, or keep them as separate tracks (handy for editing later).
 
+**Transparent GIFs**
+
+When the format is **GIF**, you can make parts of it see-through, for stickers, emotes and overlays:
+
+- **Transparent background:** wherever no clip covers the frame (and wherever a clip is itself see-through), the GIF is see-through instead of black.
+- **Make a color see-through:** also hides one color, such as a green screen behind a character. It works like the [Color mask](#masks):
+  - **Color:** the color to hide. Click the preview picture to pick it straight from your video.
+  - **Tolerance:** how different from that color a pixel can be and still be hidden. Raise it if a rim of the color is left around things.
+  - **Softness:** hides colors just past the tolerance gradually.
+  - **Feather:** rounds the edges of what's hidden.
+- The preview shows the frame at the playhead as the GIF will look, over a checkerboard where it's see-through.
+- A GIF pixel can only be fully see-through or fully solid, so soft and feathered edges become hard edges in the file (anything more than half see-through is hidden).
+- Transparent GIFs are usually bigger files than ones with a solid background.
+
 Click **Export…**, choose where to save, and watch the progress bar. You can cancel at any time. When it's done, **Show in folder** takes you to the file.
 
 The resolution and frame rate come from the [Metadata](#metadata) window. What you see in the preview is what you get in the export.
@@ -473,6 +518,7 @@ The resolution and frame rate come from the [Metadata](#metadata) window. What y
 ## Saving and opening projects
 
 - **Save** (**Ctrl+S**) and **Save as…** (**Ctrl+Shift+S**) save your project as a `.vcws` file. A dot next to the project name at the top means there are unsaved changes.
+- New projects are saved in **Documents ▸ ClipWorld ▸ Projects** unless you choose somewhere else, and **Open** starts there too. **Save as…** on a project that's already saved starts next to it.
 - **Open** (**Ctrl+O**) opens a project. Recent projects are listed in the **File** menu. If you installed ClipWorld with the Windows installer, double-clicking a `.vcws` file opens it.
 - **Moving projects:** if you move the project file **together with** its media (for example the whole folder to another drive), it still finds everything.
 - **Missing files:** if a file can't be found, it shows **File not found** in the Media window, and **Locate file…** lets you point to it.
@@ -487,16 +533,17 @@ All your preferences are in one place: **Edit ▸ Settings…** or **Ctrl+,** (C
 
 - **Language:** the language ClipWorld is shown in. See [Language](#language).
 - **Preview volume:** how loud the preview plays. Exported videos are not affected. This is the same slider as in the Preview window.
+- **Voiceover:** the microphone to record with, and whether to hear the timeline while recording. See the Voiceover part of [Tools](#tools).
 - **Auto import media when using presets:** use presets without being asked about missing files. See [Presets](#presets).
 - **Window layout:** puts every window back where it started, if you've lost track of one.
 
 **Timeline**
 
-- **Clip colors:** pick the colour of each kind of clip on the timeline: video, audio, pictures, text and subtitles.
-  - Click the coloured square to choose a colour, or type a colour code such as `#ff8800`.
+- **Clip colors:** pick the color of each kind of clip on the timeline: video, audio, pictures, text and subtitles.
+  - Click the colored square to choose a color, or type a color code such as `#ff8800`.
   - The sample next to it shows how a clip will look.
-  - The round-arrow button puts one colour back to its default. **Reset all colors** does them all.
-  - On light colours, waveforms and subtitle blocks are drawn in dark ink so they stay easy to see.
+  - The round-arrow button puts one color back to its default. **Reset all colors** does them all.
+  - On light colors, waveforms and subtitle blocks are drawn in dark ink so they stay easy to see.
 
 **Keyboard shortcuts**
 
@@ -532,15 +579,18 @@ Every shortcut can be changed in **Edit ▸ Settings… ▸ Keyboard shortcuts**
 | Unlink audio from video              | Ctrl+U                   |
 | Add text                             | T                        |
 | Toggle snapping                      | S                        |
-| Zoom timeline in / out               | Ctrl+= / Ctrl+−         |
+| Zoom timeline in / out               | Ctrl+= / Ctrl+−          |
 | Add subtitle at playhead             | Shift+T                  |
 | Set subtitle start / end to playhead | [ / ]                    |
 | Play / pause                         | Space                    |
 | Previous / next frame                | Left / Right             |
 | Back / forward 1 second              | Shift+Left / Shift+Right |
 | Go to start / end                    | Home / End               |
+| Go to a time (the timeline's box)    | Ctrl+G                   |
 
 Shortcuts don't fire while you're typing in a text box, so typing "T" in a subtitle doesn't add a text clip.
+
+While a voiceover is recording, **Space** stops the recording instead of pausing.
 
 ## Language
 

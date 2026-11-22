@@ -4,7 +4,7 @@ import { lerp, transformAt, zoomAt } from './easing'
 import {
   type Clip, type MediaItem, type Project, type TextProps, type Track, type TrackKind,
   DEFAULT_STILL_DURATION, MAX_SPEED, MIN_CLIP_DURATION, MIN_SPEED,
-  clipEnd, clone, defaultText, isTimed, makeClip, makeTrack, uid
+  clipEnd, clone, defaultText, isTimed, makeClip, makeTrack, reversible, uid
 } from './model'
 
 import {
@@ -114,6 +114,17 @@ export function placeMedia(p: Project, media: MediaItem, time: number, preferred
   return ids
 }
 
+/** Puts an audio file on the timeline from `srcIn` onward, at `start`, on a free audio track. Returns the clip id. */
+export function placeAudioClip(p: Project, media: MediaItem, start: number, srcIn: number, name = media.name): string {
+  const from = Math.max(0, Math.min(srcIn, media.duration - MIN_CLIP_DURATION))
+  const duration = Math.max(MIN_CLIP_DURATION, media.duration - from)
+  const at = Math.max(0, start)
+  const t = freeTrack(p, 'audio', at, at + duration)
+  const c = makeClip({ trackId: t.id, type: 'audio', start: at, duration, srcIn: from, mediaId: media.id, name })
+  p.clips.push(c)
+  return c.id
+}
+
 export function addTextClip(p: Project, time: number, text?: Partial<TextProps>): string {
   const start = Math.max(0, time)
   const duration = DEFAULT_STILL_DURATION
@@ -166,7 +177,13 @@ export function splitAt(p: Project, time: number, ids?: string[]): string[] {
     right.id = uid('c')
     right.start = time
     right.duration = c.duration - local
-    right.srcIn = c.srcIn + local * c.speed
+    if (c.reverse) {
+      // Backwards, the left half plays the top of the window and the right half the bottom.
+      right.srcIn = c.srcIn
+      c.srcIn = c.srcIn + (c.duration - local) * c.speed
+    } else {
+      right.srcIn = c.srcIn + local * c.speed
+    }
     right.effects = right.effects.map((e) => ({ ...e, id: uid('e') }))
     if (c.linkId) {
       if (!linkMap.has(c.linkId)) linkMap.set(c.linkId, uid('l'))
@@ -254,6 +271,24 @@ export function stretchClip(p: Project, clipId: string, edge: 'start' | 'end', t
   return true
 }
 
+/**
+ * Sets a clip's playing speed as the user sees it (negative plays it backwards), for its linked clips too.
+ * The size of the speed works like dragging the clip's right edge; the sign only changes the direction,
+ * so the clip keeps the same part of the file. Clips that can't play backwards keep playing forwards.
+ */
+export function setClipSpeed(p: Project, clipId: string, signed: number): boolean {
+  const g = clipById(p, clipId)
+  if (!g || !Number.isFinite(signed)) return false
+  const sp = Math.min(MAX_SPEED, Math.max(MIN_SPEED, Math.abs(signed)))
+  const ok = stretchClip(p, g.id, 'end', g.start + (g.duration * g.speed) / sp)
+  const back = signed < 0
+  for (const m of groupOf(p, g)) {
+    if (back && reversible(m, mediaById(p, m.mediaId))) m.reverse = true
+    else delete m.reverse
+  }
+  return ok
+}
+
 /** Classic trim: moves an edge without changing speed, revealing or hiding source material. */
 export function trimClip(p: Project, clipId: string, edge: 'start' | 'end', time: number): boolean {
   const g = clipById(p, clipId)
@@ -267,24 +302,32 @@ export function trimClip(p: Project, clipId: string, edge: 'start' | 'end', time
     const media = mediaById(p, m.mediaId)
     const timed = isTimed(m, media)
     const { prevEnd, nextStart } = neighbours(p, m, ignore)
+    // How much more of the file there is above the window's top and below its bottom (in timeline seconds).
+    const bounds = timed && media ? sourceBounds(m, media.duration) : { first: 0, last: Infinity }
+    const above = timed ? (bounds.last - m.srcIn) / m.speed - m.duration : Infinity
+    const below = timed ? (m.srcIn - bounds.first) / m.speed : Infinity
     if (edge === 'end') {
       lo = Math.max(lo, MIN_CLIP_DURATION - m.duration)
       hi = Math.min(hi, nextStart - clipEnd(m))
-      if (timed && media) hi = Math.min(hi, (sourceBounds(m, media.duration).last - m.srcIn) / m.speed - m.duration)
+      // Played backwards, the end of the clip is the bottom of the window.
+      hi = Math.min(hi, m.reverse ? below : above)
     } else {
       hi = Math.min(hi, m.duration - MIN_CLIP_DURATION)
       lo = Math.max(lo, prevEnd - m.start, -m.start)
-      if (timed) lo = Math.max(lo, -(m.srcIn - (media ? sourceBounds(m, media.duration).first : 0)) / m.speed)
+      lo = Math.max(lo, -(m.reverse ? above : below))
     }
   }
   if (hi < lo) return false
   delta = Math.min(hi, Math.max(lo, delta))
   if (Math.abs(delta) < 1e-9) return true
   for (const m of members) {
+    const timed = isTimed(m, mediaById(p, m.mediaId))
+    const floor = m.loop?.intro === false ? m.loop.start : 0
     if (edge === 'end') {
+      if (timed && m.reverse) m.srcIn = Math.max(floor, m.srcIn - delta * m.speed)
       m.duration += delta
     } else {
-      if (isTimed(m, mediaById(p, m.mediaId))) m.srcIn = Math.max(m.loop?.intro === false ? m.loop.start : 0, m.srcIn + delta * m.speed)
+      if (timed && !m.reverse) m.srcIn = Math.max(floor, m.srcIn + delta * m.speed)
       m.start = Math.max(0, m.start + delta)
       m.duration -= delta
     }

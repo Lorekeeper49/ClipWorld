@@ -180,7 +180,7 @@ function chromaKey(src: HTMLCanvasElement, e: EffectInstance): HTMLCanvasElement
 // ---------------------------------------------------------------- masks
 //
 // Masks produce a canvas whose alpha is the mask (1 shows, 0 hides), which is then multiplied into the
-// layer with 'destination-in'. The colour and difference masks use the same formula as ffmpeg's
+// layer with 'destination-in'. The color and difference masks use the same formula as ffmpeg's
 // colorkey: diff = |rgb - key| / sqrt(3) on 0..1 channels, then (diff - tolerance) / softness.
 
 interface GlFilter {
@@ -261,7 +261,7 @@ const KEY_RAMP = 'float ramp(float diff){return blend>0.0001?clamp((diff-sim)/bl
 let colorGl: GlFilter | null | undefined
 let diffGl: GlFilter | null | undefined
 
-/** Mask that hides one colour (alpha 0 where the layer is that colour). */
+/** Mask that hides one color (alpha 0 where the layer is that color). */
 function colorMaskCanvas(src: HTMLCanvasElement, e: EffectInstance): HTMLCanvasElement | null {
   if (colorGl === undefined) {
     colorGl = makeGlFilter(
@@ -277,6 +277,11 @@ void main(){vec3 d=texture2D(tex0,uv).rgb-key;float m=ramp(sqrt(dot(d,d)/3.0));g
     gl.uniform1f(u.sim, Math.min(1, Math.max(0.00001, n(e, 'tolerance'))))
     gl.uniform1f(u.blend, Math.min(1, Math.max(0, n(e, 'softness'))))
   })
+}
+
+/** A mask hiding one color of a whole frame (a transparent GIF's preview), the same as the Color mask's. */
+export function colorKeyCanvas(src: HTMLCanvasElement, color: string, tolerance: number, softness: number): HTMLCanvasElement | null {
+  return colorMaskCanvas(src, { id: 'key', type: 'colorMask', enabled: true, params: { color, tolerance, softness } })
 }
 
 /** Mask that hides whatever matches the reference picture (difference mask). */
@@ -402,7 +407,7 @@ export function renderLayer(
   }
   a.ctx.drawImage(source, 0, 0, cw, ch)
 
-  // Colour and image masks come first, as in the export. (The difference mask is applied by the
+  // Color and image masks come first, as in the export. (The difference mask is applied by the
   // player after placement, since it compares the placed clip with what is underneath.)
   for (const e of clip.effects) {
     if (!e.enabled) continue
@@ -509,7 +514,7 @@ export function renderLayer(
       case 'noise': {
         const amount = Math.min(1, Math.max(0, n(e, 'amount')))
         if (amount <= 0) break
-        // Grain masked to the layer's own alpha, then blended so mid-grey leaves the picture unchanged.
+        // Grain masked to the layer's own alpha, then blended so mid-gray leaves the picture unchanged.
         const g = scratch.get(4, cw, ch)
         g.ctx.drawImage(a.canvas, 0, 0)
         g.ctx.globalCompositeOperation = 'source-in'

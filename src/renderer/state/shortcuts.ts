@@ -3,6 +3,7 @@ import { t } from '@shared/i18n'
 import { player } from '../engine/player'
 import * as a from './actions'
 import { get, patchSettings, set } from './store'
+import { showPanel } from '../layout/dock'
 
 export interface ShortcutDef {
   /** Also the message key of its name: actions.<id>. */
@@ -48,8 +49,21 @@ export const SHORTCUTS: ShortcutDef[] = [
   { id: 'play.back1s', group: 'Playback', default: 'Shift+Left', run: () => player.seek(player.time - 1) },
   { id: 'play.fwd1s', group: 'Playback', default: 'Shift+Right', run: () => player.seek(player.time + 1) },
   { id: 'play.start', group: 'Playback', default: 'Home', run: () => player.seek(0) },
-  { id: 'play.end', group: 'Playback', default: 'End', run: () => player.seek(Infinity) }
+  { id: 'play.end', group: 'Playback', default: 'End', run: () => player.seek(Infinity) },
+  { id: 'play.goTo', group: 'Playback', default: 'Ctrl+G', run: focusGoTo }
 ]
+
+/** Puts the cursor in the timeline's "go to time" box (opening the Timeline window if it is closed). */
+function focusGoTo(): void {
+  const find = () => document.querySelector<HTMLInputElement>('[data-testid="goto-time"]')
+  const box = find()
+  if (box) {
+    box.focus()
+    return
+  }
+  showPanel('timeline')
+  requestAnimationFrame(() => find()?.focus())
+}
 
 const KEY_NAMES: Record<string, string> = {
   ' ': 'Space', ArrowLeft: 'Left', ArrowRight: 'Right', ArrowUp: 'Up', ArrowDown: 'Down', Escape: 'Escape',

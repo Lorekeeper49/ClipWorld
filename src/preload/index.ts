@@ -16,6 +16,7 @@ const api: Api = {
   prepareMedia: (items) => ipcRenderer.invoke('media:prepare', items),
   requestProxy: (id) => ipcRenderer.invoke('media:proxy', id),
   proxyFocus: (id, t) => ipcRenderer.send('media:focus', id, t),
+  reverseFocus: (id, ranges, t) => ipcRenderer.send('media:reverse', id, ranges, t),
   setFastSeek: (id, on) => ipcRenderer.invoke('media:fast-seek', id, on),
   convertToMp4: (id) => ipcRenderer.invoke('media:convert', id),
   cancelConvert: (id) => ipcRenderer.invoke('media:convert-cancel', id),
@@ -37,7 +38,7 @@ const api: Api = {
   saveSubtitleFile: (name, ext, label, content) => ipcRenderer.invoke('subtitles:save', name, ext, label, content),
 
   openProject: (path) => ipcRenderer.invoke('project:open', path),
-  saveProject: (path, project) => ipcRenderer.invoke('project:save', path, project),
+  saveProject: (path, project, saveAsFrom) => ipcRenderer.invoke('project:save', path, project, saveAsFrom),
   writeRecovery: (data) => ipcRenderer.invoke('project:recovery', data),
   onOpenPath: (cb) => on('app:open-path', cb),
 
@@ -46,6 +47,12 @@ const api: Api = {
   cancelExport: () => ipcRenderer.invoke('export:cancel'),
   onExportProgress: (cb) => on('export:progress', cb),
   showInFolder: (path) => ipcRenderer.invoke('shell:show', path),
+
+  voiceoverBegin: (projectPath, rate) => ipcRenderer.invoke('voiceover:begin', projectPath, rate),
+  voiceoverWrite: (id, samples) => ipcRenderer.invoke('voiceover:write', id, samples),
+  voiceoverEnd: (id, rate) => ipcRenderer.invoke('voiceover:end', id, rate),
+  voiceoverDiscard: (id) => ipcRenderer.invoke('voiceover:discard', id),
+  voiceoverRemove: (path) => ipcRenderer.invoke('voiceover:remove', path),
 
   setWindowState: (state) => ipcRenderer.send('window:state', state),
   onCloseRequest: (cb) => on('app:close-request', cb),

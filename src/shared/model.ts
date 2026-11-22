@@ -77,9 +77,9 @@ export interface EaseCurve {
 export type Ease = EaseName | EaseCurve
 
 export interface TransformState {
-  /** Offset from frame centre as a fraction of frame width. */
+  /** Offset from frame center as a fraction of frame width. */
   x: number
-  /** Offset from frame centre as a fraction of frame height. */
+  /** Offset from frame center as a fraction of frame height. */
   y: number
   scale: number
   /** Degrees, clockwise. */
@@ -203,6 +203,11 @@ export interface Clip {
   effects: EffectInstance[]
   /** Video and audio clips: plays part of the file repeatedly. srcIn is then on the loop's virtual axis (see loop.ts). */
   loop?: ClipLoop
+  /**
+   * Video and audio clips: plays backwards (shown to the user as a negative speed). The clip covers the same
+   * part of the file, srcIn to srcIn + duration * speed, but plays it from the end to the start.
+   */
+  reverse?: boolean
 }
 
 export type TrackKind = 'video' | 'audio'
@@ -324,6 +329,10 @@ export function makeClip(partial: Partial<Clip> & Pick<Clip, 'trackId' | 'type' 
 }
 
 export const isVisual = (c: Clip): boolean => c.type !== 'audio'
+/** Whether a clip can play backwards: video and audio clips of a file with a known length. */
+export const reversible = (c: Clip, media?: MediaItem): boolean => !!media && (c.type === 'video' || c.type === 'audio') && media.duration > 0
+/** Speed as the user sees it: negative when the clip plays backwards. */
+export const signedSpeed = (c: Clip): number => (c.reverse ? -c.speed : c.speed)
 export const clipEnd = (c: Clip): number => c.start + c.duration
 /** Whether the clip plays a time-based source (and therefore has a meaningful speed). */
 export const isTimed = (c: Clip, media?: MediaItem): boolean =>

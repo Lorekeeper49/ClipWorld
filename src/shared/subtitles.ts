@@ -119,7 +119,7 @@ export const isSubtitleFile = (path: string): boolean =>
 const lines = (text: string): string[] => text.replace(/\r\n?/g, '\n').split('\n')
 const escXml = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
 
-/** ASS colour: &HAABBGGRR with alpha 0 = opaque. */
+/** ASS color: &HAABBGGRR with alpha 0 = opaque. */
 function assColor(hex: string, opacity = 1): string {
   const m = /^#?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(hex) ?? ['', 'ff', 'ff', 'ff']
   const a = Math.round((1 - Math.min(1, Math.max(0, opacity))) * 255)
@@ -136,7 +136,7 @@ function assTime(t: number): string {
   return `${h}:${pad(m)}:${pad(s)}.${pad(cs)}`
 }
 
-/** Numpad alignment used by ASS (1-3 bottom, 4-6 middle, 7-9 top; left/centre/right). */
+/** Numpad alignment used by ASS (1-3 bottom, 4-6 middle, 7-9 top; left/center/right). */
 function assAlignment(st: SubtitleStyle, legacy: boolean): number {
   const col = st.align === 'left' ? 1 : st.align === 'right' ? 3 : 2
   if (legacy) return st.position === 'top' ? col + 4 : st.position === 'middle' ? col + 8 : col // SSA numbering
@@ -290,7 +290,7 @@ export function writeSubtitles(format: string, track: SubtitleTrack, cues: Subti
   }
 }
 
-/** SSA colours are decimal BGR integers. */
+/** SSA colors are decimal BGR integers. */
 function ssaColor(hex: string): number {
   const m = /^#?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(hex)
   if (!m) return 16777215

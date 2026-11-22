@@ -42,7 +42,7 @@ const state = () => page.evaluate(() => {
 })
 const shot = (n) => page.screenshot({ path: join(root, 'tests', '.tmp', `subs-${n}.png`) })
 
-/** Average brightness of the lower-centre band of the preview canvas (where bottom subtitles sit). */
+/** Average brightness of the lower-center band of the preview canvas (where bottom subtitles sit). */
 const previewBand = () => page.evaluate(async () => {
   const { player } = window.__cw
   for (let i = 0; i < 200 && !player.ready(); i++) await new Promise((r) => requestAnimationFrame(r))
@@ -59,13 +59,13 @@ const previewBand = () => page.evaluate(async () => {
   return { url, data: Array.from(ctx.getImageData(0, 0, 96, 54).data) }
 })
 const band = (data) => {
-  // Rows 44..50 of 54, columns 24..72 of 96: the bottom-centre area.
+  // Rows 44..50 of 54, columns 24..72 of 96: the bottom-center area.
   let sum = 0
   let n = 0
   for (let y = 44; y < 51; y++) for (let x = 24; x < 72; x++) { const i = (y * 96 + x) * 4; sum += data[i] + data[i + 1] + data[i + 2]; n += 3 }
   return sum / n
 }
-/** How many pixels of the bottom-centre area clearly differ between two frames. */
+/** How many pixels of the bottom-center area clearly differ between two frames. */
 const changed = (a, b) => {
   let count = 0
   for (let y = 40; y < 52; y++) for (let x = 16; x < 80; x++) {
@@ -172,9 +172,9 @@ writeFileSync(join(root, 'tests', '.tmp', 'subs-preview-1.5.png'), Buffer.from(p
 spawnSync(ffmpeg, ['-loglevel', 'error', '-y', '-ss', '1.5', '-i', videoPath, '-frames:v', '1', join(root, 'tests', '.tmp', 'subs-export-1.5.png')])
 const exportedNone = frameBand(0.5)
 check(changed(exported, exportedNone) > 40, `subtitle burned into the exported video (${changed(exported, exportedNone)} pixels changed)`)
-// Video encoding shifts saturated colours (most on thin coloured lines), so the subtitle rows are judged
+// Video encoding shifts saturated colors (most on thin colored lines), so the subtitle rows are judged
 // against the preview/export difference in the same rows on a frame without a subtitle. Sharp white
-// text edges on coloured bars lose a little more to the encoder's halved colour resolution (checked by
+// text edges on colored bars lose a little more to the encoder's halved color resolution (checked by
 // eye on enlarged crops: font, size, position, outline and shadow are identical), hence the margin.
 const meanDiff = (a, b, y0, y1) => {
   let diff = 0

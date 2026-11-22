@@ -8,6 +8,7 @@ import { Btn, Field, Modal, Num, Select, Slider, formatDuration } from '../compo
 import { audioCodecName, containerName, encoderName, videoCodecName } from '@shared/labels'
 import { useT } from '../i18n'
 import { runExportAction } from '../state/actions'
+import { GifTransparencyFields } from './GifTransparencyFields'
 import { set, useStore } from '../state/store'
 
 /** Quality bands; names are messages export.qualities.<name>. */
@@ -133,6 +134,9 @@ export function ExportDialog() {
             <Field label={t('export.encoder')}>
               <Select value={settings.videoEncoder} options={encoders} onChange={(v) => update({ videoEncoder: v })} testId="export-encoder" />
             </Field>
+          )}
+          {settings.videoEncoder === 'gif' && hasVideo && (
+            <GifTransparencyFields gif={settings.gif} onChange={(patch) => update({ gif: { ...settings.gif, ...patch } })} />
           )}
           {hasVideo && settings.videoEncoder !== 'gif' && (
             <>

@@ -40,7 +40,10 @@ const ICONS: Record<string, string> = {
   move: 'M12 2.500l3.200 3.200h-2.300V11h5.400V8.800L21.500 12l-3.200 3.200V13h-5.400v5.300h2.300L12 21.500l-3.200-3.200h2.300V13H5.700v2.200L2.500 12l3.200-3.200V11h5.400V5.700H8.800z',
   keyboard: 'M3 6h18v12H3zm2 2v8h14V8zm1.500 1.500h2v2h-2zm3 0h2v2h-2zm3 0h2v2h-2zm3 0h2v2h-2zM8 13h8v1.800H8z',
   info: 'M12 3a9 9 0 1 1 0 18 9 9 0 0 1 0-18zm-1 7.500v6h2v-6zm0-3.200v2h2v-2z',
-  layers: 'M12 3 2 8l10 5 10-5zm0 2.200L17.600 8 12 10.800 6.400 8zM4.200 11.100 2 12.200l10 5 10-5-2.200-1.100L12 15zm0 4.300L2 16.500l10 5 10-5-2.200-1.100L12 19.300z'
+  layers: 'M12 3 2 8l10 5 10-5zm0 2.200L17.600 8 12 10.800 6.400 8zM4.200 11.100 2 12.200l10 5 10-5-2.200-1.100L12 15zm0 4.300L2 16.500l10 5 10-5-2.200-1.100L12 19.300z',
+  mic: 'M12 3a3 3 0 0 1 3 3v6a3 3 0 0 1-6 0V6a3 3 0 0 1 3-3zM6 11h2a4 4 0 0 0 8 0h2a6 6 0 0 1-5 5.900V19h3v2H8v-2h3v-2.100A6 6 0 0 1 6 11z',
+  record: 'M12 5.500a6.500 6.500 0 1 1 0 13 6.500 6.500 0 0 1 0-13z',
+  stop: 'M6.500 6.500h11v11h-11z'
 }
 
 export function Icon({ name, size = 16, style }: { name: string; size?: number; style?: CSSProperties }) {
@@ -299,15 +302,7 @@ export function Modal({ title, children, onClose, width = 520, footer }: {
   )
 }
 
-export function formatTime(t: number, fps = 30): string {
-  const s = Math.max(0, t)
-  const h = Math.floor(s / 3600)
-  const m = Math.floor((s % 3600) / 60)
-  const sec = Math.floor(s % 60)
-  const f = Math.floor((s - Math.floor(s)) * Math.round(fps) + 1e-6)
-  const pad = (v: number, l = 2) => String(v).padStart(l, '0')
-  return `${h ? pad(h) + ':' : ''}${pad(m)}:${pad(sec)}:${pad(f)}`
-}
+export { formatTime } from '@shared/timecode'
 
 export function formatDuration(t: number): string {
   if (!Number.isFinite(t) || t <= 0) return '0:00'

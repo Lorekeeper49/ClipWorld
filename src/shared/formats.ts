@@ -96,10 +96,36 @@ export interface ExportSettings {
   audioBitrate: number
   /** Mix every audio track into one, or keep one output stream per timeline audio track. */
   audioMode: 'mix' | 'separate'
+  /** GIF only: transparency (see GifTransparency). */
+  gif: GifTransparency
 }
 
+/**
+ * A transparent GIF: what nothing covers (and the see-through parts of clips) stays see-through instead of
+ * black, and optionally one color is made see-through too, like the Color mask. GIF pixels are either
+ * fully see-through or solid, so anything more than half see-through becomes see-through.
+ */
+export interface GifTransparency {
+  transparent: boolean
+  /** Also make one color see-through. */
+  key: boolean
+  color: string
+  /** 0..1, how different from `color` a pixel can be and still disappear. */
+  tolerance: number
+  /** 0..1, a ramp above the tolerance. */
+  softness: number
+  /** Pixels at REF_HEIGHT: rounds the edges of what disappears. */
+  feather: number
+}
+
+export const defaultGifTransparency = (): GifTransparency =>
+  ({ transparent: false, key: false, color: '#00ff00', tolerance: 0.15, softness: 0.05, feather: 0 })
+
 export function defaultExportSettings(): ExportSettings {
-  return { container: 'mp4', videoCodec: 'h264', videoEncoder: 'libx264', audioCodec: 'aac', quality: 75, audioBitrate: 192, audioMode: 'mix' }
+  return {
+    container: 'mp4', videoCodec: 'h264', videoEncoder: 'libx264', audioCodec: 'aac', quality: 75, audioBitrate: 192, audioMode: 'mix',
+    gif: defaultGifTransparency()
+  }
 }
 
 /** Makes settings self-consistent for the chosen container and the encoders this ffmpeg has. */
@@ -121,6 +147,17 @@ export function normalizeExportSettings(s: ExportSettings, available: string[]):
     if (!usable.includes(out.audioCodec)) out.audioCodec = usable[0] ?? c.audio[0]
   }
   out.quality = Math.min(100, Math.max(1, Math.round(out.quality)))
+  // Settings saved before GIF transparency existed have none.
+  const g = { ...defaultGifTransparency(), ...(s.gif ?? {}) }
+  const clamp = (v: number, lo: number, hi: number, d: number) => (Number.isFinite(v) ? Math.min(hi, Math.max(lo, v)) : d)
+  out.gif = {
+    transparent: !!g.transparent,
+    key: !!g.key,
+    color: /^#[0-9a-f]{6}$/i.test(g.color) ? g.color.toLowerCase() : '#00ff00',
+    tolerance: clamp(g.tolerance, 0.01, 1, 0.15),
+    softness: clamp(g.softness, 0, 1, 0.05),
+    feather: clamp(g.feather, 0, 200, 0)
+  }
   return out
 }
 

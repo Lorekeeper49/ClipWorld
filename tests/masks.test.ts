@@ -1,4 +1,4 @@
-// Mask effects in the export: colour, image and difference (clone) masks, with real ffmpeg.
+// Mask effects in the export: color, image and difference (clone) masks, with real ffmpeg.
 import { existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { beforeAll, describe, expect, it } from 'vitest'
@@ -25,7 +25,7 @@ async function make(name: string, args: string[]): Promise<string> {
 beforeAll(async () => {
   setupFfmpeg()
   caps = await usableCapabilities()
-  // Lossless RGB sources so colours arrive exactly.
+  // Lossless RGB sources so colors arrive exactly.
   const ffv1 = ['-c:v', 'ffv1', '-pix_fmt', 'bgr0']
   const files = {
     split: await make('mask_split.mkv', ['-f', 'lavfi', '-i', 'color=c=0x00ff00:s=160x180:r=30:d=3', '-f', 'lavfi', '-i', 'color=c=0xff0000:s=160x180:r=30:d=3',
@@ -71,7 +71,7 @@ const fx = (type: string, params: Record<string, number | string | boolean> = {}
 let seq = 0
 async function exportTo(p: Project): Promise<string> {
   const out = join(TMP, `masks_${++seq}.mkv`)
-  // Lossless output so measured colours are not disturbed by the encoder.
+  // Lossless output so measured colors are not disturbed by the encoder.
   const settings = normalizeExportSettings({ ...defaultExportSettings(), container: 'mkv', videoCodec: 'h264', quality: 100 }, caps.encoders)
   await runExport({ project: p, settings, outPath: out, tmpDir: join(TMP, `masksjob_${seq}`), caps })
   return out
@@ -80,18 +80,18 @@ const LEFT = '100:100:30:40'
 const RIGHT = '100:100:190:40'
 const near = (got: number[], want: number[], tol = 14) => got.every((v, i) => Math.abs(v - want[i]) <= tol)
 
-describe('colour mask', () => {
-  it('makes the chosen colour transparent', async () => {
+describe('color mask', () => {
+  it('makes the chosen color transparent', async () => {
     const out = await exportTo(overBlue(m.split, [fx('colorMask', { color: '#00ff00' })]))
     expect(near(await frameColor(out, 1, LEFT), [0, 0, 255])).toBe(true) // green gone: blue shows
     expect(near(await frameColor(out, 1, RIGHT), [255, 0, 0])).toBe(true) // red kept
   })
-  it('inverted, keeps only that colour', async () => {
+  it('inverted, keeps only that color', async () => {
     const out = await exportTo(overBlue(m.split, [fx('colorMask', { color: '#00ff00', invert: true })]))
     expect(near(await frameColor(out, 1, LEFT), [0, 255, 0])).toBe(true)
     expect(near(await frameColor(out, 1, RIGHT), [0, 0, 255])).toBe(true)
   })
-  it('works for black, which chroma keying cannot separate from grey', async () => {
+  it('works for black, which chroma keying cannot separate from gray', async () => {
     const out = await exportTo(overBlue(m.split, [fx('colorMask', { color: '#ff0000', tolerance: 0.1 })]))
     expect(near(await frameColor(out, 1, RIGHT), [0, 0, 255])).toBe(true)
     expect(near(await frameColor(out, 1, LEFT), [0, 255, 0])).toBe(true)
@@ -104,7 +104,7 @@ describe('image mask', () => {
     expect(near(await frameColor(out, 1, LEFT), [0, 255, 0])).toBe(true)
     expect(near(await frameColor(out, 1, RIGHT), [0, 0, 255])).toBe(true)
   })
-  it('mid-grey shows the clip at half strength', async () => {
+  it('mid-gray shows the clip at half strength', async () => {
     const out = await exportTo(overBlue(m.split, [fx('imageMask', { image: m.gray.id })]))
     expect(near(await frameColor(out, 1, RIGHT), [128, 0, 127], 8)).toBe(true)
   })

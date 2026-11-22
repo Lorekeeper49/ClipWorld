@@ -130,10 +130,10 @@ const motionRange = () => page.evaluate(async () => {
     hi = Math.max(hi, d.right)
     await new Promise((r) => requestAnimationFrame(r))
   }
-  return { lo, hi, strip: [strip.left, strip.right], modal: [modal.left, modal.right], ticks, centre: (strip.left + strip.right) / 2 }
+  return { lo, hi, strip: [strip.left, strip.right], modal: [modal.left, modal.right], ticks, center: (strip.left + strip.right) / 2 }
 })
 const plain = await motionRange()
-check(Math.abs((plain.ticks[0] + plain.ticks[1]) / 2 - plain.centre) < 2, 'the start-to-end line sits in the middle of the strip')
+check(Math.abs((plain.ticks[0] + plain.ticks[1]) / 2 - plain.center) < 2, 'the start-to-end line sits in the middle of the strip')
 for (const name of ['easeOutElastic', 'easeInElastic', 'easeInOutBack']) {
   await page.getByTestId(`ease-preset-${name}`).click()
   const r = await motionRange()

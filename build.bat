@@ -1,4 +1,19 @@
 @echo off
+REM Copyright (C) 2026 Lorekeeper49
+REM
+REM This file is part of ClipWorld.
+REM
+REM ClipWorld is free software: you can redistribute it and/or modify it under the terms of the GNU
+REM General Public License as published by the Free Software Foundation, either version 3 of the
+REM License, or (at your option) any later version.
+REM
+REM ClipWorld is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without
+REM even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+REM General Public License for more details.
+REM
+REM You should have received a copy of the GNU General Public License along with ClipWorld. If not,
+REM see <https://www.gnu.org/licenses/>.
+
 setlocal
 cd /d "%~dp0"
 
@@ -28,11 +43,10 @@ if not exist node_modules (
   if errorlevel 1 goto :fail
 )
 
-if not exist vendor\ffmpeg\win32-x64\ffmpeg.exe (
-  echo === Downloading ffmpeg ===
-  call npm run fetch-ffmpeg
-  if errorlevel 1 goto :fail
-)
+rem Downloads the pinned ffmpeg build when it is missing or the pin changed; otherwise does nothing.
+echo === Checking ffmpeg ===
+call npm run fetch-ffmpeg
+if errorlevel 1 goto :fail
 
 echo === Type-checking ===
 call npm run typecheck

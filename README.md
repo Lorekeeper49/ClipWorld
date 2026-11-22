@@ -10,11 +10,11 @@ While I vow to keep this free forever, your support helps me create many things 
 
 ```bash
 npm install
-npm run fetch-ffmpeg   # downloads a static ffmpeg 9 for this system (checksum-verified) into vendor/ffmpeg/<platform>-<arch>
+npm run fetch-ffmpeg   # downloads the pinned static ffmpeg 9 for this system (checksum-verified) into vendor/ffmpeg/<platform>-<arch>
 npm run dev            # development, with hot reload
 ```
 
-Needs Node.js 22 or newer. ffmpeg comes from gyan.dev on Windows and from FFmpeg-Builds (static GPL build, x64 or arm64) on Linux.
+Needs Node.js 22 or newer. ffmpeg comes from [FFmpeg-Builds](https://github.com/FFmpeg-Builds/FFmpeg-Builds) (static GPL build) for Windows x64 and Linux x64/arm64, pinned to one build in `scripts/ffmpeg-build.json` so every release can carry that build's source code. `node scripts/fetch-ffmpeg.mjs --update` moves the pin to FFmpeg-Builds' newest build of the newest stable FFmpeg; the build scripts then download it the next time they run.
 
 ### Windows
 
@@ -37,6 +37,7 @@ The npm equivalents are `npm run package:linux:dir` and `npm run package:linux`.
 - `release.bat arm64` also builds a Linux arm64 `.tar.gz`.
 - `release.bat publish` also creates a **draft** GitHub release for tag `v<version>`, with the files attached and `release-notes\v<version>.md` as its text. It needs the GitHub CLI (`gh`), logged in. It refuses to run with uncommitted or unpushed changes, or if that release already exists. Publish the draft on GitHub once you've checked it.
 - `release.bat notest` skips the automated tests.
+- **ffmpeg's source code:** the GPL asks that the complete source code of the bundled ffmpeg comes with every release. `release.bat publish` starts the **ffmpeg source code** GitHub workflow (`.github/workflows/ffmpeg-source.yml`), which attaches it to the draft as `ffmpeg-source-<build>.tar` (split into `.part00`, `.part01`… when it's over GitHub's file size limit). It holds FFmpeg, every library built into it and the FFmpeg-Builds scripts that built it (`scripts/ffmpeg-source.sh`). Publish the draft only once it has appeared: the first time for a new ffmpeg build takes up to an hour; after that, the archive is copied from the earlier release. If you upload a release by hand, run the workflow for its tag from the Actions tab.
 
 ## Workspace
 
@@ -83,3 +84,11 @@ npm test          # timeline ops, easing, and real-ffmpeg exports checked with f
 npm run test:e2e  # launches the app and drives import → split → stretch → volume → text/effects → save → export,
                   # plus subtitles, masks, Convert to MP4, and a sweep for untranslated text in every language
 ```
+
+## License
+
+Copyright (C) 2026 Lorekeeper49
+
+ClipWorld is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version. It is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See [LICENSE](LICENSE) for the full text.
+
+The bundled ffmpeg builds are also GPL v3. Their license (`LICENSE.txt`) and a note on where their source code is (`SOURCE.txt`) ship next to them, and each release's page carries their complete source code (see [Releasing](#releasing-from-windows)).

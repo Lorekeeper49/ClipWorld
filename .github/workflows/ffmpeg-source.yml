@@ -1,0 +1,69 @@
+# Copyright (C) 2026 Lorekeeper49
+#
+# This file is part of ClipWorld.
+#
+# ClipWorld is free software: you can redistribute it and/or modify it under the terms of the GNU
+# General Public License as published by the Free Software Foundation, either version 3 of the
+# License, or (at your option) any later version.
+#
+# ClipWorld is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without
+# even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+# General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License along with ClipWorld. If not,
+# see <https://www.gnu.org/licenses/>.
+
+# Attaches the complete source code of the bundled ffmpeg to a release, as the GPL asks of anyone who
+# hands out the binaries. "release.bat publish" starts it right after creating the draft release; it
+# can also be started by hand from the Actions tab. When an earlier release already carries the
+# source of the same ffmpeg build, that archive is copied instead of being put together again.
+name: ffmpeg source code
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag, e.g. v0.3.0
+        required: true
+      commit:
+        description: ClipWorld commit the release was built from (leave empty to use the tag)
+        required: false
+
+permissions:
+  contents: write
+
+jobs:
+  attach:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    env:
+      GH_TOKEN: ${{ github.token }}
+      TAG: ${{ inputs.tag }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.commit || inputs.tag }}
+
+      - name: Reuse the archive from an earlier release with the same ffmpeg
+        id: reuse
+        run: |
+          name="ffmpeg-source-$(node -p "require('./scripts/ffmpeg-build.json').buildTag")"
+          echo "name=$name" >> "$GITHUB_OUTPUT"
+          mkdir -p "$RUNNER_TEMP/out"
+          for t in $(gh release list --limit 100 --json tagName --jq '.[].tagName'); do
+            [ "$t" = "$TAG" ] && continue
+            if gh release view "$t" --json assets --jq '.assets[].name' | grep -qx "$name.sha256"; then
+              echo "Found in $t"
+              gh release download "$t" --pattern "$name.*" --dir "$RUNNER_TEMP/out"
+              (cd "$RUNNER_TEMP/out" && sha256sum -c "$name.sha256")
+              echo "found=1" >> "$GITHUB_OUTPUT"
+              break
+            fi
+          done
+
+      - name: Put the source together
+        if: steps.reuse.outputs.found != '1'
+        run: bash scripts/ffmpeg-source.sh "$RUNNER_TEMP/out"
+
+      - name: Attach it to the release
+        run: gh release upload "$TAG" "$RUNNER_TEMP/out"/* --clobber

@@ -1,3 +1,20 @@
+/*
+ * Copyright (C) 2026 Lorekeeper49
+ *
+ * This file is part of ClipWorld.
+ *
+ * ClipWorld is free software: you can redistribute it and/or modify it under the terms of the GNU
+ * General Public License as published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * ClipWorld is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without
+ * even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+ * General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License along with ClipWorld. If not,
+ * see <https://www.gnu.org/licenses/>.
+ */
+
 // Voiceover recordings: the renderer streams 16-bit mono samples here while it records, and they are
 // written straight to a WAV file, so a long take never has to fit in memory and survives a crash up to
 // the last chunk. No Electron imports.

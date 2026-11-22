@@ -1,4 +1,19 @@
 @echo off
+REM Copyright (C) 2026 Lorekeeper49
+REM
+REM This file is part of ClipWorld.
+REM
+REM ClipWorld is free software: you can redistribute it and/or modify it under the terms of the GNU
+REM General Public License as published by the Free Software Foundation, either version 3 of the
+REM License, or (at your option) any later version.
+REM
+REM ClipWorld is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without
+REM even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+REM General Public License for more details.
+REM
+REM You should have received a copy of the GNU General Public License along with ClipWorld. If not,
+REM see <https://www.gnu.org/licenses/>.
+
 setlocal EnableDelayedExpansion
 cd /d "%~dp0"
 
@@ -12,7 +27,9 @@ rem   release.bat            build the files
 rem   release.bat arm64      also build ClipWorld-<version>-linux-arm64.tar.gz
 rem   release.bat publish    build, then create a DRAFT GitHub release v<version> with the files and
 rem                          release-notes\v<version>.md (needs the GitHub CLI "gh", logged in; you publish
-rem                          the draft yourself on GitHub after checking it)
+rem                          the draft yourself on GitHub after checking it). It also starts the GitHub
+rem                          workflow that attaches the bundled ffmpeg's complete source code to the
+rem                          draft (.github\workflows\ffmpeg-source.yml), as the GPL asks.
 rem   release.bat notest     skip the automated tests
 rem Options can be combined, e.g.  release.bat arm64 publish
 rem The version comes from package.json.
@@ -49,6 +66,7 @@ if "%PUBLISH%"=="1" (
   for /f "delims=" %%B in ('git branch -r --contains HEAD') do set "PUSHED=1"
   if not defined PUSHED ( echo This commit has not been pushed to GitHub. Run "git push" first. & goto :fail )
   gh release view %TAG% >nul 2>nul && ( echo A GitHub release %TAG% already exists. Bump "version" in package.json first. & goto :fail )
+  gh workflow view ffmpeg-source.yml >nul 2>nul || ( echo The "ffmpeg source code" workflow is not on GitHub yet. Push .github\workflows\ffmpeg-source.yml first. & goto :fail )
 )
 
 if not exist node_modules (
@@ -107,6 +125,12 @@ if "%PUBLISH%"=="1" (
   for /f "delims=" %%H in ('git rev-parse HEAD') do set "COMMIT=%%H"
   gh release create %TAG% "%OUT%\*" --draft --title "ClipWorld %VERSION%" --notes-file "%NOTES%" --target !COMMIT! || goto :fail
   echo.
+  echo === Attaching the bundled ffmpeg's source code ===
+  gh workflow run ffmpeg-source.yml -f tag=%TAG% -f commit=!COMMIT! || goto :fail
+  echo GitHub Actions is now attaching the complete source code of the bundled ffmpeg to the draft,
+  echo as ffmpeg-source-*.tar. The GPL asks for it to be there, so publish the draft only once it has
+  echo appeared. For a new ffmpeg build this can take an hour. To follow it, run:  gh run watch
+  echo.
   echo Draft created. Review it on GitHub and press "Publish release" when ready:
   gh release view %TAG% --web
 )
@@ -116,6 +140,8 @@ echo Done. Release files are in %CD%\%OUT%
 if "%PUBLISH%"=="0" (
   echo To upload them yourself, create a release for tag %TAG% on GitHub and attach every file in that folder,
   echo or run:  release.bat publish
+  echo Either way, the release also needs the bundled ffmpeg's source code: on GitHub, open Actions,
+  echo choose "ffmpeg source code" and run it for tag %TAG%.
 )
 explorer "%OUT%"
 goto :end

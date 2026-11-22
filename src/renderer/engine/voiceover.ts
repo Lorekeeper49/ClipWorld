@@ -1,3 +1,20 @@
+/*
+ * Copyright (C) 2026 Lorekeeper49
+ *
+ * This file is part of ClipWorld.
+ *
+ * ClipWorld is free software: you can redistribute it and/or modify it under the terms of the GNU
+ * General Public License as published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * ClipWorld is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without
+ * even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+ * General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License along with ClipWorld. If not,
+ * see <https://www.gnu.org/licenses/>.
+ */
+
 // Voiceover recording. The microphone is recorded on the preview's own audio clock while the timeline
 // plays, and samples go to disk as they arrive (see main/voiceover.ts). When the take stops it becomes a
 // new audio clip placed so that what was said lines up with what was heard: the clip starts where the

@@ -121,7 +121,11 @@
     "title": "About ClipWorld",
     "tagline": "A video editor built on ffmpeg.",
     "ffmpeg": "ffmpeg {{version}} does the importing, audio extraction, proxies, thumbnails and exporting.",
-    "projects": "Projects are saved as .vcws files."
+    "projects": "Projects are saved as .vcws files.",
+    "license": "ClipWorld is free software: you can share and change it under the GNU General Public License, version 3 or (at your option) any later version. It comes with ABSOLUTELY NO WARRANTY.",
+    "licenseLink": "Read the license",
+    "source": "The source code of ClipWorld, and of the ffmpeg that comes with it, is on each release's page.",
+    "sourceLink": "Releases on GitHub"
   },
   "language": {
     "title": "Language",

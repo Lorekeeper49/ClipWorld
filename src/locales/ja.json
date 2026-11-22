@@ -120,7 +120,11 @@
     "title": "ClipWorld について",
     "tagline": "ffmpeg を使った動画編集ソフトです。",
     "ffmpeg": "インポート、音声の抽出、プロキシ、サムネイル、エクスポートは ffmpeg {{version}} が行います。",
-    "projects": "プロジェクトは .vcws ファイルとして保存されます。"
+    "projects": "プロジェクトは .vcws ファイルとして保存されます。",
+    "license": "ClipWorld はフリーソフトウェアです。GNU 一般公衆利用許諾書（GPL）のバージョン 3、または（任意で）それ以降のバージョンに従って、共有や改変ができます。保証は一切ありません。",
+    "licenseLink": "ライセンスを読む",
+    "source": "ClipWorld と、同梱の ffmpeg のソースコードは、各リリースのページにあります。",
+    "sourceLink": "GitHub のリリース"
   },
   "language": {
     "title": "言語",

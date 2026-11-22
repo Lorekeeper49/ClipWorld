@@ -1,3 +1,20 @@
+/*
+ * Copyright (C) 2026 Lorekeeper49
+ *
+ * This file is part of ClipWorld.
+ *
+ * ClipWorld is free software: you can redistribute it and/or modify it under the terms of the GNU
+ * General Public License as published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * ClipWorld is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without
+ * even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+ * General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License along with ClipWorld. If not,
+ * see <https://www.gnu.org/licenses/>.
+ */
+
 // Translations. Every piece of text the app shows lives in src/locales/<language>.json (i18next JSON v4:
 // nested keys, {{placeholders}}, plural forms as key_one / key_other / ...). English is the source and
 // the fallback: anything a translation lacks is shown in English, so a half-finished language still works.

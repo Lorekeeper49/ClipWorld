@@ -1,3 +1,20 @@
+/*
+ * Copyright (C) 2026 Lorekeeper49
+ *
+ * This file is part of ClipWorld.
+ *
+ * ClipWorld is free software: you can redistribute it and/or modify it under the terms of the GNU
+ * General Public License as published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * ClipWorld is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without
+ * even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+ * General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License along with ClipWorld. If not,
+ * see <https://www.gnu.org/licenses/>.
+ */
+
 // Presets: a saved group of clips (with their effects, transforms, text, timing and links) that can be
 // placed into any project. A preset carries a copy of the media items its clips use, so applying it in
 // another project knows which files to import, and copies of the subtitle tracks its subtitle clips show.

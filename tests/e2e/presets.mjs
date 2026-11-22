@@ -1,3 +1,20 @@
+/*
+ * Copyright (C) 2026 Lorekeeper49
+ *
+ * This file is part of ClipWorld.
+ *
+ * ClipWorld is free software: you can redistribute it and/or modify it under the terms of the GNU
+ * General Public License as published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * ClipWorld is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without
+ * even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+ * General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License along with ClipWorld. If not,
+ * see <https://www.gnu.org/licenses/>.
+ */
+
 // Presets UI test: save selected clips as a preset from the Tools window, use it in a new project (the
 // "files need to be imported" question, No and Yes, the auto-import checkbox), check presets and the
 // checkbox survive a restart, and handle a file that has been moved. Run with: npm run build && node tests/e2e/presets.mjs

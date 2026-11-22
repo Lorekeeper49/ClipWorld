@@ -4,6 +4,11 @@
   "version": "0.3.0",
   "description": "A smooth, ffmpeg-powered video editor",
   "author": "ClipWorld",
+  "license": "GPL-3.0-or-later",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Lorekeeper49/ClipWorld.git"
+  },
   "main": "./out/main/index.js",
   "private": true,
   "scripts": {
@@ -30,6 +35,12 @@
       "out/**/*",
       "package.json"
     ],
+    "extraResources": [
+      {
+        "from": "LICENSE",
+        "to": "LICENSE.txt"
+      }
+    ],
     "fileAssociations": [
       {
         "ext": "vcws",
@@ -51,6 +62,7 @@
             "ffmpeg.exe",
             "ffprobe.exe",
             "LICENSE*",
+            "SOURCE*",
             "README*"
           ]
         }
@@ -61,6 +73,7 @@
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
       "perMachine": false,
+      "license": "LICENSE",
       "artifactName": "${productName}-Setup-${version}-${arch}.${ext}"
     },
     "linux": {
@@ -79,6 +92,7 @@
             "ffmpeg",
             "ffprobe",
             "LICENSE*",
+            "SOURCE*",
             "README*"
           ]
         }

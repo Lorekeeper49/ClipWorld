@@ -1,0 +1,27 @@
+{
+  "about": "The ffmpeg build ClipWorld bundles. Change it with: node scripts/fetch-ffmpeg.mjs --update",
+  "builder": "https://github.com/FFmpeg-Builds/FFmpeg-Builds",
+  "buildTag": "autobuild-2026-11-21-12-37",
+  "buildCommit": "7f2a6b1050d302144de8366afa37a75e46f326aa",
+  "variant": "gpl",
+  "addin": "9.0",
+  "ffmpegVersion": "n9.0.2-61-gd59078794d",
+  "ffmpegCommit": "d59078794d80f5256d5def27e10bb5400a13195c",
+  "files": {
+    "win32-x64": {
+      "target": "win64",
+      "name": "ffmpeg-n9.0.2-61-gd59078794d-win64-gpl-9.0.zip",
+      "sha256": "af402c660610929e7bb795013372aef22da756f10b3c0c785aa62fabd328e237"
+    },
+    "linux-x64": {
+      "target": "linux64",
+      "name": "ffmpeg-n9.0.2-61-gd59078794d-linux64-gpl-9.0.tar.xz",
+      "sha256": "010499a8a9855e477b1a0ebfa9602832526ec80eb306b58213a2b6cda7149607"
+    },
+    "linux-arm64": {
+      "target": "linuxarm64",
+      "name": "ffmpeg-n9.0.2-61-gd59078794d-linuxarm64-gpl-9.0.tar.xz",
+      "sha256": "beed6cce0226be087e78c691c15ec91e48f78ab2ca6aca0a017365ad9b19eb92"
+    }
+  }
+}

@@ -1,4 +1,19 @@
 #!/usr/bin/env bash
+# Copyright (C) 2026 Lorekeeper49
+#
+# This file is part of ClipWorld.
+#
+# ClipWorld is free software: you can redistribute it and/or modify it under the terms of the GNU
+# General Public License as published by the Free Software Foundation, either version 3 of the
+# License, or (at your option) any later version.
+#
+# ClipWorld is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without
+# even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+# General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License along with ClipWorld. If not,
+# see <https://www.gnu.org/licenses/>.
+
 # Builds ClipWorld for Linux into dist/linux-unpacked/clipworld and launches it.
 #   ./build.sh            build, then launch
 #   ./build.sh nolaunch   build only
@@ -34,10 +49,9 @@ if [ ! -d node_modules ]; then
   npm install --no-fund --no-audit || fail "npm install failed"
 fi
 
-if [ ! -x "vendor/ffmpeg/linux-$ARCH/ffmpeg" ]; then
-  echo "=== Downloading ffmpeg ==="
-  node scripts/fetch-ffmpeg.mjs --platform linux --arch "$ARCH" || fail "could not download ffmpeg"
-fi
+# Downloads the pinned ffmpeg build when it is missing or the pin changed; otherwise does nothing.
+echo "=== Checking ffmpeg ==="
+node scripts/fetch-ffmpeg.mjs --platform linux --arch "$ARCH" || fail "could not download ffmpeg"
 
 echo "=== Type-checking ==="
 npm run typecheck || fail "type errors"

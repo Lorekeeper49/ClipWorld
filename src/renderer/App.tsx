@@ -1,3 +1,20 @@
+/*
+ * Copyright (C) 2026 Lorekeeper49
+ *
+ * This file is part of ClipWorld.
+ *
+ * ClipWorld is free software: you can redistribute it and/or modify it under the terms of the GNU
+ * General Public License as published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * ClipWorld is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without
+ * even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+ * General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License along with ClipWorld. If not,
+ * see <https://www.gnu.org/licenses/>.
+ */
+
 import { useEffect, useState } from 'react'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { MenuBar } from './components/MenuBar'
@@ -49,6 +66,16 @@ function AboutDialog() {
       <p>{t('about.tagline')}</p>
       <p className="dim">{ffmpeg ? t('about.ffmpeg', { version: ffmpeg }) : t('app.ffmpegNotFound')}</p>
       <p className="dim">{t('about.projects')}</p>
+      {/* The copyright notice stays in English in every language, as the GPL how-to asks. */}
+      <p className="small" data-i18n-ignore="" data-testid="about-copyright">Copyright (C) 2026 Lorekeeper49</p>
+      <p className="dim small">
+        {t('about.license')}{' '}
+        <a href="https://www.gnu.org/licenses/gpl-3.0.html" target="_blank" rel="noreferrer">{t('about.licenseLink')}</a>
+      </p>
+      <p className="dim small">
+        {t('about.source')}{' '}
+        <a href="https://github.com/Lorekeeper49/ClipWorld/releases" target="_blank" rel="noreferrer">{t('about.sourceLink')}</a>
+      </p>
     </Modal>
   )
 }

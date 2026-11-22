@@ -1,3 +1,20 @@
+/*
+ * Copyright (C) 2026 Lorekeeper49
+ *
+ * This file is part of ClipWorld.
+ *
+ * ClipWorld is free software: you can redistribute it and/or modify it under the terms of the GNU
+ * General Public License as published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * ClipWorld is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without
+ * even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+ * General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License along with ClipWorld. If not,
+ * see <https://www.gnu.org/licenses/>.
+ */
+
 // Language UI test. Switches the app to the pseudo-language from the Language dialog, opens every window,
 // menu and dialog, and fails on any text that is still plain English: that text is hard-coded somewhere
 // instead of coming from src/locales. Then does the same in Japanese, and checks the choice is remembered
@@ -47,7 +64,7 @@ async function launch() {
 }
 
 // Words that are allowed to stay as they are in any language: product and format names, key names,
-// units, the brand, and folder names on disk (the Voiceovers folder is called that in every language).
+// units, the brand, and folder names on disk (the Voiceovers folder is called that in every language), the license's name (GNU GPL) and GitHub.
 const ALWAYS_OK = new Set([
   'ClipWorld', 'ffmpeg', 'npm', 'fetch', 'Ctrl', 'Shift', 'Alt', 'Space', 'Delete', 'Left', 'Right', 'Home', 'End', 'Escape',
   'Backspace', 'Enter', 'Tab', 'fps', 'kbps', 'kHz', 'vcws', 'mp4', 'mkv', 'png', 'aac', 'h264', 'MP4', 'MKV', 'MOV', 'GIF',
@@ -55,7 +72,7 @@ const ALWAYS_OK = new Set([
   'QuickTime', 'Apple', 'ProRes', 'MPEG', 'Part', 'NVIDIA', 'NVENC', 'Intel', 'Quick', 'Sync', 'AMD', 'AMF', 'x264', 'x265',
   'libvpx', 'SVT', 'libaom', 'SubRip', 'srt', 'WebVTT', 'vtt', 'Advanced', 'SubStation', 'Alpha', 'ass', 'ssa', 'YouTube',
   'SubViewer', 'sbv', 'TTML', 'DFXP', 'ttml', 'SAMI', 'smi', 'MicroDVD', 'sub', 'LRC', 'lrc', 'txt', 'SRT', 'VTT', 'ASS',
-  'SBV', 'SUB', 'DVD', 'Blu', 'ray', 'UHD', 'Web', 'Language', 'Voiceovers'
+  'SBV', 'SUB', 'DVD', 'Blu', 'ray', 'UHD', 'Web', 'Language', 'Voiceovers', 'GNU', 'GPL', 'GitHub'
 ])
 
 /** Every visible piece of text, tooltip and placeholder, with where it was found. */

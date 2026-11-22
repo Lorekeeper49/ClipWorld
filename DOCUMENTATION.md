@@ -122,6 +122,7 @@ The timeline is where you build your video.
 
 - **Move the playhead:** click or drag on the time ruler at the top, or click an empty part of a track.
 - **Go to an exact time:** type a time into the box on the toolbar and press **Enter** (or click **Go**). **Ctrl+G** puts the cursor in the box. You can type:
+
   - the preview's format, `minutes:seconds:frames`, such as `01:30:12` (add hours in front for long videos: `01:02:03:04`);
   - minutes and seconds, such as `1:30`;
   - just seconds, such as `90` or `90.5`.
@@ -246,6 +247,7 @@ Record yourself talking over your video:
 Easing controls how an animation speeds up and slows down. Click the **Ease** field (in Transform or Zoom on video) to open the easing graph.
 
 **Ready-made curves**
+
 - **Linear:** the same speed from start to finish.
 - Every curve from [easings.net](https://easings.net/), in ten families, each with three kinds:
   - **In:** starts slowly, then speeds up.
@@ -254,6 +256,7 @@ Easing controls how an animation speeds up and slows down. Click the **Ease** fi
 - The families go from gentle to dramatic: **Sine**, **Quad**, **Cubic**, **Quart**, **Quint** and **Expo** are increasingly strong; **Circ** is sharp at one end; **Back** goes a little past the end and comes back; **Elastic** wobbles like a spring; **Bounce** bounces like a dropped ball.
 
 **The graph**
+
 - Time runs left to right, and the value runs from the start value (0) up to the end value (1). Above 1 means going past the end (overshoot).
 - The dot under the graph moves with the curve, over and over, so you can see what the motion feels like.
 - **Drag a point** to move it, and **drag its handles** (the round dots on lines) to shape the curve around it. Hold **Alt** to move one handle on its own and make a sharp corner.
@@ -262,6 +265,7 @@ Easing controls how an animation speeds up and slows down. Click the **Ease** fi
 - Editing a ready-made curve makes your own copy, called **Custom curve**. The ready-made one is never changed.
 
 **Your presets**
+
 - **Save as preset…** keeps the current curve under a name you choose, in **My presets** at the top of the list. They're available in every project.
 - The trash button next to one deletes it. Clips already using that curve keep it.
 
@@ -502,12 +506,13 @@ Open the Export window with **File ▸ Export…** or **Ctrl+Shift+E**.
 When the format is **GIF**, you can make parts of it see-through, for stickers, emotes and overlays:
 
 - **Transparent background:** wherever no clip covers the frame (and wherever a clip is itself see-through), the GIF is see-through instead of black.
-- **Make a color see-through:** also hides one color, such as a green screen behind a character. It works like the [Color mask](#masks):
+- **Make a color see-through:** also hides one color, such as a green screen behind a character (This is due to the fact that GIFs only support 1-bit transparency). It works like the [Color mask](#masks):
   - **Color:** the color to hide. Click the preview picture to pick it straight from your video.
   - **Tolerance:** how different from that color a pixel can be and still be hidden. Raise it if a rim of the color is left around things.
   - **Softness:** hides colors just past the tolerance gradually.
   - **Feather:** rounds the edges of what's hidden.
 - The preview shows the frame at the playhead as the GIF will look, over a checkerboard where it's see-through.
+  - Quick tip: You can can use [Color mask](#masks) on the timeline to see what it looks like in better detail than the preview on the exort window, then delete the mask and use the same settings in the export.
 - A GIF pixel can only be fully see-through or fully solid, so soft and feathered edges become hard edges in the file (anything more than half see-through is hidden).
 - Transparent GIFs are usually bigger files than ones with a solid background.
 
@@ -579,7 +584,7 @@ Every shortcut can be changed in **Edit ▸ Settings… ▸ Keyboard shortcuts**
 | Unlink audio from video              | Ctrl+U                   |
 | Add text                             | T                        |
 | Toggle snapping                      | S                        |
-| Zoom timeline in / out               | Ctrl+= / Ctrl+−          |
+| Zoom timeline in / out               | Ctrl+= / Ctrl+−         |
 | Add subtitle at playhead             | Shift+T                  |
 | Set subtitle start / end to playhead | [ / ]                    |
 | Play / pause                         | Space                    |

@@ -99,7 +99,8 @@ export async function runExport(job: ExportJob): Promise<{ args: string[]; filte
       text: job.assets?.text ?? {},
       overlays: job.assets?.overlays ?? {},
       irs: { ...(job.assets?.irs ?? {}) },
-      subtitles: { ...(job.assets?.subtitles ?? {}) }
+      subtitles: { ...(job.assets?.subtitles ?? {}) },
+      pluginFilters: job.assets?.pluginFilters ?? {}
     }
     for (const s of job.subtitleClips ?? []) {
       const list = join(job.tmpDir, `subs_${s.clipId}.ffconcat`)

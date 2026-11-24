@@ -1,0 +1,15 @@
+{
+  "id": "example.csv-python",
+  "name": { "en": "CSV (Python example)", "ja": "CSV（Python の例）" },
+  "version": "1.0.0",
+  "description": { "en": "Exports the timeline's clips as a spreadsheet, and imports titles from one.", "ja": "タイムラインのクリップを表としてエクスポートし、表からタイトルをインポートします。" },
+  "author": "ClipWorld examples",
+  "apiVersion": 1,
+  "main": "main.py",
+  "importers": [
+    { "id": "titles", "title": { "en": "titles from a CSV file", "ja": "CSV ファイルからタイトル" }, "extensions": ["csv"] }
+  ],
+  "exporters": [
+    { "id": "clipList", "title": { "en": "clip list as CSV", "ja": "クリップ一覧を CSV で" }, "extension": "csv" }
+  ]
+}

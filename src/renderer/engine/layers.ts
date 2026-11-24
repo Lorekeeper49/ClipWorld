@@ -390,6 +390,8 @@ export function applyMask(
 /** What the layer renderer needs from the player: loaded images for image masks. */
 export interface LayerEnv {
   image(mediaId: string): HTMLImageElement | null
+  /** A plugin effect applied to the layer, when its result is ready (see pluginPreview.ts). */
+  pluginEffect?(e: EffectInstance, src: HTMLCanvasElement, cw: number, ch: number, pxRef: number, frame: string, duration: number): CanvasImageSource | null
 }
 
 // ---------------------------------------------------------------- layer rendering
@@ -479,6 +481,16 @@ export function renderLayer(
       continue
     }
     i++
+    if (def.kind === 'plugin') {
+      const out = env?.pluginEffect?.(e, a.canvas, cw, ch, pxRef, `${clip.id}@${local.toFixed(3)}`, clip.duration)
+      if (out) {
+        const dst = other()
+        dst.ctx.clearRect(0, 0, cw, ch)
+        dst.ctx.drawImage(out, 0, 0, cw, ch)
+        a = dst
+      }
+      continue
+    }
     if (def.kind === 'overlay') {
       a.ctx.globalCompositeOperation = 'source-atop'
       a.ctx.drawImage(overlayFor(e, cw, ch), 0, 0, cw, ch)

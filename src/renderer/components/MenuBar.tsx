@@ -16,7 +16,11 @@
  */
 
 import { useState, useSyncExternalStore } from 'react'
-import { PANELS, isPanelOpen, resetLayout, showPanel, subscribePanels, togglePanel } from '../layout/dock'
+import {
+  PANELS, isPanelOpen, isPluginPanelOpen, openPanelsKey, resetLayout, showPanel, subscribePanels, togglePanel, togglePluginPanel
+} from '../layout/dock'
+import { pluginText } from '@shared/plugins'
+import { exportWithPlugin, importWithPlugin, pluginCommandShortcut, pluginName, runPluginCommand, runningPlugins } from '../state/plugins'
 import {
   addCueAction, addTextAction, copyAction, cutAction, deleteSelectionAction, duplicateAction, importMediaAction,
   importSubtitleFilesAction, newProjectAction, openProjectAction, pasteAction, redo, saveProjectAction, selectAllAction,
@@ -86,10 +90,18 @@ export function MenuBar() {
   const ffmpeg = useStore((s) => s.ffmpegVersion)
   const hasSubtitles = useStore((s) => s.project.subtitles.some((t) => t.cues.length > 0))
   useStore((s) => s.settings.shortcuts)
-  useSyncExternalStore(subscribePanels, () => PANELS.map((p) => (isPanelOpen(p.id) ? '1' : '0')).join(''))
+  useSyncExternalStore(subscribePanels, openPanelsKey)
   const k = bindingFor
   const t = useT()
   const lang = useStore((s) => s.lang)
+  const plugins = runningPlugins(useStore((s) => s.plugins))
+  const tx = (v: Parameters<typeof pluginText>[0]) => pluginText(v, lang)
+  const importers = plugins.flatMap((p) => p.manifest.importers.map((i): Item => ({
+    label: t('menu.importWith', { name: tx(i.title) }), run: () => void importWithPlugin(p.manifest.id, i.id), testId: `menu-import-${p.manifest.id}-${i.id}`
+  })))
+  const exporters = plugins.flatMap((p) => p.manifest.exporters.map((x): Item => ({
+    label: t('menu.exportWith', { name: tx(x.title) }), run: () => void exportWithPlugin(p.manifest.id, x.id), testId: `menu-export-${p.manifest.id}-${x.id}`
+  })))
 
   const file: Item[] = [
     { label: a('file.new'), shortcut: k('file.new'), run: newProjectAction },
@@ -109,6 +121,7 @@ export function MenuBar() {
         void importSubtitleFilesAction()
       }
     },
+    ...importers,
     { separator: true },
     { label: a('file.export'), shortcut: k('file.export'), run: () => set({ modal: 'export' }), testId: 'menu-export' },
     {
@@ -119,6 +132,7 @@ export function MenuBar() {
         set((s) => ({ subtitleExportRequest: s.subtitleExportRequest + 1 }))
       }
     },
+    ...exporters,
     { separator: true },
     { label: t('menu.exit'), run: () => guardUnsaved(() => window.cw.confirmClose()) }
   ]
@@ -156,8 +170,26 @@ export function MenuBar() {
     { label: t('menu.resetLayout'), run: resetLayout },
     { label: t('menu.devTools'), shortcut: 'F12', run: () => window.cw.toggleDevTools() }
   ]
+  // Plugins: their commands, then their windows, then the manager.
+  const commands = plugins.flatMap((p) => p.manifest.commands.map((c): Item => ({
+    label: plugins.length > 1 ? `${pluginName(p)}: ${tx(c.title)}` : tx(c.title),
+    shortcut: pluginCommandShortcut(p.manifest.id, c.id),
+    run: () => void runPluginCommand(p.manifest.id, c.id),
+    testId: `menu-plugin-${p.manifest.id}-${c.id}`
+  })))
+  const pluginWindows = plugins.flatMap((p) => p.manifest.panels.map((w): Item => ({
+    label: tx(w.title), checked: isPluginPanelOpen(p.manifest.id, w.id), run: () => togglePluginPanel(p.manifest.id, w.id, tx(w.title)),
+    testId: `menu-panel-${p.manifest.id}-${w.id}`
+  })))
+  const pluginMenu: Item[] = [
+    ...commands,
+    ...(commands.length && pluginWindows.length ? [{ separator: true } as Item] : []),
+    ...pluginWindows,
+    ...(commands.length || pluginWindows.length ? [{ separator: true } as Item] : []),
+    { label: t('menu.managePlugins'), run: () => set({ modal: 'plugins' }), testId: 'menu-manage-plugins' }
+  ]
   const help: Item[] = [{ label: t('menu.about'), run: () => set({ modal: 'about' }) }]
-  const menus: [string, Item[]][] = [['file', file], ['edit', edit], ['window', windowMenu], ['help', help]]
+  const menus: [string, Item[]][] = [['file', file], ['edit', edit], ['window', windowMenu], ['plugins', pluginMenu], ['help', help]]
 
   return (
     <header className="menubar" ref={ref}>

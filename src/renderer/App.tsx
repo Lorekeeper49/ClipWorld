@@ -22,7 +22,11 @@ import { Btn, Modal } from './components/ui'
 import { ExportDialog } from './dialogs/ExportDialog'
 import { EaseEditor } from './dialogs/EaseEditor'
 import { PresetImportDialog } from './dialogs/PresetImportDialog'
+import { PresetExportDialog } from './dialogs/PresetExportDialog'
 import { loadPresets } from './state/presets'
+import { loadPlugins } from './state/plugins'
+import { PluginsDialog } from './dialogs/PluginsDialog'
+import { PluginFormDialog } from './dialogs/PluginFormDialog'
 import { applyClipColors } from './settings/clipColors'
 import { SettingsDialog } from './settings/SettingsDialog'
 import { applyLanguage, tx, useT } from './i18n'
@@ -103,6 +107,7 @@ export function App() {
       set({ settings: info.settings, caps: info.caps, ffmpegVersion: info.ffmpegVersion })
       applyLanguage(info.settings.language, info.systemLanguages)
       void loadPresets()
+      void loadPlugins()
       // Installed fonts, so new text and subtitles default to one this computer actually has.
       void window.cw.listFonts().then((fonts) => {
         if (fonts.length && !disposed) set({ fonts })
@@ -173,6 +178,9 @@ export function App() {
       {modal === 'close' && <CloseDialog />}
       {modal === 'about' && <AboutDialog />}
       {modal === 'presetImport' && <PresetImportDialog />}
+      {modal === 'presetExport' && <PresetExportDialog />}
+      {modal === 'plugins' && <PluginsDialog />}
+      {modal === 'pluginForm' && <PluginFormDialog />}
       {modal === 'ease' && <EaseEditor />}
       </ErrorBoundary>
       <Toasts />

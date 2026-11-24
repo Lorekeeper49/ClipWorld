@@ -8,6 +8,13 @@
     "**/vendor/**": true,
     "**/tests/.tmp/**": true
   },
+  "files.exclude": {
+    "**/dist/**": true,
+    "**/release/**": true,
+    "**/out/**": true,
+    "**/vendor/**": true,
+    "**/tests/.tmp/**": true
+  },
   "search.exclude": {
     "**/dist": true,
     "**/release": true,

@@ -64,7 +64,8 @@ async function launch() {
 }
 
 // Words that are allowed to stay as they are in any language: product and format names, key names,
-// units, the brand, and folder names on disk (the Voiceovers folder is called that in every language), the license's name (GNU GPL) and GitHub.
+// units, the brand, and folder names on disk (the Voiceovers folder is called that in every language), the license's name (GNU GPL), GitHub,
+// and the file name preset.json (an exported preset's file is called that in every language).
 const ALWAYS_OK = new Set([
   'ClipWorld', 'ffmpeg', 'npm', 'fetch', 'Ctrl', 'Shift', 'Alt', 'Space', 'Delete', 'Left', 'Right', 'Home', 'End', 'Escape',
   'Backspace', 'Enter', 'Tab', 'fps', 'kbps', 'kHz', 'vcws', 'mp4', 'mkv', 'png', 'aac', 'h264', 'MP4', 'MKV', 'MOV', 'GIF',
@@ -72,7 +73,8 @@ const ALWAYS_OK = new Set([
   'QuickTime', 'Apple', 'ProRes', 'MPEG', 'Part', 'NVIDIA', 'NVENC', 'Intel', 'Quick', 'Sync', 'AMD', 'AMF', 'x264', 'x265',
   'libvpx', 'SVT', 'libaom', 'SubRip', 'srt', 'WebVTT', 'vtt', 'Advanced', 'SubStation', 'Alpha', 'ass', 'ssa', 'YouTube',
   'SubViewer', 'sbv', 'TTML', 'DFXP', 'ttml', 'SAMI', 'smi', 'MicroDVD', 'sub', 'LRC', 'lrc', 'txt', 'SRT', 'VTT', 'ASS',
-  'SBV', 'SUB', 'DVD', 'Blu', 'ray', 'UHD', 'Web', 'Language', 'Voiceovers', 'GNU', 'GPL', 'GitHub'
+  'SBV', 'SUB', 'DVD', 'Blu', 'ray', 'UHD', 'Web', 'Language', 'Voiceovers', 'GNU', 'GPL', 'GitHub',
+  'ZIP', 'zip', 'JSON', 'json', 'preset'
 ])
 
 /** Every visible piece of text, tooltip and placeholder, with where it was found. */
@@ -158,12 +160,12 @@ async function sweep(page, label) {
   await page.waitForTimeout(300)
   await scan('subtitles import menu')
   await page.keyboard.press('Escape')
-  for (const menu of ['file', 'edit', 'window', 'help']) {
+  for (const menu of ['file', 'edit', 'window', 'plugins', 'help']) {
     await page.getByTestId(`menu-${menu}`).click()
     await scan(`${menu} menu`)
     await page.keyboard.press('Escape')
   }
-  for (const modal of ['export', 'shortcuts', 'about', 'language', 'close', 'presetImport', 'ease']) {
+  for (const modal of ['export', 'shortcuts', 'about', 'language', 'close', 'presetImport', 'ease', 'plugins']) {
     await page.evaluate((modal) => {
       const s = window.__cw.get()
       const media = s.project.media

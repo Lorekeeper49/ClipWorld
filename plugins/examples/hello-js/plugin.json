@@ -1,0 +1,15 @@
+{
+  "id": "example.hello-js",
+  "name": { "en": "Hello (JavaScript example)", "ja": "Hello（JavaScript の例）" },
+  "version": "1.0.0",
+  "description": { "en": "Adds a title where the playhead is, and a window listing the clips.", "ja": "再生位置にタイトルを追加します。クリップの一覧ウィンドウもあります。" },
+  "author": "ClipWorld examples",
+  "apiVersion": 1,
+  "main": "main.mjs",
+  "commands": [
+    { "id": "addTitle", "title": { "en": "Add a title…", "ja": "タイトルを追加…" }, "shortcut": "Ctrl+Alt+T" }
+  ],
+  "panels": [
+    { "id": "clips", "title": { "en": "Clip list", "ja": "クリップ一覧" }, "page": "panel/index.html" }
+  ]
+}

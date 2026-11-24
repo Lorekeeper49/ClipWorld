@@ -21,11 +21,12 @@ import { player } from '../engine/player'
 import * as a from './actions'
 import { get, patchSettings, set } from './store'
 import { showPanel } from '../layout/dock'
+import { pluginCommandName } from './plugins'
 
 export interface ShortcutDef {
   /** Also the message key of its name: actions.<id>. */
   id: string
-  group: 'File' | 'Edit' | 'Playback' | 'Timeline' | 'Subtitles'
+  group: 'File' | 'Edit' | 'Playback' | 'Timeline' | 'Subtitles' | 'Plugins'
   default: string
   run: () => void
 }
@@ -105,7 +106,7 @@ export function acceleratorFromEvent(e: KeyboardEvent): string | null {
 }
 
 /** The action's name in the current language. */
-export const shortcutLabel = (id: string): string => t(`actions.${id}`)
+export const shortcutLabel = (id: string): string => pluginCommandName(id) ?? t(`actions.${id}`)
 
 export function bindingFor(id: string): string {
   const def = SHORTCUTS.find((s) => s.id === id)

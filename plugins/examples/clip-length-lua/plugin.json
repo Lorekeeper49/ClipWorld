@@ -1,0 +1,12 @@
+{
+  "id": "example.clip-length-lua",
+  "name": { "en": "Clip length (Lua example)", "ja": "クリップの長さ（Lua の例）" },
+  "version": "1.0.0",
+  "description": { "en": "Makes the selected clips all the same length.", "ja": "選んだクリップをすべて同じ長さにします。" },
+  "author": "ClipWorld examples",
+  "apiVersion": 1,
+  "main": "main.lua",
+  "commands": [
+    { "id": "setLength", "title": { "en": "Make selected clips the same length…", "ja": "選んだクリップを同じ長さに…" } }
+  ]
+}

@@ -61,6 +61,41 @@ export async function deletePresetAction(id: string): Promise<void> {
   set((s) => ({ presets: s.presets.filter((p) => p.id !== id) }))
 }
 
+/**
+ * Starts exporting a preset: asks which of its files to put in the zip (when it has any), then where to
+ * save it. Use `exportPresetAction` to go straight to saving.
+ */
+export function startPresetExport(id: string): void {
+  const preset = get().presets.find((p) => p.id === id)
+  if (!preset) return
+  if (preset.media.length) set({ modal: 'presetExport', presetExport: id })
+  else void exportPresetAction(id, [])
+}
+
+/** Saves the preset as a zip holding preset.json and the media whose ids are in `include`. */
+export async function exportPresetAction(id: string, include: string[]): Promise<string | null> {
+  const preset = get().presets.find((p) => p.id === id)
+  if (!preset) return null
+  const r = await window.cw.exportPreset(preset, include)
+  if (r.error) toast(r.error, 'error')
+  else if (r.path) {
+    if (r.skipped?.length) toast(t('presets.exportedWithout', { name: preset.name, count: r.skipped.length, files: r.skipped.join(', ') }), 'error')
+    else toast(t('presets.exported', { name: preset.name }))
+  }
+  return r.path ?? null
+}
+
+/** Asks for an exported preset (a zip, or preset.json from an unzipped one) and adds it to the list. */
+export async function importPresetAction(): Promise<Preset | null> {
+  const r = await window.cw.importPreset()
+  if (r.error) toast(r.error, 'error')
+  if (!r.preset) return null
+  const preset = r.preset
+  set((s) => ({ presets: [...s.presets, preset] }))
+  toast(t('presets.imported', { name: preset.name }))
+  return preset
+}
+
 /** Shows "The following files need to be imported…" and resolves with the answer. */
 function askToImport(preset: Preset, files: PresetFile[]): Promise<boolean> {
   return new Promise((resolve) => {

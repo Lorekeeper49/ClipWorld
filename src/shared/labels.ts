@@ -21,10 +21,11 @@ import type { EaseName } from './model'
 import type { EffectDef, ParamDef } from './effects'
 import { currentLanguage, t } from './i18n'
 
-export const effectName = (def: EffectDef): string => t(`effects.${def.type}.name`)
+export const effectName = (def: EffectDef): string => def.labels?.name ?? t(`effects.${def.type}.name`)
 export const effectGroupName = (group: string): string => t(`effects.groups.${group}`)
-export const paramName = (def: EffectDef, p: ParamDef): string => t(`effects.${def.type}.params.${p.key}`)
-export const optionName = (def: EffectDef, p: ParamDef, value: string): string => t(`effects.${def.type}.options.${p.key}.${value}`)
+export const paramName = (def: EffectDef, p: ParamDef): string => def.labels?.params[p.key] ?? t(`effects.${def.type}.params.${p.key}`)
+export const optionName = (def: EffectDef, p: ParamDef, value: string): string =>
+  def.labels?.options[p.key]?.[value] ?? t(`effects.${def.type}.options.${p.key}.${value}`)
 
 /** "Bounce · In-out" for 'easeInOutBounce'; "Linear" for 'linear'. */
 export function easeName(e: EaseName): string {

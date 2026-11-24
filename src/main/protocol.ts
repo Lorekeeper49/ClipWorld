@@ -17,11 +17,13 @@
 
 // Serves local media to the renderer over cwmedia:// with HTTP Range support (needed for seeking).
 import { protocol } from 'electron'
-import { createReadStream, statSync } from 'node:fs'
-import { extname, resolve, sep } from 'node:path'
+import { createReadStream, readFileSync, statSync } from 'node:fs'
+import { extname, join, resolve, sep } from 'node:path'
 import { Readable } from 'node:stream'
 
 export const SCHEME = 'cwmedia'
+/** Plugin windows load their page and its files over cwplugin://<plugin id>/<path in its folder>. */
+export const PLUGIN_SCHEME = 'cwplugin'
 
 const MIME: Record<string, string> = {
   '.mp4': 'video/mp4', '.m4v': 'video/mp4', '.mov': 'video/quicktime', '.webm': 'video/webm', '.mkv': 'video/x-matroska',
@@ -30,7 +32,10 @@ const MIME: Record<string, string> = {
   '.opus': 'audio/ogg', '.aac': 'audio/aac',
   '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.jfif': 'image/jpeg', '.gif': 'image/gif',
   '.webp': 'image/webp', '.bmp': 'image/bmp', '.avif': 'image/avif', '.svg': 'image/svg+xml', '.ico': 'image/x-icon',
-  '.bin': 'application/octet-stream'
+  '.bin': 'application/octet-stream',
+  '.html': 'text/html; charset=utf-8', '.htm': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8',
+  '.mjs': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.json': 'application/json; charset=utf-8',
+  '.woff2': 'font/woff2', '.woff': 'font/woff', '.ttf': 'font/ttf', '.otf': 'font/otf'
 }
 
 const allowedFiles = new Set<string>()
@@ -52,8 +57,38 @@ export function mediaUrl(path: string, version?: number): string {
 
 export function registerScheme(): void {
   protocol.registerSchemesAsPrivileged([
-    { scheme: SCHEME, privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true, corsEnabled: true } }
+    { scheme: SCHEME, privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true, corsEnabled: true } },
+    { scheme: PLUGIN_SCHEME, privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true } }
   ])
+}
+
+/**
+ * Serves plugin windows' files: cwplugin://<id>/<path> from that plugin's folder (`folderOf` gives it while
+ * the plugin is on), never anything outside the folder.
+ */
+export function handlePluginProtocol(folderOf: (id: string) => string | null): void {
+  protocol.handle(PLUGIN_SCHEME, (request) => {
+    let id: string
+    let rel: string
+    try {
+      const url = new URL(request.url)
+      id = decodeURIComponent(url.hostname)
+      rel = decodeURIComponent(url.pathname).replace(/^\/+/, '')
+    } catch {
+      return new Response('Bad request', { status: 400 })
+    }
+    const dir = folderOf(id)
+    if (!dir) return new Response('Not found', { status: 404 })
+    const root = norm(dir) + sep
+    const file = resolve(join(dir, rel || 'index.html'))
+    if (!norm(file).startsWith(root)) return new Response('Forbidden', { status: 403 })
+    try {
+      const body = readFileSync(file)
+      return new Response(body, { status: 200, headers: { 'Content-Type': MIME[extname(file).toLowerCase()] ?? 'application/octet-stream', 'Cache-Control': 'no-cache' } })
+    } catch {
+      return new Response('Not found', { status: 404 })
+    }
+  })
 }
 
 export function handleProtocol(): void {

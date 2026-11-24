@@ -19,6 +19,7 @@
 import type { Caps } from './filtergraph'
 import type { ExportSettings } from './formats'
 import type { EaseCurve, MediaItem, Project, SubtitleCue } from './model'
+import type { BrokenPlugin, PluginInfo } from './plugins'
 import type { Preset } from './presets'
 
 /** Waveform peak resolution of the cached peak files (one unsigned byte per window). */
@@ -79,6 +80,49 @@ export interface MediaCache {
   error?: string
 }
 
+/** The plugins found, the plugin.json files that could not be read, and the Plugins folder. */
+export interface PluginList {
+  plugins: PluginInfo[]
+  broken: BrokenPlugin[]
+  folder: string
+}
+
+/** How installing a plugin went: cancelled, installed (or updated), or an error message. */
+export interface PluginInstallReply {
+  canceled?: boolean
+  id?: string
+  updated?: boolean
+  error?: string
+}
+
+/** A plugin effect's picture to preview: the layer before the effect, as a PNG. */
+export interface PluginPreviewRequest {
+  type: string
+  params: Record<string, unknown>
+  png: Uint8Array
+  width: number
+  height: number
+  /** Pixels per reference pixel (sizes in effects are given for a 1080-line frame). */
+  scale: number
+  fps: number
+  duration: number
+}
+
+/** How a preset export went: cancelled, saved (with chosen files that were gone), or an error message. */
+export interface PresetExportReply {
+  canceled?: boolean
+  path?: string
+  skipped?: string[]
+  error?: string
+}
+
+/** How a preset import went: cancelled, the imported preset, or an error message. */
+export interface PresetImportReply {
+  canceled?: boolean
+  preset?: Preset
+  error?: string
+}
+
 export interface AppSettings {
   /** Shortcut overrides: action id -> accelerator ("Ctrl+K"). */
   shortcuts: Record<string, string>
@@ -88,6 +132,12 @@ export interface AppSettings {
   ffmpegDir?: string
   exportSettings?: ExportSettings
   lastExportDir?: string
+  /** Plugins that are on, by id. */
+  enabledPlugins?: string[]
+  /** Plugin folders loaded where they are (a developer's), rather than installed. */
+  pluginFolders?: string[]
+  /** Folder of the last preset exported or imported. */
+  lastPresetDir?: string
   /** The Subtitles window was added to a layout saved before it existed (done once, so closing it sticks). */
   subtitlesPanelAdded?: boolean
   /** Windows added to layouts saved before they existed (each only once, so closing them sticks). */
@@ -204,8 +254,37 @@ export interface Api {
   listPresets(): Promise<Preset[]>
   savePreset(preset: Preset): Promise<void>
   deletePreset(id: string): Promise<void>
+  /** Asks where to save, then writes the preset as a zip with the media whose ids are in `include`. */
+  exportPreset(preset: Preset, include: string[]): Promise<PresetExportReply>
+  /** Asks for an exported preset (a zip, or preset.json from an unzipped one) and adds it to the presets. */
+  importPreset(): Promise<PresetImportReply>
   /** Whether each file exists. */
   filesExist(paths: string[]): Promise<boolean[]>
+
+  listPlugins(): Promise<PluginList>
+  /** Looks for plugins again (after adding one to the Plugins folder) and starts any that are on. */
+  rescanPlugins(): Promise<PluginList>
+  setPluginsEnabled(changes: { id: string; on: boolean }[]): Promise<PluginList>
+  restartPlugin(id: string): Promise<PluginList>
+  /** The plugin's recent messages (what it wrote to stderr). */
+  pluginLog(id: string): Promise<string[]>
+  removePlugin(id: string): Promise<PluginList>
+  openPluginsFolder(): Promise<string>
+  /** Asks for a plugin's zip (installed) or plugin.json (loaded where it is). */
+  installPlugin(): Promise<PluginInstallReply>
+  /** Asks a plugin something (command, import, export, effectFilter). */
+  invokePlugin(id: string, method: string, params: unknown, timeoutMs?: number): Promise<{ result?: unknown; error?: string }>
+  notifyPlugin(id: string, method: string, params: unknown): void
+  /** Answers a plugin's request (see onPluginRequest). */
+  replyToPlugin(reqId: number, ok: boolean, value: unknown): void
+  pluginPreviewFrame(req: PluginPreviewRequest): Promise<{ png?: Uint8Array | null; error?: string }>
+  pluginSaveDialog(title: string, defaultName: string, ext: string, label: string): Promise<string | null>
+  pluginOpenDialog(title: string, exts: string[], label: string): Promise<string[]>
+  onPluginsChanged(cb: (list: PluginList) => void): () => void
+  /** A plugin asks about the project, or for an edit: answer with replyToPlugin. */
+  onPluginRequest(cb: (reqId: number, pluginId: string, method: string, params: unknown) => void): () => void
+  /** A plugin sends something to one of its windows. */
+  onPluginPanel(cb: (pluginId: string, params: unknown) => void): () => void
 
   /** Asks for subtitle files to import. */
   pickSubtitleFiles(): Promise<string[]>

@@ -20,7 +20,7 @@ import { execFile } from 'node:child_process'
 import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs'
 import { basename, delimiter, dirname, extname, isAbsolute, join, relative, resolve } from 'node:path'
 import type { Caps } from '@shared/filtergraph'
-import type { AppInfo, ExportRequest, ExportResult, OpenedProject, Recovery } from '@shared/ipc'
+import type { AppInfo, ExportRequest, ExportResult, OpenedProject, PresetExportReply, PresetImportReply, Recovery } from '@shared/ipc'
 import { type MediaItem, PROJECT_EXT, type Project, parseProject } from '@shared/model'
 import { runExport } from './export'
 import { type FfmpegPaths, findFfmpeg, run, setFfmpegPaths, usableCapabilities, vendorDirs } from './ffmpeg'
@@ -32,9 +32,12 @@ import { probeMedia } from './probe'
 import { beginTake, discardTake, endTake, removeTakeFile, voiceoverFolder, writeTake } from './voiceover'
 import { extractSubtitleStream, listSubtitleStreams, readSubtitleFile } from './subtitles'
 import { SUBTITLE_IMPORT_EXTS } from '@shared/subtitles'
-import { allowFile, handleProtocol, registerScheme } from './protocol'
+import { allowFile, handlePluginProtocol, handleProtocol, registerScheme } from './protocol'
+import { pluginFiltersFor, registerPluginIpc, runningPluginFolder, startEnabledPlugins, stopAllPlugins } from './plugins'
 import { addRecent, flushSettings, loadSettings, saveSettings } from './settings'
 import { deletePreset, listPresets, savePreset } from './presets'
+import { exportPresetZip, importErrorMessage, importPresetFile } from './presetFiles'
+import { type Preset, safeFileName } from '@shared/presets'
 import { resolveLanguage, setLanguage, t } from '@shared/i18n'
 
 const isDev = !!process.env['ELECTRON_RENDERER_URL']
@@ -322,6 +325,55 @@ function registerIpc(): void {
   ipcMain.handle('presets:list', () => listPresets())
   ipcMain.handle('presets:save', (_e, preset) => savePreset(preset))
   ipcMain.handle('presets:delete', (_e, id: string) => deletePreset(id))
+  ipcMain.handle('presets:export', async (_e, preset: Preset, include: string[]): Promise<PresetExportReply> => {
+    let target: string | null
+    const test = testDialogAnswer('save')
+    if (test !== undefined) target = test as string | null
+    else {
+      const r = await dialog.showSaveDialog(win!, {
+        title: t('dialogs.exportPreset'),
+        defaultPath: join(loadSettings().lastPresetDir ?? app.getPath('documents'), `${safeFileName(preset.name, 'Preset')}.zip`),
+        filters: [{ name: t('dialogs.presetFiles'), extensions: ['zip'] }]
+      })
+      target = r.canceled ? null : (r.filePath ?? null)
+    }
+    if (!target) return { canceled: true }
+    if (extname(target).toLowerCase() !== '.zip') target += '.zip'
+    saveSettings({ lastPresetDir: dirname(target) })
+    try {
+      const { skipped } = await exportPresetZip(preset, include, target)
+      return { path: target, skipped }
+    } catch (err) {
+      return { error: t('presets.exportFailed', { error: (err as Error).message }) }
+    }
+  })
+  ipcMain.handle('presets:import', async (): Promise<PresetImportReply> => {
+    let file: string | undefined
+    const test = testDialogAnswer('open')
+    if (test !== undefined) file = (Array.isArray(test) ? test[0] : test) ?? undefined
+    else {
+      const r = await dialog.showOpenDialog(win!, {
+        title: t('dialogs.importPreset'),
+        defaultPath: loadSettings().lastPresetDir ?? app.getPath('documents'),
+        properties: ['openFile'],
+        filters: [
+          { name: t('dialogs.presetFiles'), extensions: ['zip', 'json'] },
+          { name: t('dialogs.allFiles'), extensions: ['*'] }
+        ]
+      })
+      file = r.canceled ? undefined : r.filePaths[0]
+    }
+    if (!file) return { canceled: true }
+    saveSettings({ lastPresetDir: dirname(file) })
+    try {
+      // A zip's files are unpacked into Documents/ClipWorld/Presets/<preset name>, where projects can keep using them.
+      const preset = await importPresetFile(file, join(app.getPath('documents'), 'ClipWorld', 'Presets'))
+      savePreset(preset)
+      return { preset }
+    } catch (err) {
+      return { error: importErrorMessage(err, file) }
+    }
+  })
   ipcMain.handle('files:exist', (_e, paths: string[]) => paths.map((p) => existsSync(p)))
 
   ipcMain.handle('subtitles:pick', async () => {
@@ -453,13 +505,15 @@ function registerIpc(): void {
         gap: subImages[s.gap],
         cues: s.cues.filter((c) => subImages[c.image]).map((c) => ({ ...c, image: subImages[c.image] }))
       }))
+      // Plugin effects: each plugin gives the ffmpeg filter for its effects' settings.
+      const pluginFilters = await pluginFiltersFor(req.project, req.project.settings)
       await runExport({
         project: req.project,
         settings: req.settings,
         outPath: req.outPath,
         tmpDir,
         caps,
-        assets: { text, overlays },
+        assets: { text, overlays, pluginFilters },
         subtitleClips,
         signal: exportAbort.signal,
         onProgress: (f) => win?.webContents.send('export:progress', f)
@@ -514,6 +568,7 @@ if (!app.requestSingleInstanceLock()) {
     applyLanguage()
     Menu.setApplicationMenu(null)
     handleProtocol()
+    handlePluginProtocol(runningPluginFolder)
     initMediaCache(join(app.getPath('userData'), 'cache'), (id, patch) => win?.webContents.send('media:cache', id, patch))
     await locateFfmpeg()
     // The font picker and the media protocol are the only extra capabilities the page needs.
@@ -523,13 +578,16 @@ if (!app.requestSingleInstanceLock()) {
       cb(permission === 'local-fonts' || (permission === 'media' && types.length > 0 && types.every((m) => m === 'audio')))
     })
     registerIpc()
+    registerPluginIpc(() => win, testDialogAnswer)
     createWindow()
+    // Plugins start once the window can answer their questions about the project.
+    win?.webContents.once('did-finish-load', () => startEnabledPlugins())
   })
 
   app.on('window-all-closed', () => {
     flushSettings()
     stopBackgroundWork()
-    app.quit()
+    void stopAllPlugins().finally(() => app.quit())
   })
 }
 

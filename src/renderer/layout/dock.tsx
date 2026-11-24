@@ -27,6 +27,8 @@ import { PropertiesPanel } from '../panels/PropertiesPanel'
 import { TimelinePanel } from '../panels/TimelinePanel'
 import { SubtitlesPanel } from '../panels/SubtitlesPanel'
 import { ToolsPanel } from '../panels/ToolsPanel'
+import { PluginPanel } from '../panels/PluginPanel'
+import type { IDockviewPanelProps } from 'dockview-react'
 import { t } from '@shared/i18n'
 import { get, patchSettings, useStore } from '../state/store'
 
@@ -50,7 +52,32 @@ const components = {
   properties: guarded(PropertiesPanel),
   metadata: guarded(MetadataPanel),
   audio: guarded(AudioPanel),
-  timeline: guarded(TimelinePanel)
+  timeline: guarded(TimelinePanel),
+  // A plugin's window: which plugin and window are in its params, so saved layouts bring it back.
+  plugin: (props: IDockviewPanelProps<{ plugin: string; panel: string }>) => (
+    <ErrorBoundary><PluginPanel plugin={props.params.plugin} panel={props.params.panel} /></ErrorBoundary>
+  )
+}
+
+const pluginPanelId = (plugin: string, panel: string) => `plugin:${plugin}/${panel}`
+
+/** Changes whenever a window opens or closes (for menus that show which are open). */
+export const openPanelsKey = (): string => (api?.panels ?? []).map((p) => p.id).sort().join(',')
+
+export function isPluginPanelOpen(plugin: string, panel: string): boolean {
+  return !!api?.getPanel(pluginPanelId(plugin, panel))
+}
+
+/** Opens a plugin's window (floating, like reopened windows), or closes it if it is open. */
+export function togglePluginPanel(plugin: string, panel: string, title: string): void {
+  if (!api) return
+  const id = pluginPanelId(plugin, panel)
+  const existing = api.getPanel(id)
+  if (existing) {
+    existing.api.close()
+    return
+  }
+  api.addPanel({ id, component: 'plugin', title, params: { plugin, panel }, floating: { width: 420, height: 480 } })
 }
 
 let api: DockviewApi | null = null
@@ -145,7 +172,7 @@ function onReady(e: DockviewReadyEvent): void {
 
 /** Puts every open window's tab title in the current language. */
 function retitle(): void {
-  for (const p of api?.panels ?? []) if (p.title !== title(p.id)) p.api.setTitle(title(p.id))
+  for (const p of api?.panels ?? []) if (!p.id.startsWith('plugin:') && p.title !== title(p.id)) p.api.setTitle(title(p.id))
 }
 useStore.subscribe((s, prev) => s.lang !== prev.lang && retitle())
 

@@ -64,8 +64,9 @@ export function fieldLimits(p: ParamDef): { min?: number; max?: number } {
  *  special  – needs dedicated handling on each side
  *  mask     – hides parts of the clip; applied before other effects (the difference mask after
  *             placement, since it compares the clip with what is underneath it)
+ *  plugin   – added by a plugin, which supplies the ffmpeg filter (see shared/plugins.ts)
  */
-export type EffectKind = 'css' | 'overlay' | 'special' | 'mask'
+export type EffectKind = 'css' | 'overlay' | 'special' | 'mask' | 'plugin'
 
 export interface EffectDef {
   type: string
@@ -73,6 +74,8 @@ export interface EffectDef {
   group: string
   kind: EffectKind
   params: ParamDef[]
+  /** Names given by a plugin (built-in effects use messages instead). */
+  labels?: { name: string; params: Record<string, string>; options: Record<string, Record<string, string>> }
 }
 
 const pct = { min: 0, max: 1, step: 0.01, display: 100, unit: '%' } as const
@@ -220,6 +223,20 @@ export const EFFECTS: EffectDef[] = [
 ]
 
 export const EFFECT_MAP: Record<string, EffectDef> = Object.fromEntries(EFFECTS.map((e) => [e.type, e]))
+
+/** Replaces the effects plugins add (when plugins are turned on or off). */
+export function setPluginEffects(defs: EffectDef[]): void {
+  for (let i = EFFECTS.length - 1; i >= 0; i--) {
+    if (EFFECTS[i].kind === 'plugin') {
+      delete EFFECT_MAP[EFFECTS[i].type]
+      EFFECTS.splice(i, 1)
+    }
+  }
+  for (const d of defs) {
+    EFFECTS.push(d)
+    EFFECT_MAP[d.type] = d
+  }
+}
 
 export function makeEffect(type: string): EffectInstance {
   const def = EFFECT_MAP[type]

@@ -18,6 +18,7 @@ This guide explains everything ClipWorld can do, in plain words. You don't need 
 - [Effects and filters](#effects-and-filters)
 - [Masks](#masks)
 - [Presets](#presets)
+- [Plugins](#plugins)
 - [Exporting your video](#exporting-your-video)
 - [Saving and opening projects](#saving-and-opening-projects)
 - [Settings](#settings)
@@ -484,6 +485,66 @@ The preset keeps everything about those clips: their effects, masks, text, posit
 - Click a preset's name to rename it.
 - Click the trash button and then **Delete?** to remove it. Deleting a preset can't be undone.
 
+**Sharing presets**
+
+To give a preset to someone else, or keep a copy, export it as a zip:
+
+1. Click the **export** button next to the preset (the box with an arrow).
+2. Tick the files to put in the zip. Every file the preset uses is ticked to start with. A file you untick is still named in the preset, so whoever imports it needs that file already.
+3. Click **Export…** and choose where to save the zip.
+
+The zip holds `preset.json`, which describes the clips, and the files you ticked, side by side. `preset.json` names each file without its folder, so the preset works on any computer.
+
+To add an exported preset, click **Import preset…** at the bottom of the Presets section, then choose:
+
+- **the zip itself.** Its files are unpacked into a folder named after the preset in **Documents ▸ ClipWorld ▸ Presets**, and used from there.
+- **or `preset.json`**, if the zip has been unzipped. Its files are used where they are, next to `preset.json`.
+
+A file the preset names but that isn't there is marked **File not found** when you use the preset, as above.
+
+## Plugins
+
+Plugins add things to ClipWorld that other people have made:
+
+- **Commands** in the **Plugins** menu.
+- **File types** to import and export, in the **File** menu.
+- **Effects** in the Effects list, under **Plugins**.
+- **Windows** of their own.
+
+**Plugins are programs.** A plugin can do anything you can do on your computer, such as reading, changing or deleting your files. Only install plugins from people you trust.
+
+**Installing a plugin**
+
+1. Open **Plugins ▸ Manage plugins…** and click **Install plugin…**.
+2. Choose the plugin's zip file. It's copied into **Documents ▸ ClipWorld ▸ Plugins**. Installing a newer zip of a plugin you already have updates it.
+3. The plugin is listed, but it's **off**. Turn it on with its switch.
+
+You can also copy a plugin's folder into the plugins folder yourself (**Open plugins folder** takes you there), then click **Look again**.
+
+**Turning plugins on and off**
+
+- Turning a plugin on shows a warning first. Click **Turn on** if you trust it.
+- If the new plugin could stop a plugin that's already on from working, ClipWorld says which and why: for example, both use the same shortcut, or both want to import the same kind of file. It offers to turn those plugins off, ticked to start with. Untick any you want to keep on, then click **Turn on**.
+- Plugins that are on start again whenever ClipWorld starts.
+
+**Using plugins**
+
+- **Commands** are in the **Plugins** menu, and some have a keyboard shortcut. You can change them in **Edit ▸ Keyboard shortcuts…**, where plugin commands have their own group. Everything a command changes can be undone with one **Ctrl+Z**.
+- **File types:**
+  - Importers appear in the File menu as **Import …**. Importing a file of that type any other way, such as by dragging it in, also hands it to the plugin.
+  - Exporters appear as **Export …**.
+- **Effects** are under **Plugins** in a clip's Effects list. A picture effect shows in the preview while it's **paused**; while playing, the clip is shown without it. Sound effects are heard only in the exported file. A project that uses a plugin's effects needs that plugin turned on to export.
+- **Windows** are listed in the Plugins menu, and can be docked like any other window.
+
+**When something goes wrong**
+
+- A plugin with a problem shows **Problem** and says what happened, such as *Python was not found*. Plugins written in Python or Lua need that language installed on your computer; JavaScript and TypeScript plugins need nothing extra.
+- **Restart** starts a plugin again.
+- **Messages** shows what the plugin has reported, which helps its author fix problems.
+- **Remove** puts an installed plugin in the Recycle Bin. A plugin loaded from its own folder (one a developer is working on) is only taken off the list with **Forget**.
+
+**Making plugins:** plugins can be written in JavaScript, TypeScript, Python, Lua or any other language. See [PLUGINS.md](PLUGINS.md).
+
 ## Exporting your video
 
 Open the Export window with **File ▸ Export…** or **Ctrl+Shift+E**.
@@ -556,9 +617,10 @@ All your preferences are in one place: **Edit ▸ Settings…** or **Ctrl+,** (C
 
 ## Menus
 
-- **File:** new, open, recent projects, save, save as, import media, import subtitles, export, export subtitles, exit.
+- **File:** new, open, recent projects, save, save as, import media, import subtitles, export, export subtitles, exit, and any file types that plugins add.
 - **Edit:** undo, redo, cut, copy, paste, duplicate, delete, split, unlink, add text, add subtitle, select all, **Settings…**, and shortcuts straight to the **Keyboard shortcuts…** and **Language…** pages of Settings.
 - **Window:** show or hide each window, **Reset layout**, and developer tools (for troubleshooting).
+- **Plugins:** the commands and windows of the plugins that are on, and **Manage plugins…**. Plugins can also add items to the File menu. See [Plugins](#plugins).
 - **Help:** About ClipWorld.
 
 ## Keyboard shortcuts

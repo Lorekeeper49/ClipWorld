@@ -21,10 +21,11 @@ import { type Patch, applyPatches, enablePatches, produceWithPatches } from 'imm
 import { create } from 'zustand'
 import { t } from '@shared/i18n'
 import type { Caps } from '@shared/filtergraph'
-import type { AppSettings, MediaCache } from '@shared/ipc'
+import type { AppSettings, MediaCache, PluginList } from '@shared/ipc'
 import { type Clip, type MediaItem, type Project, newProject } from '@shared/model'
 import type { ClipboardData } from '@shared/timeline-ops'
 import type { Preset } from '@shared/presets'
+import type { PluginForm } from './plugins'
 
 enablePatches()
 
@@ -36,7 +37,7 @@ interface HistoryEntry {
 }
 
 /** 'shortcuts' and 'language' open the Settings window at that page. */
-export type Modal = null | 'export' | 'settings' | 'shortcuts' | 'close' | 'about' | 'language' | 'presetImport' | 'ease'
+export type Modal = null | 'export' | 'settings' | 'shortcuts' | 'close' | 'about' | 'language' | 'presetImport' | 'presetExport' | 'ease' | 'plugins' | 'pluginForm'
 
 export interface Toast {
   id: number
@@ -90,6 +91,12 @@ export interface State {
   easeTarget: { clipId: string; field: 'transform' | 'zoom' } | null
   /** The question asked before importing a preset's media. */
   presetPrompt: { presetName: string; files: { item: MediaItem; exists: boolean }[]; answer: (yes: boolean) => void } | null
+  /** The preset the Export preset window is for. */
+  presetExport: string | null
+  /** The plugins found (null until loaded). */
+  plugins: PluginList | null
+  /** A plugin's question to the user (askUser). */
+  pluginForm: PluginForm | null
   /** A voiceover being recorded: getting the microphone ready, recording, or saving the take. */
   voiceover: { phase: 'starting' | 'recording' | 'saving'; startedAt: number; level: number } | null
 }
@@ -123,6 +130,9 @@ export const useStore = create<State>(() => ({
   lang: 'en',
   presets: [],
   presetPrompt: null,
+  presetExport: null,
+  plugins: null,
+  pluginForm: null,
   voiceover: null,
   easeTarget: null
 }))

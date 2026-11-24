@@ -1,0 +1,29 @@
+{
+  "id": "example.film-effects-ts",
+  "name": { "en": "Film effects (TypeScript example)", "ja": "フィルムエフェクト（TypeScript の例）" },
+  "version": "1.0.0",
+  "description": { "en": "An old-film look for pictures, and a telephone sound for audio.", "ja": "映像を古いフィルム風に、音声を電話の声のようにします。" },
+  "author": "ClipWorld examples",
+  "apiVersion": 1,
+  "main": "main.ts",
+  "effects": [
+    {
+      "id": "oldFilm",
+      "title": { "en": "Old film", "ja": "古いフィルム" },
+      "target": "video",
+      "params": [
+        { "key": "amount", "label": { "en": "Amount", "ja": "強さ" }, "type": "number", "default": 0.8, "min": 0, "max": 1, "step": 0.05 },
+        { "key": "grain", "label": { "en": "Grain", "ja": "粒子" }, "type": "boolean", "default": true }
+      ]
+    },
+    {
+      "id": "telephone",
+      "title": { "en": "Telephone", "ja": "電話の声" },
+      "target": "audio",
+      "params": [
+        { "key": "low", "label": { "en": "Low cut", "ja": "低音カット" }, "type": "number", "default": 300, "min": 50, "max": 1000, "step": 10, "unit": "Hz" },
+        { "key": "high", "label": { "en": "High cut", "ja": "高音カット" }, "type": "number", "default": 3400, "min": 1000, "max": 8000, "step": 50, "unit": "Hz" }
+      ]
+    }
+  ]
+}

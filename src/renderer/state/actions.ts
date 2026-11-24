@@ -89,7 +89,18 @@ export async function saveProjectAction(saveAs = false): Promise<boolean> {
 
 // ---------------------------------------------------------------- media
 
-export async function importPaths(all: string[]): Promise<MediaItem[]> {
+export async function importPaths(all0: string[], opts: { plugins?: boolean } = {}): Promise<MediaItem[]> {
+  // Files a plugin that is on reads (by extension) go to that plugin, unless a plugin is the one importing.
+  let all = all0
+  if (opts.plugins !== false) {
+    const { importerFor, runImporter } = await import('./plugins')
+    all = []
+    for (const path of all0) {
+      const imp = importerFor(path)
+      if (imp) await runImporter(imp.plugin.manifest.id, imp.importer, path)
+      else all.push(path)
+    }
+  }
   // Subtitle files become subtitle tracks rather than media.
   const subtitleFiles = all.filter(isSubtitleFile)
   if (subtitleFiles.length) await importSubtitleFilesAction(subtitleFiles)

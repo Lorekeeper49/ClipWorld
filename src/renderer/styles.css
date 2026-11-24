@@ -591,3 +591,33 @@ html:lang(ja) body { font-family: "Segoe UI Variable Text", "Segoe UI", "Yu Goth
 /* A window or dialog that crashed */
 .crashed { margin: 16px; padding: 14px; border: 1px solid var(--danger); border-radius: 8px; background: #2a1418; display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
 .modal-backdrop + .crashed, body > #root > .app > .crashed { position: fixed; top: 80px; left: 50%; transform: translateX(-50%); z-index: 2100; }
+
+/* Plugins: the manager, a plugin's question, and plugin windows */
+.plugin-toolbar { display: flex; gap: 6px; flex-wrap: wrap; }
+.plugin-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; max-height: 52vh; overflow-y: auto; }
+.plugin-row { background: var(--raised); border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; display: flex; flex-direction: column; gap: 6px; }
+.plugin-head { display: flex; align-items: flex-start; gap: 10px; }
+.plugin-head .toggle { margin-top: 2px; }
+.plugin-title { flex: 1; min-width: 0; }
+.plugin-title p { margin: 2px 0 0; }
+.plugin-state { font-size: 11px; padding: 2px 8px; border-radius: 10px; background: var(--raised-2); color: var(--muted, #9aa3b5); white-space: nowrap; }
+.plugin-state.running { background: rgba(61, 220, 151, 0.15); color: var(--ok); }
+.plugin-state.error { background: rgba(255, 93, 108, 0.15); color: var(--danger); }
+.plugin-adds { margin: 0; }
+.plugin-error { color: var(--danger); margin: 0; overflow-wrap: anywhere; }
+.plugin-buttons { display: flex; gap: 6px; flex-wrap: wrap; }
+.plugin-log { margin: 0; max-height: 160px; overflow: auto; background: #0d0f13; border: 1px solid var(--border); border-radius: 6px; padding: 6px 8px; font-size: 11px; white-space: pre-wrap; overflow-wrap: anywhere; }
+.plugin-confirm { border: 1px solid var(--border-strong); border-radius: 6px; padding: 8px 10px; display: flex; flex-direction: column; gap: 6px; background: #181b22; }
+.plugin-confirm p { margin: 0; }
+.plugin-warning { color: #ffcf6b; display: flex; gap: 6px; align-items: flex-start; }
+.plugin-conflicts { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.plugin-conflicts li { display: flex; flex-direction: column; gap: 1px; }
+.plugin-conflicts label { display: flex; gap: 6px; align-items: center; }
+.plugin-confirm-buttons { display: flex; gap: 6px; justify-content: flex-end; }
+.plugin-broken { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; font-size: 12px; overflow-wrap: anywhere; }
+.plugin-form { display: flex; flex-direction: column; gap: 8px; }
+.plugin-form p { margin: 0; white-space: pre-wrap; }
+.plugin-form textarea { resize: vertical; font: inherit; }
+.plugin-form-from { margin-right: auto; }
+.plugin-panel { padding: 0; overflow: hidden; }
+.plugin-panel iframe { width: 100%; height: 100%; border: 0; display: block; background: transparent; }

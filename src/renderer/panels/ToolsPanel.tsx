@@ -285,6 +285,8 @@ function MaskTool({ clip }: { clip: Clip }) {
 
 function EffectsTool({ clip }: { clip: Clip }) {
   const project = useStore((s) => s.project)
+  // Plugins add effects to the list as they're turned on and off.
+  useStore((s) => s.plugins)
   // Effects can go on the selected clip or on any audio clip linked to it.
   const targets = useMemo(() => {
     const group = groupOf(project, clip)

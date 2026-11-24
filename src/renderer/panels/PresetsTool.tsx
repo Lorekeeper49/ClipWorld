@@ -15,13 +15,15 @@
  * see <https://www.gnu.org/licenses/>.
  */
 
-// The Presets section of the Tools window: save the selected clips as a preset, and place saved presets
-// on the timeline in any project.
+// The Presets section of the Tools window: save the selected clips as a preset, place saved presets on
+// the timeline in any project, and export presets as zips or import them.
 import { useEffect, useState } from 'react'
 import { type Preset, presetLength } from '@shared/presets'
 import { Btn, Section, Toggle, formatDuration } from '../components/ui'
 import { useT } from '../i18n'
-import { applyPresetAction, deletePresetAction, presetClipCount, renamePresetAction, savePresetAction } from '../state/presets'
+import {
+  applyPresetAction, deletePresetAction, importPresetAction, presetClipCount, renamePresetAction, savePresetAction, startPresetExport
+} from '../state/presets'
 import { patchSettings, useStore } from '../state/store'
 
 function PresetRow({ preset }: { preset: Preset }) {
@@ -57,6 +59,7 @@ function PresetRow({ preset }: { preset: Preset }) {
       <Btn small primary icon="plus" title={t('presets.applyHint')} onClick={() => void applyPresetAction(preset.id)} testId="preset-apply">
         {t('presets.apply')}
       </Btn>
+      <Btn small icon="export" title={t('presets.exportHint')} onClick={() => startPresetExport(preset.id)} testId="preset-export" />
       {confirming ? (
         <Btn small danger onClick={() => void deletePresetAction(preset.id)} testId="preset-delete-confirm">{t('presets.confirmDelete')}</Btn>
       ) : (
@@ -92,6 +95,9 @@ export function PresetsTool() {
       ) : (
         <ul className="preset-list">{presets.map((p) => <PresetRow key={p.id} preset={p} />)}</ul>
       )}
+      <Btn small icon="upload" title={t('presets.importHint')} onClick={() => void importPresetAction()} testId="preset-import">
+        {t('presets.import')}
+      </Btn>
       <Toggle label={t('presets.autoImport')} value={auto} onChange={(v) => patchSettings({ autoImportPresetMedia: v })} testId="preset-auto-import" />
     </Section>
   )

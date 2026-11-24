@@ -31,6 +31,7 @@ import { type State, get, set, useStore } from '../state/store'
 import { AudioEngine, type EffectChain } from './audio'
 import { type LayerEnv, Scratch, applyMask, differenceMaskCanvas, renderLayer } from './layers'
 import { measureText, rasterSubtitle, rasterText } from './raster'
+import { pluginEffectLayer } from './pluginPreview'
 import { clipTrackTime, cueAt } from '@shared/subtitles'
 import { clipSegments, crossfadeGains, playAt, virtualAt } from '@shared/loop'
 
@@ -901,7 +902,11 @@ class Player {
     image: (mediaId) => {
       const url = get().mediaCache[mediaId]?.sourceUrl
       return url ? this.image(url) : null
-    }
+    },
+    pluginEffect: (e, src, cw, ch, pxRef, frame, duration) =>
+      pluginEffectLayer(e, src, cw, ch, pxRef, frame, duration, {
+        playing: this.playing, fps: get().project.settings.fps, redraw: () => this.invalidate()
+      })
   }
 
   private plates = new Map<string, { canvas: HTMLCanvasElement; ready: boolean }>()

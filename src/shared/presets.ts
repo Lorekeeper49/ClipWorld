@@ -148,6 +148,81 @@ export function parsePreset(raw: unknown): Preset | null {
   }
 }
 
+// ---------------------------------------------------------------- preset files (export and import)
+// An exported preset is a zip holding preset.json and the media files the user chose to include, side by
+// side. preset.json refers to each file by its name alone, so the preset also works once unzipped: its
+// files are then looked for next to preset.json.
+
+/** Marks a JSON file as an exported ClipWorld preset. */
+export const PRESET_FILE_FORMAT = 'ClipWorld preset'
+/** The preset's JSON file inside an export. */
+export const PRESET_JSON = 'preset.json'
+
+/** The contents of preset.json. */
+export interface PresetJson {
+  format: typeof PRESET_FILE_FORMAT
+  version: number
+  preset: Preset
+}
+
+/** The last part of a path, with either kind of slash. */
+export const fileName = (path: string): string => path.split(/[\\/]/).pop() ?? path
+
+/** A name that is a plain file name on every system: no folders, nothing Windows forbids. */
+export function safeFileName(name: string, fallback = 'file'): string {
+  const cleaned = name
+    .replace(/[<>:"/\\|?*\u0000-\u001f]/g, '_')
+    .replace(/[. ]+$/, '')
+    .trim()
+  if (!cleaned || /^(con|prn|aux|nul|com\d|lpt\d)(\..*)?$/i.test(cleaned)) return fallback
+  return cleaned
+}
+
+/**
+ * The file name each of the preset's media gets in an export (by media id): its own name, numbered when
+ * two files share one, as "clip (2).mp4".
+ */
+export function presetFileNames(media: MediaItem[]): Map<string, string> {
+  const names = new Map<string, string>()
+  const taken = new Set([PRESET_JSON])
+  for (const m of media) {
+    const base = safeFileName(fileName(m.path), safeFileName(m.name, 'media'))
+    const dot = base.lastIndexOf('.')
+    const [stem, ext] = dot > 0 ? [base.slice(0, dot), base.slice(dot)] : [base, '']
+    let name = base
+    for (let n = 2; taken.has(name.toLowerCase()); n++) name = `${stem} (${n})${ext}`
+    taken.add(name.toLowerCase())
+    names.set(m.id, name)
+  }
+  return names
+}
+
+/** preset.json for an export: the preset with each media file referred to by its file name only. */
+export function presetJsonFor(preset: Preset, names: Map<string, string>): PresetJson {
+  const copy = clone(preset)
+  copy.media = copy.media.map(({ relPath: _rel, fastSeek: _fs, ...m }) => ({ ...m, path: names.get(m.id) ?? safeFileName(fileName(m.path)) }))
+  return { format: PRESET_FILE_FORMAT, version: PRESET_VERSION, preset: copy }
+}
+
+const isAbsolute = (path: string) => /^([a-z]:[\\/]|[\\/])/i.test(path)
+
+/**
+ * Reads preset.json (or a preset file saved by ClipWorld itself) as a new preset. Media given by name are
+ * looked for in `folder` (where preset.json is, or where an export's files were unpacked); full paths are
+ * kept as they are. Null if it isn't a preset.
+ */
+export function readPresetFile(raw: unknown, folder: string, sep = '/'): Preset | null {
+  const r = raw as Partial<PresetJson> | null
+  const inner = r && typeof r === 'object' && r.format === PRESET_FILE_FORMAT ? r.preset : raw
+  if (r && typeof r === 'object' && r.format === PRESET_FILE_FORMAT && (Number(r.version) || 0) > PRESET_VERSION) return null
+  const preset = parsePreset(inner)
+  if (!preset) return null
+  const dir = folder.replace(/[\\/]+$/, '')
+  preset.id = uid('p')
+  preset.media = preset.media.map((m) => ({ ...m, path: isAbsolute(m.path) ? m.path : `${dir}${sep}${m.path.replace(/[\\/]/g, sep)}` }))
+  return preset
+}
+
 /** Length of the preset on the timeline, seconds. */
 export const presetLength = (preset: Preset): number =>
   Math.max(0, ...preset.clips.map((c) => c.start + c.duration)) - preset.origin

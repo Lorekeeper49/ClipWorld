@@ -52,6 +52,8 @@ export interface ExportAssets {
   subtitles: Record<string, TextAsset>
   /** Reversed clips, by clip id: ffconcat lists of their pieces, already reversed (see reversedSource). */
   reversed?: Record<string, { v?: string; a?: string }>
+  /** Plugin effects, by effect id: the ffmpeg filter chain the plugin gave for that effect's settings. */
+  pluginFilters?: Record<string, string>
 }
 
 export interface Caps {
@@ -390,6 +392,12 @@ function buildVisualLayer(g: Graph, c: Clip, p: Project, assets: ExportAssets): 
     if (!e.enabled) continue
     const def = EFFECT_MAP[e.type]
     if (!def || def.target !== 'video') continue
+    if (def.kind === 'plugin') {
+      // Whatever the plugin's filter does to the size or pixel format, the clip carries on as before.
+      const f = assets.pluginFilters?.[e.id]
+      if (f) chain.add(f, `scale=${W0}:${H0}:flags=bicubic`, 'format=rgba', 'setsar=1')
+      continue
+    }
     if (def.kind === 'css') {
       chain.add(...cssEffectFfmpeg(e, kRef))
       continue
@@ -612,6 +620,11 @@ function buildAudioClip(g: Graph, c: Clip, p: Project, assets: ExportAssets, cap
   const rubberband = caps.filters.includes('rubberband')
   for (const e of c.effects) {
     if (!e.enabled || EFFECT_MAP[e.type]?.target !== 'audio') continue
+    if (EFFECT_MAP[e.type].kind === 'plugin') {
+      const f = assets.pluginFilters?.[e.id]
+      if (f) chain.add(f, `aresample=${SAMPLE_RATE}`, 'aformat=sample_fmts=fltp:channel_layouts=stereo')
+      continue
+    }
     if (e.type === 'reverb') {
       const path = assets.irs[e.id]
       if (!path) continue

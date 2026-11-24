@@ -50,7 +50,7 @@ Six dockable panels. Drag tabs to rearrange, split, tab together or float them. 
 | **Preview** | Always fits the video frame. Transport controls and a 0–100% preview volume that never affects the export. |
 | **Timeline** | Split at the playhead (**Split** button or Ctrl+K), copy/cut/paste/duplicate, snapping, Ctrl+wheel zoom. **Dragging a clip's edge changes its speed** so the clip fills the new length, audio included. Alt+drag an edge to trim instead, or Ctrl+drag to loop the clip so it plays again and again to fill the new length. A negative speed (such as −100%) plays a video or audio clip backwards. A time box on the toolbar (**Ctrl+G**) jumps the playhead to a time typed as `mm:ss:ff`, `mm:ss` or seconds. |
 | **Properties** | Speed (negative plays backwards), pitch and looping for the selected clip: loop count (fractions allowed), loop start and end points, an optional intro (play from the file's start into the loop) and outro (carry on past the loop end to the file's end). A partial last loop crossfades into the outro, with a warning that it may not sound seamless. |
-| **Tools** | Text (any installed font, size, bold/italic, fill, outline color and width), **voiceover** (plays the timeline from the playhead while recording your microphone, then adds the take as an audio clip lined up with the video), zoom on video (start/end, focal point, easing), transform (position, scale, rotation, opacity and crop, start/end with easing), an easing graph with every curve from easings.net that you can reshape freely and save as your own presets, clip speed, masks (hide a color, hide or show areas with an image, or hide what matches a clean background or the video underneath — for clone shots), stackable filters and effects, and **presets**: save the selected clips (with their effects, text and timing) and add them to any project later. If a preset uses files the project doesn't have yet, ClipWorld asks before importing them, or imports them straight away when **Auto import media when using presets** is on. |
+| **Tools** | Text (any installed font, size, bold/italic, fill, outline color and width), **voiceover** (plays the timeline from the playhead while recording your microphone, then adds the take as an audio clip lined up with the video), zoom on video (start/end, focal point, easing), transform (position, scale, rotation, opacity and crop, start/end with easing), an easing graph with every curve from easings.net that you can reshape freely and save as your own presets, clip speed, masks (hide a color, hide or show areas with an image, or hide what matches a clean background or the video underneath — for clone shots), stackable filters and effects, and **presets**: save the selected clips (with their effects, text and timing) and add them to any project later. If a preset uses files the project doesn't have yet, ClipWorld asks before importing them, or imports them straight away when **Auto import media when using presets** is on. Presets can be **exported** as a zip (`preset.json`, naming files without folders, plus whichever of its files you choose) and **imported** from the zip or from an unzipped `preset.json`. |
 | **Metadata** | Export resolution and frame rate, applied live. Source-file details. |
 | **Audio** | The audio tracks of the selected video, each with its own 0–500% volume, mute and level meter. |
 
@@ -64,6 +64,7 @@ English and Japanese, chosen in **Edit ▸ Language…** (the system language by
 
 - Projects save as `.vcws` (JSON), in Documents/ClipWorld/Projects unless you choose elsewhere. Media is stored by absolute path plus a path relative to the project, so a project moved together with its media still opens. Missing files can be relinked from the Media panel. Unsaved work is autosaved for crash recovery.
 - **File ▸ Export…** or **Ctrl+Shift+E**: MP4, MKV, MOV, WebM, AVI, GIF (optionally transparent: empty areas see-through, and a chosen color made see-through with tolerance, softness and feather, previewed in the Export window), plus audio-only MP3, WAV, FLAC, Ogg and M4A. Codecs are H.264, H.265, VP9, AV1, ProRes and MPEG-4, with NVIDIA NVENC / Intel Quick Sync when the GPU supports them. Audio can be mixed into one track or kept as separate tracks.
+- **Plugins** (**Plugins ▸ Manage plugins…**) add commands with shortcuts, file importers and exporters, effects (ffmpeg filters, shown in the paused preview and the export) and docked HTML windows. They're separate programs in any language (JavaScript and TypeScript run on ClipWorld's own Node.js; Python, Lua and others on the computer's interpreter) speaking JSON-RPC over stdin/stdout. Each one is off until the user turns it on, after a warning, and ClipWorld offers to turn off plugins it would clash with. See [PLUGINS.md](PLUGINS.md); SDKs and one example per language are in `plugins/`.
 - **Edit ▸ Settings…** (Ctrl+,) holds every preference: language, preview volume, the voiceover microphone, preset auto-import, window layout, the color of each kind of clip on the timeline, and keyboard shortcuts (every one can be changed).
 
 ## How it works
@@ -75,6 +76,8 @@ The project model (`src/shared/model.ts`) has two renderers:
 
 **Optional fast seeking.** If jumping around a video is slow or choppy, click **Optimize for fast seeking** on it in the Media panel. ClipWorld then builds a 720p preview copy with a keyframe every 0.5 s (roughly half a gigabyte per hour of video), in the background, at low priority, in 60-second chunks. The choice is saved in the project and can be stopped or turned off; videos the preview cannot decode at all get the copy automatically. Chunks around the playhead are built first, finished chunks are reused after a restart, and the preview switches to a chunk as soon as it exists. Export always reads the original file. The copy uses NVIDIA NVENC when the driver supports it, otherwise x264. On import, all of a video's audio tracks are extracted in one read of the file.
 
+Plugins are managed in `src/main/plugins.ts` and run by `src/main/pluginProcess.ts`; the window side, which answers what plugins ask about the project, is `src/renderer/state/plugins.ts`.
+
 Each effect is defined once in `src/shared/effects.ts`. Color filters use the CSS filter-spec maths on both sides, and text and gradient overlays are rasterised by the same canvas code for both, so the export matches the preview.
 
 ## Tests
@@ -82,7 +85,8 @@ Each effect is defined once in `src/shared/effects.ts`. Color filters use the CS
 ```bash
 npm test          # timeline ops, easing, and real-ffmpeg exports checked with ffprobe
 npm run test:e2e  # launches the app and drives import → split → stretch → volume → text/effects → save → export,
-                  # plus subtitles, masks, Convert to MP4, and a sweep for untranslated text in every language
+                  # plus subtitles, masks, Convert to MP4, presets, plugins (the example plugins), and a sweep for
+                  # untranslated text in every language
 ```
 
 ## License
@@ -90,5 +94,7 @@ npm run test:e2e  # launches the app and drives import → split → stretch →
 Copyright (C) 2026 Lorekeeper49
 
 ClipWorld is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version. It is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See [LICENSE](LICENSE) for the full text.
+
+The plugin SDKs and example plugins in `plugins/` are MIT licensed instead (see [plugins/LICENSE](plugins/LICENSE)), so plugins built from them can use any license.
 
 The bundled ffmpeg builds are also GPL v3. Their license (`LICENSE.txt`) and a note on where their source code is (`SOURCE.txt`) ship next to them, and each release's page carries their complete source code (see [Releasing](#releasing-from-windows)).

@@ -17,12 +17,14 @@
 
 // Presets UI test: save selected clips as a preset from the Tools window, use it in a new project (the
 // "files need to be imported" question, No and Yes, the auto-import checkbox), check presets and the
-// checkbox survive a restart, and handle a file that has been moved. Run with: npm run build && node tests/e2e/presets.mjs
+// checkbox survive a restart, handle a file that has been moved, and export a preset as a zip and import
+// it back (from the zip, and from preset.json once unzipped). Run with: npm run build && node tests/e2e/presets.mjs
 import { _electron as electron } from 'playwright'
 import { existsSync, mkdirSync, readdirSync, renameSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { spawnSync } from 'node:child_process'
+import yauzl from 'yauzl'
 import { ffmpeg, root } from './tools.mjs'
 
 const dir = join(tmpdir(), 'clipworld-preset-test')
@@ -158,6 +160,79 @@ now = await project(page)
 check(now.media.find((m) => m.name === 'mask.png')?.missing, 'it is added as missing media, ready to be located')
 check(!(await page.getByTestId('preset-auto-import').isChecked()), 'answering without the checkbox leaves auto import off')
 renameSync(files.mask + '.moved', files.mask)
+
+step('export the preset as a zip, leaving one file out')
+// Imported zips unpack into Documents/ClipWorld/Presets: point Documents at the test folder.
+const docs = join(dir, 'docs')
+await app.evaluate(({ app }, d) => app.setPath('documents', d), docs)
+const zipPath = join(dir, 'shared', 'Lower third.zip')
+mkdirSync(join(dir, 'shared'), { recursive: true })
+writeFileSync(dialogs, JSON.stringify({ open: [], save: [zipPath] }))
+await page.getByTestId('preset-export').click()
+await page.waitForSelector('[data-testid=preset-export-files]')
+const boxes = page.getByTestId('preset-export-file')
+await page.waitForFunction(() => document.querySelectorAll('[data-testid=preset-export-file]:checked').length === 2)
+check(await boxes.count() === 2, 'the export window lists both files, ticked')
+await boxes.nth(1).uncheck()
+check((await page.locator('.modal').innerText()).includes('1 file is left out'), 'and says what leaving one out means')
+await page.screenshot({ path: join(root, 'tests', '.tmp', 'presets-export.png') })
+await page.getByTestId('preset-export-save').click()
+await page.waitForFunction(() => !document.querySelector('[data-testid=preset-export-files]'), null, { timeout: 20000 })
+check(existsSync(zipPath), 'the zip was saved')
+const zip = await yauzl.openPromise(zipPath, { lazyEntries: true })
+const entries = {}
+for await (const entry of zip.eachEntry()) {
+  const chunks = []
+  for await (const c of await zip.openReadStreamPromise(entry)) chunks.push(c)
+  entries[entry.fileName] = Buffer.concat(chunks)
+}
+zip.close()
+check(Object.keys(entries).sort().join() === 'preset.json,take.mp4', `it holds preset.json and take.mp4 (${Object.keys(entries).join(', ')})`)
+const json = JSON.parse(entries['preset.json'].toString('utf8'))
+check(json.preset.media.map((m) => m.path).sort().join() === 'mask.png,take.mp4', 'preset.json names the files without folders')
+check(!entries['preset.json'].toString('utf8').includes(dir.replace(/\\/g, '\\\\')), 'and holds no folder paths at all')
+
+step('import the zip')
+writeFileSync(dialogs, JSON.stringify({ open: [zipPath], save: [] }))
+await page.getByTestId('preset-import').click()
+await page.waitForFunction(() => window.__cw.get().presets.length === 2, null, { timeout: 20000 })
+const imported = await page.evaluate(() => window.__cw.get().presets[1])
+const unpacked = join(docs, 'ClipWorld', 'Presets', 'Lower third')
+const takePath = imported.media.find((m) => m.name === 'take.mp4').path
+check(takePath === join(unpacked, 'take.mp4') && existsSync(takePath), `take.mp4 is unpacked into Documents/ClipWorld/Presets/<preset name> (${takePath})`)
+check(!existsSync(join(unpacked, 'mask.png')), 'the file that was left out is not there')
+await freshProject(page)
+await page.getByTestId('preset-apply').nth(1).click()
+await page.waitForSelector('[data-testid=preset-files]')
+check(/mask\.png[\s\S]*(not found)/i.test(await page.getByTestId('preset-files').innerText()), 'using it lists mask.png as not found')
+await page.getByTestId('preset-import-yes').click()
+await page.waitForFunction(() => window.__cw.get().project.clips.length === 3, null, { timeout: 20000 })
+check(await page.evaluate((p) => window.__cw.get().project.media.some((m) => m.path === p), takePath), 'the project uses the unpacked take.mp4')
+
+step('import preset.json from the unzipped folder')
+const unzipped = join(dir, 'unzipped')
+mkdirSync(unzipped, { recursive: true })
+const tar = process.platform === 'win32' ? join(process.env.SystemRoot || 'C:\\Windows', 'System32', 'tar.exe') : 'bsdtar'
+check(spawnSync(tar, ['-xf', zipPath, '-C', unzipped]).status === 0, 'unzipped it')
+writeFileSync(dialogs, JSON.stringify({ open: [join(unzipped, 'preset.json')], save: [] }))
+await page.getByTestId('preset-import').click()
+await page.waitForFunction(() => window.__cw.get().presets.length === 3, null, { timeout: 20000 })
+const fromJson = await page.evaluate(() => window.__cw.get().presets[2])
+check(fromJson.media.find((m) => m.name === 'take.mp4').path === join(unzipped, 'take.mp4'), 'its files are used where they are, next to preset.json')
+
+step('a file that is not a preset')
+writeFileSync(join(dir, 'notes.json'), '{"hello": 1}')
+writeFileSync(dialogs, JSON.stringify({ open: [join(dir, 'notes.json')], save: [] }))
+await page.getByTestId('preset-import').click()
+await page.waitForSelector('.toast.error')
+check((await page.locator('.toast.error').last().innerText()).includes("notes.json isn't a ClipWorld preset"), 'says it is not a preset')
+check(await page.evaluate(() => window.__cw.get().presets.length) === 3, 'and adds nothing')
+// Back to the one preset for the steps below.
+await page.evaluate(async () => {
+  const [first, ...rest] = window.__cw.get().presets
+  for (const p of rest) await window.cw.deletePreset(p.id)
+  window.__cw.set({ presets: [first] })
+})
 
 step('rename and delete')
 await page.getByTestId('preset-name').fill('Lower third (blue)')

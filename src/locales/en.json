@@ -17,7 +17,8 @@
     "fps": "{{fps}} fps",
     "seconds": "{{s}} s",
     "audioTracks_one": "{{count}} audio track",
-    "audioTracks_other": "{{count}} audio tracks"
+    "audioTracks_other": "{{count}} audio tracks",
+    "ok": "OK"
   },
   "menu": {
     "file": "File",
@@ -32,7 +33,11 @@
     "language": "Language",
     "resetLayout": "Reset layout",
     "devTools": "Developer tools",
-    "about": "About ClipWorld"
+    "about": "About ClipWorld",
+    "plugins": "Plugins",
+    "managePlugins": "Manage plugins…",
+    "importWith": "Import {{name}}…",
+    "exportWith": "Export {{name}}…"
   },
   "panels": {
     "media": "Media",
@@ -167,7 +172,12 @@
     "openProject": "Open project",
     "saveProject": "Save project",
     "projectFiles": "ClipWorld project",
-    "exportVideo": "Export video"
+    "exportVideo": "Export video",
+    "exportPreset": "Export preset",
+    "importPreset": "Import preset",
+    "presetFiles": "ClipWorld preset",
+    "installPlugin": "Install plugin",
+    "pluginFiles": "Plugin (zip or plugin.json)"
   },
   "errors": {
     "exportRunning": "An export is already running",
@@ -283,7 +293,8 @@
       "Edit": "Edit",
       "Playback": "Playback",
       "Timeline": "Timeline",
-      "Subtitles": "Subtitles"
+      "Subtitles": "Subtitles",
+      "Plugins": "Plugins"
     }
   },
   "fonts": {
@@ -624,7 +635,24 @@
     "missingHint_one": "{{count}} file is no longer where it was saved from. It will be added as missing media: use Locate in the Media window to find it.",
     "missingHint_other": "{{count}} files are no longer where they were saved from. They will be added as missing media: use Locate in the Media window to find them.",
     "yes": "Yes",
-    "no": "No"
+    "no": "No",
+    "exportHint": "Export this preset as a zip, to share it or keep a copy",
+    "exportTitle": "Export preset “{{name}}”",
+    "exportQuestion": "Choose the files to put in the zip with the preset:",
+    "exportLeftOut_one": "{{count}} file is left out. The preset only names it, so whoever imports the preset needs that file already.",
+    "exportLeftOut_other": "{{count}} files are left out. The preset only names them, so whoever imports the preset needs those files already.",
+    "exportAll": "Everything the preset uses goes in the zip.",
+    "exportButton": "Export…",
+    "exporting": "Exporting…",
+    "exported": "Exported preset “{{name}}”",
+    "exportedWithout_one": "Exported “{{name}}” without {{count}} file that could not be found: {{files}}",
+    "exportedWithout_other": "Exported “{{name}}” without {{count}} files that could not be found: {{files}}",
+    "exportFailed": "Couldn't export the preset: {{error}}",
+    "import": "Import preset…",
+    "importHint": "Add a preset exported from ClipWorld: its zip, or preset.json from an unzipped one",
+    "imported": "Imported preset “{{name}}”",
+    "notPreset": "{{name}} isn't a ClipWorld preset",
+    "importFailed": "Couldn't import {{name}}: {{error}}"
   },
   "effects": {
     "groups": {
@@ -632,7 +660,8 @@
       "Stylize": "Stylize",
       "Mask": "Mask",
       "Transition": "Transition",
-      "Audio": "Audio"
+      "Audio": "Audio",
+      "Plugins": "Plugins"
     },
     "brightness": {
       "name": "Brightness",
@@ -979,5 +1008,68 @@
     "sub": "MicroDVD (.sub) — frame based",
     "lrc": "LRC lyrics (.lrc)",
     "txt": "Plain-text transcript (.txt)"
+  },
+  "plugins": {
+    "title": "Plugins",
+    "intro": "Plugins add commands, file types, effects and windows to ClipWorld. They are programs written by other people: only turn on plugins you trust.",
+    "empty": "No plugins yet. Install one, or put its folder in the plugins folder and click Look again.",
+    "install": "Install plugin…",
+    "openFolder": "Open plugins folder",
+    "rescan": "Look again",
+    "brokenTitle": "These plugin folders could not be read:",
+    "state": {
+      "off": "Off",
+      "starting": "Starting…",
+      "running": "On",
+      "error": "Problem"
+    },
+    "adds": {
+      "commands_one": "{{count}} command",
+      "commands_other": "{{count}} commands",
+      "importers_one": "{{count}} file type to import",
+      "importers_other": "{{count}} file types to import",
+      "exporters_one": "{{count}} file type to export",
+      "exporters_other": "{{count}} file types to export",
+      "effects_one": "{{count}} effect",
+      "effects_other": "{{count}} effects",
+      "panels_one": "{{count}} window",
+      "panels_other": "{{count}} windows"
+    },
+    "linked": "loaded from its own folder",
+    "restart": "Restart",
+    "log": "Messages",
+    "hideLog": "Hide messages",
+    "logEmpty": "No messages yet.",
+    "remove": "Remove",
+    "confirmRemove": "Remove?",
+    "forget": "Forget",
+    "confirmForget": "Forget?",
+    "turnOnHint": "Turn this plugin on",
+    "turnOffHint": "Turn this plugin off",
+    "trustWarning": "A plugin is a program that can do anything you can on this computer, such as reading and changing your files. Only turn it on if you trust where it came from.",
+    "conflictIntro_one": "Turning on {{name}} could break {{count}} plugin that is on:",
+    "conflictIntro_other": "Turning on {{name}} could break {{count}} plugins that are on:",
+    "turnOff": "Turn off {{name}}",
+    "conflictReason": {
+      "declared": "One of the two says it doesn't work alongside the other.",
+      "shortcut": "Both use the shortcut {{detail}}, so one of them would stop working.",
+      "importer": "Both import .{{detail}} files, so only one of them would get them."
+    },
+    "turnOn": "Turn on",
+    "turnOnAndOff_one": "Turn on, and turn {{count}} off",
+    "turnOnAndOff_other": "Turn on, and turn {{count}} off",
+    "installFailed": "Couldn't install the plugin: {{error}}",
+    "installed": "Plugin installed. Turn it on below.",
+    "updated": "Plugin updated",
+    "notRunning": "{{name}} isn't running. Turn it on in Plugins ▸ Manage plugins.",
+    "effectNeedsPlugin": "An effect comes from the plugin {{name}}, which isn't running. Turn it on in Plugins ▸ Manage plugins, or remove the effect.",
+    "sameId": "A plugin with the same id is already loaded from {{dir}}",
+    "noManifest": "The zip has no plugin.json",
+    "failed": "The plugin ran into a problem: {{error}}",
+    "importFailed": "Couldn't import {{name}}: {{error}}",
+    "exported": "Exported {{name}}",
+    "exportFailed": "Couldn't export: {{error}}",
+    "panelOff": "This plugin is off. Turn it on in Plugins ▸ Manage plugins.",
+    "panelMissing": "This plugin window is no longer available."
   }
 }
